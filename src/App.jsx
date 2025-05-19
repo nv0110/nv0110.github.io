@@ -182,6 +182,7 @@ const TOTAL_BOSS_CAP = 180;
 
 function App() {
   const [characters, setCharacters] = useState([]);
+  const [lastDifficulties, setLastDifficulties] = useState({}); // Store last selected difficulties per character
   const [newCharName, setNewCharName] = useState('');
   const [showTable, setShowTable] = useState(false);
   const [editingNameIdx, setEditingNameIdx] = useState(null);
@@ -205,6 +206,7 @@ function App() {
   // Remove a character
   const removeCharacter = (idx) => {
     setCharacters(characters.filter((_, i) => i !== idx));
+    setSelectedCharIdx(null);
   };
 
   // Toggle boss selection for a character (robust version)
@@ -212,20 +214,56 @@ function App() {
     setCharacters(chars =>
       chars.map((char, i) => {
         if (i !== charIdx) return char;
-        // Remove any previous selection for this boss
-        let filteredBosses = char.bosses.filter(b => b.name !== bossName);
-        // If difficulty is empty (None), just remove
+        
+        // If no difficulty (unselecting), remove boss but remember last difficulty
         if (!difficulty) {
-          return { ...char, bosses: filteredBosses };
+          const existingBoss = char.bosses.find(b => b.name === bossName);
+          if (existingBoss) {
+            // Update last difficulties state
+            setLastDifficulties(prev => ({
+              ...prev,
+              [char.name]: {
+                ...(prev[char.name] || {}),
+                [bossName]: existingBoss.difficulty
+              }
+            }));
+            // Remove boss
+            return { ...char, bosses: char.bosses.filter(b => b.name !== bossName) };
+          }
+          return char;
         }
-        // Add/replace with new difficulty
-        // If under cap or replacing existing
-        if (filteredBosses.length < CHARACTER_BOSS_CAP || char.bosses.find(b => b.name === bossName)) {
+
+        // If boss exists, update its difficulty
+        if (char.bosses.find(b => b.name === bossName)) {
+          return {
+            ...char,
+            bosses: char.bosses.map(b => 
+              b.name === bossName 
+                ? { 
+                    ...b, 
+                    difficulty, 
+                    price: getBossPrice(bossData.find(b => b.name === bossName), difficulty),
+                    partySize: 1
+                  } 
+                : b
+            )
+          };
+        }
+
+        // If boss doesn't exist and we're under cap, add new boss
+        if (char.bosses.length < CHARACTER_BOSS_CAP) {
+          // Check if we have a stored difficulty for this boss
+          const lastDifficulty = lastDifficulties[char.name]?.[bossName] || difficulty;
           return {
             ...char,
             bosses: [
-              ...filteredBosses,
-              { name: bossName, difficulty, price: getBossPrice(bossData.find(b => b.name === bossName), difficulty), partySize: 1 }
+              ...char.bosses,
+              { 
+                name: bossName, 
+                difficulty: lastDifficulty,
+                price: getBossPrice(bossData.find(b => b.name === bossName), lastDifficulty),
+                partySize: 1
+              }
             ]
           };
         }
@@ -265,7 +303,7 @@ function App() {
   const totalBossCount = () => characters.reduce((sum, c) => sum + c.bosses.length, 0);
 
   // Total meso value for a character (split by party size)
-  const charTotal = (char) => char.bosses.reduce((sum, b) => sum + (b.price / (b.partySize || 1)), 0);
+  const charTotal = (char) => char.bosses.reduce((sum, b) => b.active ? sum + (b.price / (b.partySize || 1)) : sum, 0);
 
   // Total meso value for all characters
   const overallTotal = characters.reduce((sum, c) => sum + charTotal(c), 0);
@@ -477,7 +515,7 @@ function App() {
           <thead>
             <tr style={{ background: '#444', color: '#fff' }}>
               <th style={{ padding: '10px 8px', textAlign: 'left', fontWeight: 700, fontSize: '1.05em', borderRadius: '8px 0 0 0', minWidth: 180, verticalAlign: 'bottom' }}>Boss</th>
-              <th style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 700, fontSize: '1.05em', minWidth: 110 }}>Mesos</th>
+              <th style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 700, fontSize: '1.05em', minWidth: 110, borderRadius: characters.length === 0 ? '0 8px 0 0' : undefined }}>Mesos</th>
               {characters.map((char, idx) => (
                 <th
                   key={idx}
