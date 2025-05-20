@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import './App.css'
 
 // Boss data, grouped by boss name with difficulties as array
@@ -181,8 +181,10 @@ const CHARACTER_BOSS_CAP = 14;
 const TOTAL_BOSS_CAP = 180;
 
 function App() {
+  // State declarations
   const [characters, setCharacters] = useState([]);
-  const [lastDifficulties, setLastDifficulties] = useState({}); // Store last selected difficulties per character
+  const [lastDifficulties, setLastDifficulties] = useState({});
+  const [lastPartySizes, setLastPartySizes] = useState({}); // Store last selected party sizes per character
   const [newCharName, setNewCharName] = useState('');
   const [showTable, setShowTable] = useState(false);
   const [editingNameIdx, setEditingNameIdx] = useState(null);
@@ -192,6 +194,31 @@ function App() {
   const actionHoverTimeout = useRef(null);
   // For character selection
   const [selectedCharIdx, setSelectedCharIdx] = useState(null);
+
+  // Dynamic sorting based on first character's selections
+  const dynamicSortedBossData = useMemo(() => {
+    return [...bossData].sort((a, b) => {
+      // Get first character's selections
+      const firstChar = characters[0];
+      
+      // Get values for comparison
+      const getBossValue = (boss) => {
+        if (!firstChar) return Math.max(...boss.difficulties.map(d => d.price));
+        
+        const selected = firstChar.bosses.find(b => b.name === boss.name);
+        if (selected) {
+          return selected.price / selected.partySize;
+        }
+        // If not selected by first character, use max possible value
+        return Math.max(...boss.difficulties.map(d => d.price));
+      };
+
+      const valueA = getBossValue(a);
+      const valueB = getBossValue(b);
+      
+      return valueB - valueA; // Descending order
+    });
+  }, [characters]); // Re-sort when characters change
 
   // Add a new character
   const addCharacter = () => {
@@ -215,11 +242,9 @@ function App() {
       chars.map((char, i) => {
         if (i !== charIdx) return char;
         
-        // If no difficulty (unselecting), remove boss but remember last difficulty
         if (!difficulty) {
           const existingBoss = char.bosses.find(b => b.name === bossName);
           if (existingBoss) {
-            // Update last difficulties state
             setLastDifficulties(prev => ({
               ...prev,
               [char.name]: {
@@ -227,13 +252,18 @@ function App() {
                 [bossName]: existingBoss.difficulty
               }
             }));
-            // Remove boss
+            setLastPartySizes(prev => ({
+              ...prev,
+              [char.name]: {
+                ...(prev[char.name] || {}),
+                [bossName]: existingBoss.partySize
+              }
+            }));
             return { ...char, bosses: char.bosses.filter(b => b.name !== bossName) };
           }
           return char;
         }
 
-        // If boss exists, update its difficulty
         if (char.bosses.find(b => b.name === bossName)) {
           return {
             ...char,
@@ -250,9 +280,7 @@ function App() {
           };
         }
 
-        // If boss doesn't exist and we're under cap, add new boss
         if (char.bosses.length < CHARACTER_BOSS_CAP) {
-          // Check if we have a stored difficulty for this boss
           const lastDifficulty = lastDifficulties[char.name]?.[bossName] || difficulty;
           return {
             ...char,
@@ -262,22 +290,29 @@ function App() {
                 name: bossName, 
                 difficulty: lastDifficulty,
                 price: getBossPrice(bossData.find(b => b.name === bossName), lastDifficulty),
-                partySize: 1
+                partySize: lastPartySizes[char.name]?.[bossName] || 1
               }
             ]
           };
         }
-        // Otherwise, do not add
         return char;
       })
     );
   };
 
-  // Update party size for a selected boss
   const updatePartySize = (charIdx, bossName, difficulty, newSize) => {
     setCharacters(chars =>
       chars.map((char, i) => {
         if (i !== charIdx) return char;
+        
+        setLastPartySizes(prev => ({
+          ...prev,
+          [char.name]: {
+            ...(prev[char.name] || {}),
+            [bossName]: newSize
+          }
+        }));
+
         return {
           ...char,
           bosses: char.bosses.map(b =>
@@ -290,7 +325,6 @@ function App() {
     );
   };
 
-  // Helper: get all unique difficulties for a boss
   const getBossDifficulties = boss => boss.difficulties.map(d => d.difficulty);
 
   // Helper: get price for a boss/difficulty
@@ -303,7 +337,7 @@ function App() {
   const totalBossCount = () => characters.reduce((sum, c) => sum + c.bosses.length, 0);
 
   // Total meso value for a character (split by party size)
-  const charTotal = (char) => char.bosses.reduce((sum, b) => b.active ? sum + (b.price / (b.partySize || 1)) : sum, 0);
+  const charTotal = (char) => char.bosses.reduce((sum, b) => sum + (b.price / (b.partySize || 1)), 0);
 
   // Total meso value for all characters
   const overallTotal = characters.reduce((sum, c) => sum + charTotal(c), 0);
@@ -392,7 +426,7 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {bossData.map((boss, bidx) => (
+              {dynamicSortedBossData.map((boss, bidx) => (
                 boss.difficulties.map((dif, didx) => (
                   <tr key={bidx + '-' + didx} style={{ background: didx % 2 === 0 ? '#f4f6fb' : '#fff' }}>
                     <td style={{ padding: '8px', fontWeight: 'bold', color: '#6a11cb', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -436,7 +470,7 @@ function App() {
           Add Character
         </button>
       </div>
-      <div style={{ overflowX: 'auto', maxWidth: '100vw', width: 'auto', margin: '0 auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px #0001', padding: '1.5rem 1rem', paddingTop: '5.5rem', position: 'relative' }}>
+      <div className="table-container" style={{ background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #0001', padding: '1rem 0.5rem', paddingTop: '4.5rem', position: 'relative' }}>
         {/* Action buttons just above the table header, centered horizontally */}
         {selectedCharIdx !== null && (
           <div style={{ position: 'absolute', top: '2.25rem', left: '50%', transform: 'translateX(-50%)', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, zIndex: 20, pointerEvents: 'auto' }}>
@@ -455,7 +489,7 @@ function App() {
             <button
               onClick={() => applyPreset(selectedCharIdx, cteneBosses)}
               className="ctene"
-              style={{ background: '#a259f7', color: '#fff', border: 'none', fontWeight: 700, fontSize: '0.95em', cursor: 'pointer', boxShadow: '0 1px 4px #0002', marginBottom: 8 }}
+              style={{ background: '#a259f7', color: '#fff', border: 'none', fontWeight: 600, fontSize: '0.85em', cursor: 'pointer', boxShadow: '0 1px 3px #0002', padding: '4px 8px', borderRadius: 4 }}
               title="CTene preset"
             >
               CTene
@@ -463,7 +497,7 @@ function App() {
             <button
               onClick={() => applyPreset(selectedCharIdx, hlomBosses)}
               className="hlom"
-              style={{ background: '#4285f4', color: '#fff', border: 'none', fontWeight: 700, fontSize: '0.95em', cursor: 'pointer', boxShadow: '0 1px 4px #0002', marginBottom: 8 }}
+              style={{ background: '#4285f4', color: '#fff', border: 'none', fontWeight: 600, fontSize: '0.85em', cursor: 'pointer', boxShadow: '0 1px 3px #0002', padding: '4px 8px', borderRadius: 4 }}
               title="Hlom preset"
             >
               Hlom
@@ -514,24 +548,31 @@ function App() {
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
           <thead>
             <tr style={{ background: '#444', color: '#fff' }}>
-              <th style={{ padding: '10px 8px', textAlign: 'left', fontWeight: 700, fontSize: '1.05em', borderRadius: '8px 0 0 0', minWidth: 180, verticalAlign: 'bottom' }}>Boss</th>
-              <th style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 700, fontSize: '1.05em', minWidth: 110, borderRadius: characters.length === 0 ? '0 8px 0 0' : undefined }}>Mesos</th>
+              <th style={{ padding: '6px 4px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', borderRadius: '6px 0 0 0', minWidth: 150, verticalAlign: 'bottom' }}>Boss</th>
+              <th style={{ padding: '6px 4px', textAlign: 'right', fontWeight: 600, fontSize: '0.9em', minWidth: 90, borderRadius: characters.length === 0 ? '0 6px 0 0' : undefined }}>Mesos</th>
               {characters.map((char, idx) => (
                 <th
                   key={idx}
                   style={{
-                    padding: '10px 8px',
+                    padding: '6px 4px',
                     textAlign: 'center',
-                    fontWeight: 700,
-                    fontSize: '1.05em',
-                    minWidth: 120,
-                    borderRadius: idx === characters.length - 1 ? '0 8px 0 0' : undefined,
+                    fontWeight: 600,
+                    fontSize: '0.9em',
+                    minWidth: 100,
+                    borderRadius: idx === characters.length - 1 ? '0 6px 0 0' : undefined,
                     verticalAlign: 'middle',
                     position: 'relative',
                   }}
                 >
                   <div style={{ position: 'relative', display: 'inline-block' }}>
-                    <div className="char-header-hover" style={{ position: 'relative', display: 'inline-block' }}>
+                    <div className="char-header-hover" style={{ position: 'relative', display: 'inline-block' }} onMouseEnter={() => {
+                            if (actionHoverTimeout.current) clearTimeout(actionHoverTimeout.current);
+                            setVisibleCharAction(idx);
+                          }}
+                          onMouseLeave={() => {
+                            if (actionHoverTimeout.current) clearTimeout(actionHoverTimeout.current);
+                            actionHoverTimeout.current = setTimeout(() => setVisibleCharAction(null), 1000);
+                          }}>
                       {editingNameIdx === idx ? (
                         <input
                           type="text"
@@ -540,21 +581,21 @@ function App() {
                           onChange={e => setEditingNameValue(e.target.value)}
                           onBlur={() => { updateCharacterName(idx, editingNameValue); setEditingNameIdx(null); }}
                           onKeyDown={e => { if (e.key === 'Enter') { updateCharacterName(idx, editingNameValue); setEditingNameIdx(null); }}}
-                          style={{ fontWeight: 700, fontSize: '1em', textAlign: 'center', borderRadius: 4, border: '1px solid #a259f7', padding: '2px 4px', minWidth: 60 }}
+                          style={{ fontWeight: 600, fontSize: '0.9em', textAlign: 'center', borderRadius: 3, border: '1px solid #a259f7', padding: '2px 3px', minWidth: 50 }}
                           onMouseEnter={() => {
                             if (actionHoverTimeout.current) clearTimeout(actionHoverTimeout.current);
                             setVisibleCharAction(idx);
                           }}
                           onMouseLeave={() => {
                             if (actionHoverTimeout.current) clearTimeout(actionHoverTimeout.current);
-                            actionHoverTimeout.current = setTimeout(() => setVisibleCharAction(null), 1500);
+                            actionHoverTimeout.current = setTimeout(() => setVisibleCharAction(null), 1000);
                           }}
                           onClick={() => setSelectedCharIdx(idx)}
                         />
                       ) : (
                         <span
                           className={selectedCharIdx === idx ? 'char-glow' : ''}
-                          style={{ cursor: 'pointer', fontWeight: 700, fontSize: '1em', textAlign: 'center', display: 'inline-block', color: selectedCharIdx === idx ? '#a259f7' : undefined, padding: '2px 8px', transition: 'color 0.2s, text-shadow 0.2s' }}
+                          style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.9em', textAlign: 'center', display: 'inline-block', color: selectedCharIdx === idx ? '#a259f7' : undefined, padding: '2px 6px', transition: 'color 0.2s, text-shadow 0.2s' }}
                           onClick={() => setSelectedCharIdx(selectedCharIdx === idx ? null : idx)}
                           title="Click to select character"
                         >
@@ -568,7 +609,7 @@ function App() {
             </tr>
           </thead>
           <tbody>
-            {bossData.map((boss, bidx) => {
+            {dynamicSortedBossData.map((boss, bidx) => {
               const difficulties = getBossDifficulties(boss);
               return (
                 <tr key={bidx} style={{ background: bidx % 2 === 0 ? '#f4f6fb' : '#e9e9ef' }}>
@@ -631,22 +672,37 @@ function App() {
                             onChange={e => updatePartySize(cidx, boss.name, selectedDifficulty, Math.max(1, Math.min(maxParty, Number(e.target.value))))}
                             style={{ width: 32, borderRadius: 4, border: '1px solid #ccc', padding: '2px 4px', background: isChecked ? '#fff' : '#eee', marginLeft: 4, color: '#222' }}
                           />
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            disabled={
-                              (char.bosses.length >= CHARACTER_BOSS_CAP || totalBossCount() >= TOTAL_BOSS_CAP) && !isChecked
-                            }
-                            onChange={() => {
-                              if (isChecked) {
-                                // Always allow unticking
-                                toggleBoss(cidx, boss.name, '');
-                              } else {
-                                toggleBoss(cidx, boss.name, difficulties[0]);
+                          <label style={{
+                            display: 'inline-block',
+                            width: 24,
+                            height: 24,
+                            cursor: 'pointer',
+                            marginLeft: 4,
+                            padding: 0
+                          }}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              disabled={
+                                (char.bosses.length >= CHARACTER_BOSS_CAP || totalBossCount() >= TOTAL_BOSS_CAP) && !isChecked
                               }
-                            }}
-                            style={{ marginLeft: 4 }}
-                          />
+                              onChange={() => {
+                                if (isChecked) {
+                                  // Always allow unticking
+                                  toggleBoss(cidx, boss.name, '');
+                                } else {
+                                  toggleBoss(cidx, boss.name, difficulties[0]);
+                                }
+                              }}
+                              style={{
+                                width: 20,
+                                height: 20,
+                                marginTop: 2,
+                                cursor: 'pointer',
+                                accentColor: '#a259f7'
+                              }}
+                            />
+                          </label>
                         </div>
                       </td>
                     );

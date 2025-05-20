@@ -1,8 +1,9 @@
-#root {
-  max-width: 1280px;
+html, body, #root {
+  width: 100%;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 0.5rem;
   text-align: center;
+  font-size: 0.85rem;
 }
 
 .logo {
@@ -34,7 +35,52 @@
 }
 
 .card {
-  padding: 2em;
+  padding: 1em;
+  font-size: 0.9rem;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5em 0;
+}
+
+.table th,
+.table td {
+  padding: 0.5em;
+  font-size: 0.85rem;
+  text-align: left;
+  border: 1px solid #ddd;
+}
+
+.table th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+}
+
+.table-container {
+  overflow-x: auto;
+  width: 100%;
+  padding: 0.5rem;
+  box-sizing: border-box;
+}
+
+.char-header-buttons button,
+.char-header-buttons .copy {
+  min-width: 32px;
+  min-height: 32px;
+  max-width: 32px;
+  max-height: 32px;
+  margin-bottom: 6px;
+  font-size: 1.1em;
+}
+
+.char-header-buttons .ctene,
+.char-header-buttons .hlom {
+  min-width: 56px;
+  height: 32px;
+  font-size: 0.9em;
+  margin-bottom: 6px;
 }
 
 .read-the-docs {
