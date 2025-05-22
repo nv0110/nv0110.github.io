@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo, useEffect } from 'react'
 import './App.css'
 import WeeklyTracker from './WeeklyTracker'
+import { supabase } from './supabaseClient'
 
 // Boss data, grouped by boss name with difficulties as array
 const bossData = [
@@ -193,6 +194,21 @@ const bossData = [
     ],
     image: '/bosses/Limbo.png',
   },
+  {
+    name: 'Hilla',
+    difficulties: [
+      { difficulty: 'Normal', price: 4000000 },
+      { difficulty: 'Hard', price: 56250000 },
+    ],
+    image: '/bosses/hilla.png',
+  },
+  {
+    name: 'Princess No',
+    difficulties: [
+      { difficulty: 'Normal', price: 81000000 },
+    ],
+    image: '/bosses/pno.png',
+  },
 ];
 
 const CHARACTER_BOSS_CAP = 14;
@@ -239,6 +255,14 @@ function App() {
       history: []
     };
   });
+  const [userCode, setUserCode] = useState(() => localStorage.getItem('ms-user-code') || '');
+  const [loginInput, setLoginInput] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(!!userCode);
+  const [loginError, setLoginError] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [createCooldown, setCreateCooldown] = useState(0);
+  const [cooldownMsg, setCooldownMsg] = useState('');
+  const [loginInputFocused, setLoginInputFocused] = useState(false);
 
   // Persist to localStorage
   useEffect(() => {
@@ -531,6 +555,59 @@ function App() {
     }));
   };
 
+  // Login/Logout logic
+  const handleCreateAccount = async () => {
+    if (createCooldown > 0) {
+      setCooldownMsg('Please wait a few seconds before creating another account.');
+      return;
+    }
+    setIsCreating(true);
+    setCooldownMsg('');
+    setCreateCooldown(5);
+    const code = Math.random().toString(36).slice(2, 10).toUpperCase();
+    const { error } = await supabase.from('user_data').upsert([{ id: code, data: { characters } }]);
+    if (!error) {
+      setUserCode(code);
+      setIsLoggedIn(true);
+      localStorage.setItem('ms-user-code', code);
+    } else {
+      setLoginError('Failed to create account. Try again.');
+    }
+    setIsCreating(false);
+  };
+  const handleLogin = async () => {
+    setLoginError('');
+    const { data, error } = await supabase.from('user_data').select('data').eq('id', loginInput).single();
+    if (error || !data) {
+      setLoginError('Invalid code.');
+      return;
+    }
+    setUserCode(loginInput);
+    setIsLoggedIn(true);
+    localStorage.setItem('ms-user-code', loginInput);
+    // Load data
+    if (data.data && data.data.characters) setCharacters(data.data.characters);
+  };
+  const handleLogout = () => {
+    setUserCode('');
+    setIsLoggedIn(false);
+    localStorage.removeItem('ms-user-code');
+  };
+
+  // Sync to Supabase on data change
+  useEffect(() => {
+    if (isLoggedIn && userCode) {
+      supabase.from('user_data').upsert([{ id: userCode, data: { characters } }]);
+    }
+  }, [characters, userCode, isLoggedIn]);
+
+  useEffect(() => {
+    if (createCooldown > 0) {
+      const timer = setTimeout(() => setCreateCooldown(createCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [createCooldown]);
+
   // Table view
   if (showTable) {
     return (
@@ -587,6 +664,82 @@ function App() {
   }
 
   // Main calculator view
+  if (!isLoggedIn) {
+    return (
+      <div className="App dark" style={{ background: '#28204a', minHeight: '100vh', color: '#e6e0ff', padding: '2rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <h1 style={{ fontWeight: 700, fontSize: '2.2rem', marginBottom: '1.5rem' }}>Maplestory Boss Crystal Calculator</h1>
+        <div style={{ background: '#2d2540', borderRadius: 10, padding: '2rem', boxShadow: '0 2px 8px rgba(40, 20, 60, 0.18)', minWidth: 320, display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
+          <button
+            onClick={handleCreateAccount}
+            disabled={isCreating || createCooldown > 0}
+            style={{ background: '#a259f7', color: '#fff', border: 'none', borderRadius: 6, padding: '0.7rem 1.5rem', fontWeight: 700, fontSize: '1.1rem', marginBottom: 8, opacity: isCreating || createCooldown > 0 ? 0.6 : 1, cursor: isCreating || createCooldown > 0 ? 'not-allowed' : 'pointer', transition: 'all 0.18s cubic-bezier(.4,2,.6,1)', boxShadow: '0 2px 8px #a259f733', ...(isCreating || createCooldown > 0 ? {} : { ':hover': { background: '#b47aff', transform: 'scale(1.04)', boxShadow: '0 4px 16px #a259f799', } }) }}
+            onMouseOver={e => { if (!(isCreating || createCooldown > 0)) { e.currentTarget.style.background = '#b47aff'; e.currentTarget.style.transform = 'scale(1.04)'; e.currentTarget.style.boxShadow = '0 4px 16px #a259f799'; } }}
+            onMouseOut={e => { e.currentTarget.style.background = '#a259f7'; e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 2px 8px #a259f733'; }}
+          >
+            Create Account{createCooldown > 0 ? ` (${createCooldown})` : ''}
+          </button>
+          {cooldownMsg && <div style={{ color: '#ffbaba', fontSize: '1em', marginBottom: 4 }}>{cooldownMsg}</div>}
+          <div style={{ width: '100%', textAlign: 'center', color: '#b39ddb', fontSize: '1.2rem', fontWeight: 700, margin: '16px 0', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ flex: 1, height: 1, background: '#3a335a' }}></span>
+            <span style={{ fontSize: '1.2em', fontWeight: 700 }}>or</span>
+            <span style={{ flex: 1, height: 1, background: '#3a335a' }}></span>
+          </div>
+          <input
+            value={loginInput}
+            onChange={e => setLoginInput(e.target.value.toUpperCase())}
+            placeholder="Enter your code"
+            style={{ background: '#3a335a', color: '#e6e0ff', border: loginInputFocused ? '2px solid #a259f7' : '1.5px solid #2d2540', borderRadius: 6, padding: '0.5rem 1rem', fontSize: '1.1rem', width: '100%', marginBottom: 8, outline: loginInputFocused ? '0 0 0 2px #a259f7' : 'none', boxShadow: loginInputFocused ? '0 0 0 2px #a259f755' : 'none', transition: 'border 0.18s, box-shadow 0.18s', }}
+            onFocus={() => setLoginInputFocused(true)}
+            onBlur={() => setLoginInputFocused(false)}
+          />
+          <button
+            onClick={handleLogin}
+            style={{ background: '#805ad5', color: '#fff', border: 'none', borderRadius: 6, padding: '0.7rem 1.5rem', fontWeight: 700, fontSize: '1.1rem', transition: 'all 0.18s cubic-bezier(.4,2,.6,1)', boxShadow: '0 2px 8px #805ad533', }}
+            onMouseOver={e => { e.currentTarget.style.background = '#a259f7'; e.currentTarget.style.transform = 'scale(1.04)'; e.currentTarget.style.boxShadow = '0 4px 16px #a259f799'; }}
+            onMouseOut={e => { e.currentTarget.style.background = '#805ad5'; e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 2px 8px #805ad533'; }}
+          >
+            Login
+          </button>
+          {loginError && <div style={{ color: 'red', marginTop: 8 }}>{loginError}</div>}
+        </div>
+        {/* Guide and caution text below the login box */}
+        <div style={{
+          marginTop: 28,
+          background: 'rgba(44, 34, 80, 0.95)',
+          borderRadius: 10,
+          padding: '1.2rem 1.5rem',
+          maxWidth: 440,
+          boxShadow: '0 2px 8px #0002',
+          color: '#e6e0ff',
+          fontSize: '1.08rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 14,
+          alignItems: 'center',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', justifyContent: 'center' }}>
+            <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: '#a259f7', flexShrink: 0, position: 'relative', top: '-10px' }} />
+            <span style={{ textAlign: 'center', flex: 1 }}>
+              Create an account to generate your unique code. Use this code to access your data from any device.
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', justifyContent: 'center' }}>
+            <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: '#ffd700', flexShrink: 0, position: 'relative', top: '-10px' }} />
+            <span style={{ color: '#ffd700', fontWeight: 600, textAlign: 'center', flex: 1 }}>
+              Save your code somewhere safe! You'll need it to log in again.
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', justifyContent: 'center' }}>
+            <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: '#ffbaba', flexShrink: 0, position: 'relative', top: '-10px' }} />
+            <span style={{ color: '#ffbaba', fontWeight: 500, textAlign: 'center', flex: 1 }}>
+              Don't spam account creation—each code is unique and tied to your data.
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="App dark" style={{ background: '#28204a', minHeight: '100vh', color: '#e6e0ff', padding: '2rem 0', border: '1.5px solid #2d2540' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: '1.5rem' }}>
@@ -942,6 +1095,11 @@ function App() {
           }
         `}
       </style>
+
+      <div style={{ position: 'absolute', top: 18, right: 32, zIndex: 10 }}>
+        <button onClick={handleLogout} style={{ background: '#a259f7', color: '#fff', border: 'none', borderRadius: '20px', padding: '0.4rem 1.2rem', fontWeight: 700, fontSize: '1rem', boxShadow: '0 2px 8px #0002', cursor: 'pointer', transition: 'all 0.2s' }}>Logout</button>
+        <span style={{ marginLeft: 12, color: '#b39ddb', fontSize: '0.95em' }}>Code: {userCode}</span>
+      </div>
     </div>
   );
 }
