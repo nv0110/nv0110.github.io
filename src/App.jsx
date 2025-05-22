@@ -188,9 +188,7 @@ const bossData = [
     name: 'Limbo',
     difficulties: [
       { difficulty: 'Normal', price: 2100000000 },
-      { difficulty: 'Hard', price: 3745000000 },
-      { difficulty: 'Normal', price: 1100000000 },
-      { difficulty: 'Hard', price: 2200000000 }
+      { difficulty: 'Hard', price: 3745000000 }
     ],
     image: '/bosses/Limbo.png',
   },
@@ -251,7 +249,33 @@ function App() {
   const [showCloudSync, setShowCloudSync] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
+  const [showImportExport, setShowImportExport] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [importSuccess, setImportSuccess] = useState(false);
+  const fileInputRef = useRef(null);
+  const [presets, setPresets] = useState(() => {
+    // Try to load from localStorage, else default to empty
+    const saved = localStorage.getItem('ms-presets');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [editingPresetIdx, setEditingPresetIdx] = useState(null);
+  const [presetModalOpen, setPresetModalOpen] = useState(false);
+  const [presetDraft, setPresetDraft] = useState({ name: '', bosses: [] });
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [accountModalCountdown, setAccountModalCountdown] = useState(8);
+  const [lastCreatedCode, setLastCreatedCode] = useState('');
+
+  // Week key calculation
+  const weekKey = (() => {
+    // Returns a string like '2024-23' for year-week, based on UTC
+    const now = new Date();
+    const utcNow = new Date(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    const onejan = new Date(utcNow.getUTCFullYear(), 0, 1);
+    const week = Math.ceil((((utcNow - onejan) / 86400000) + onejan.getUTCDay() + 1) / 7);
+    return `${utcNow.getUTCFullYear()}-${week}`;
+  })();
 
   // Total meso value for a character (split by party size)
   const charTotal = (char) => char.bosses.reduce((sum, b) => sum + (b.price / (b.partySize || 1)), 0);
@@ -293,7 +317,112 @@ function App() {
   // Loading state for preset application
   const handlePresetApply = (preset, presetName) => {
     setIsLoading(true);
-    applyPreset(selectedCharIdx, preset, presetName);
+    // Note: This function isn't used directly anymore, but kept for compatibility
+    // The applyPreset function now handles everything with the presetIdx
+    setTimeout(() => setIsLoading(false), 300);
+  };
+
+  // Apply a preset to a character with enhanced logic
+  const applyPreset = (presetIdx) => {
+    if (selectedCharIdx === null || !presets[presetIdx]) return;
+    
+    const preset = presets[presetIdx];
+    setIsLoading(true);
+    
+    // Check if this preset was the last one applied
+    const isReapplyingSamePreset = lastPreset === presetIdx;
+    
+    setCharacters(chars => chars.map((char, idx) => {
+      if (idx !== selectedCharIdx) return char;
+      
+      const currentBosses = [...char.bosses];
+      const presetBossNames = preset.bosses.map(b => b.name);
+      
+      // Case 1: If re-pressing the same preset, unselect all bosses from that preset
+      if (isReapplyingSamePreset) {
+        const newBosses = currentBosses.filter(b => !presetBossNames.includes(b.name));
+        setLastPreset(null); // Reset last preset since we're toggling it off
+        return { ...char, bosses: newBosses };
+      }
+      
+      // For all other cases, we'll build a new bosses array
+      let newBosses = [];
+      
+      // Keep track of bosses already selected that aren't in the preset
+      const nonPresetBosses = currentBosses.filter(b => !presetBossNames.includes(b.name));
+      
+      // Keep track of bosses already selected that are in the preset (for case 3)
+      const existingPresetBosses = currentBosses.filter(b => presetBossNames.includes(b.name));
+      
+      // Case 3: If a boss is already selected and in the preset, keep it
+      const existingPresetBossNames = existingPresetBosses.map(b => b.name);
+      
+      // Count how many bosses we can still add
+      const availableSlots = CHARACTER_BOSS_CAP - nonPresetBosses.length;
+      
+      if (availableSlots <= 0) {
+        // No slots available, can't add any preset bosses
+        newBosses = currentBosses;
+      } else {
+        // Sort preset bosses by price (highest first) to prioritize expensive ones
+        const sortedPresetBosses = [...preset.bosses].sort((a, b) => {
+          const bossA = sortedBossData.find(boss => boss.name === a.name);
+          const bossB = sortedBossData.find(boss => boss.name === b.name);
+          if (!bossA || !bossB) return 0;
+          
+          const priceA = getBossPrice(bossA, a.difficulty);
+          const priceB = getBossPrice(bossB, b.difficulty);
+          return priceB - priceA;
+        });
+        
+        // Add preset bosses up to the available slots
+        const presetBossesToAdd = [];
+        
+        for (const presetBoss of sortedPresetBosses) {
+          // Skip if we've reached the limit
+          if (presetBossesToAdd.length >= availableSlots) break;
+          
+          // Case 3 & 4: If boss is already selected in the preset
+          const existingBoss = currentBosses.find(b => b.name === presetBoss.name);
+          
+          if (existingBoss) {
+            // Keep the existing boss with its current settings
+            presetBossesToAdd.push(existingBoss);
+          } else {
+            // Add new boss from preset
+            const bossData = sortedBossData.find(b => b.name === presetBoss.name);
+            if (bossData) {
+              presetBossesToAdd.push({
+                name: presetBoss.name,
+                difficulty: presetBoss.difficulty,
+                price: getBossPrice(bossData, presetBoss.difficulty),
+                partySize: presetBoss.partySize || 1
+              });
+            }
+          }
+        }
+        
+        // Combine non-preset bosses with preset bosses
+        newBosses = [...nonPresetBosses];
+        
+        // For bosses that are in both the current selection and preset,
+        // we need to handle them specially to avoid duplicates
+        for (const presetBoss of presetBossesToAdd) {
+          // Only add if not already in newBosses
+          if (!newBosses.some(b => b.name === presetBoss.name)) {
+            newBosses.push(presetBoss);
+          }
+        }
+      }
+      
+      return { ...char, bosses: newBosses };
+    }));
+    
+    // Only set lastPreset if we're not toggling off
+    if (!isReapplyingSamePreset) {
+      setLastPreset(presetIdx);
+    }
+    
     setTimeout(() => setIsLoading(false), 300);
   };
 
@@ -352,6 +481,10 @@ function App() {
   const addCharacter = () => {
     if (!newCharName.trim()) {
       setError('Character name cannot be empty.');
+      return;
+    }
+    if (characters.length >= 50) {
+      setError('Character creation is full. Try again later.');
       return;
     }
     setError('');
@@ -453,120 +586,47 @@ function App() {
     setCharacters(chars => chars.map((c, i) => i === idx ? { ...c, name: newName } : c));
   };
 
-  // CTene and Hlom preset boss lists (up to 14)
-  const cteneBosses = [
-    { name: 'Verus Hilla', difficulty: 'Hard' },
-    { name: 'Darknell', difficulty: 'Hard' },
-    { name: 'Gloom', difficulty: 'Chaos' },
-    { name: 'Will', difficulty: 'Hard' },
-    { name: 'Lucid', difficulty: 'Hard' },
-    { name: 'Guardian Angel Slime', difficulty: 'Chaos' },
-    { name: 'Lotus', difficulty: 'Hard' },
-    { name: 'Damien', difficulty: 'Hard' },
-    { name: 'Aketchi', difficulty: 'Normal' },
-    { name: 'Papulatus', difficulty: 'Chaos' },
-    { name: 'Magnus', difficulty: 'Hard' },
-    { name: 'Vellum', difficulty: 'Chaos' },
-    { name: 'Pierre', difficulty: 'Chaos' },
-    { name: 'Crimson Queen', difficulty: 'Chaos' },
-    { name: 'Von Bon', difficulty: 'Chaos' },
-  ];
-  const hlomBosses = [
-    { name: 'Damien', difficulty: 'Hard' },
-    { name: 'Lotus', difficulty: 'Hard' },
-    { name: 'Magnus', difficulty: 'Hard' },
-    { name: 'Gloom', difficulty: 'Normal' },
-    { name: 'Darknell', difficulty: 'Normal' },
-    { name: 'Guardian Angel Slime', difficulty: 'Normal' },
-    { name: 'Aketchi', difficulty: 'Normal' },
-    { name: 'Lucid', difficulty: 'Easy' },
-    { name: 'Vellum', difficulty: 'Chaos' },
-    { name: 'Von Bon', difficulty: 'Chaos' },
-    { name: 'Crimson Queen', difficulty: 'Chaos' },
-    { name: 'Pierre', difficulty: 'Chaos' },
-    { name: 'Papulatus', difficulty: 'Chaos' },
-    { name: 'Zakum', difficulty: 'Chaos' },
-  ];
-  const applyPreset = (idx, preset, presetName) => {
-    setCharacters(chars => chars.map((char, i) => {
-      if (i !== idx) return char;
-      
-      // If clicking the same preset again, clear those bosses
-      if (lastPreset === presetName) {
-        setLastPreset(null);
-        // Remove all bosses from the preset
-        return {
-          ...char,
-          bosses: char.bosses.filter(b => !preset.some(p => p.name === b.name))
-        };
-      }
-
-      // If clicking a different preset, first remove all bosses from the previous preset
-      if (lastPreset) {
-        const previousPreset = lastPreset === 'ctene' ? cteneBosses : hlomBosses;
-        char = {
-          ...char,
-          bosses: char.bosses.filter(b => !previousPreset.some(p => p.name === b.name))
-        };
-      }
-
-      // Now add the new preset bosses
-      setLastPreset(presetName);
-      let newBosses = preset.map(cb => {
-        const bossObj = bossData.find(b => b.name === cb.name);
-        return {
-          name: cb.name,
-          difficulty: cb.difficulty,
-          price: getBossPrice(bossObj, cb.difficulty),
-          partySize: 1
-        };
-      });
-      newBosses = newBosses.slice(0, CHARACTER_BOSS_CAP - char.bosses.length);
-      return { ...char, bosses: [...char.bosses, ...newBosses] };
-    }));
-  };
-
-  // Login/Logout logic
-  const weekKey = (() => {
-    // Returns a string like '2024-23' for year-week, based on UTC
-    const now = new Date();
-    const utcNow = new Date(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-    const onejan = new Date(utcNow.getUTCFullYear(), 0, 1);
-    const week = Math.ceil((((utcNow - onejan) / 86400000) + onejan.getUTCDay() + 1) / 7);
-    return `${utcNow.getUTCFullYear()}-${week}`;
-  })();
-
   // Initialize checked state from localStorage or Supabase
   useEffect(() => {
-    if (isLoggedIn && userCode) {
-      const loadData = async () => {
-        const { data, error } = await supabase.from('user_data').select('data').eq('id', userCode).single();
-        if (!error && data) {
-          // Load characters
-          if (data.data.characters) {
-            setCharacters(data.data.characters);
+    const loadData = async () => {
+      if (isLoggedIn && userCode) {
+        try {
+          const { data, error } = await supabase.from('user_data').select('data').eq('id', userCode).single();
+          if (!error && data) {
+            // Load characters
+            if (data.data.characters) {
+              setCharacters(data.data.characters);
+            }
+            
+            // Handle checked state and weekKey
+            if (data.data.weekKey === weekKey && data.data.checked) {
+              setChecked(data.data.checked);
+            } else {
+              // Reset checked state for new week
+              setChecked({});
+              // Update Supabase with new weekKey and cleared checked
+              await supabase.from('user_data').upsert([{ 
+                id: userCode, 
+                data: { 
+                  ...data.data, 
+                  weekKey, 
+                  checked: {} 
+                } 
+              }]);
+            }
+
+            // Load presets from localStorage
+            const savedPresets = localStorage.getItem('ms-presets');
+            if (savedPresets) {
+              setPresets(JSON.parse(savedPresets));
+            }
           }
-          
-          // Handle checked state and weekKey
-          if (data.data.weekKey === weekKey && data.data.checked) {
-            setChecked(data.data.checked);
-          } else {
-            // Reset checked state for new week
-            setChecked({});
-            // Update Supabase with new weekKey and cleared checked
-            await supabase.from('user_data').upsert([{ 
-              id: userCode, 
-              data: { 
-                ...data.data, 
-                weekKey, 
-                checked: {} 
-              } 
-            }]);
-          }
+        } catch (error) {
+          console.error('Error loading data:', error);
         }
-      };
-      loadData();
-    }
+      }
+    };
+    loadData();
   }, [isLoggedIn, userCode, weekKey]);
 
   // Sync to Supabase on data change
@@ -579,7 +639,8 @@ function App() {
             data: { 
               characters, 
               checked, 
-              weekKey 
+              weekKey,
+              lastUpdated: new Date().toISOString()
             } 
           }]);
           if (error) {
@@ -592,7 +653,10 @@ function App() {
           console.error('Error syncing data:', error);
         }
       };
-      syncData();
+
+      // Debounce the sync to prevent too many requests
+      const timeoutId = setTimeout(syncData, 1000);
+      return () => clearTimeout(timeoutId);
     }
   }, [characters, checked, userCode, isLoggedIn, weekKey]);
 
@@ -606,7 +670,8 @@ function App() {
             data: { 
               characters, 
               checked, 
-              weekKey 
+              weekKey,
+              lastUpdated: new Date().toISOString()
             } 
           }]);
         } catch (error) {
@@ -618,6 +683,18 @@ function App() {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [characters, checked, userCode, isLoggedIn, weekKey]);
+
+  useEffect(() => {
+    let timer;
+    if (showAccountModal && accountModalCountdown > 0) {
+      timer = setTimeout(() => {
+        setAccountModalCountdown(c => c - 1);
+      }, 1000);
+    } else if (showAccountModal && accountModalCountdown === 0) {
+      setShowAccountModal(false);
+    }
+    return () => clearTimeout(timer);
+  }, [showAccountModal, accountModalCountdown]);
 
   const handleCreateAccount = async () => {
     if (createCooldown > 0) {
@@ -640,19 +717,20 @@ function App() {
       }]);
       
       if (!error) {
-        setUserCode(code);
-        setIsLoggedIn(true);
-        setCharacters([]);
-        setChecked({});
-        localStorage.setItem('ms-user-code', code);
+        // Set states directly without setTimeout
+        setLastCreatedCode(code);
+        setIsCreating(false);
+        setCreateCooldown(0);
+        setShowAccountModal(true);
+        setAccountModalCountdown(8);
       } else {
         setLoginError('Failed to create account. Try again.');
+        setIsCreating(false);
       }
     } catch (error) {
       setLoginError('Failed to create account. Try again.');
+      setIsCreating(false);
     }
-    
-    setIsCreating(false);
   };
 
   const handleLogin = async () => {
@@ -688,6 +766,12 @@ function App() {
           } 
         }]);
       }
+
+      // Load presets from localStorage
+      const savedPresets = localStorage.getItem('ms-presets');
+      if (savedPresets) {
+        setPresets(JSON.parse(savedPresets));
+      }
     } catch (error) {
       setLoginError('Failed to login. Try again.');
     }
@@ -702,7 +786,8 @@ function App() {
           data: { 
             characters, 
             checked, 
-            weekKey 
+            weekKey,
+            lastUpdated: new Date().toISOString()
           } 
         }]);
       } catch (error) {
@@ -755,6 +840,72 @@ function App() {
     }
   }, [createCooldown]);
 
+  // Export data function
+  const handleExport = () => {
+    try {
+      const exportData = {
+        characters: characters,
+        version: '1.0',
+        exportDate: new Date().toISOString()
+      };
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `maplestory-boss-data-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      setImportError('Failed to export data. Please try again.');
+    }
+  };
+
+  // Import data function
+  const handleImport = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        
+        // Validate data structure
+        if (!data.characters || !Array.isArray(data.characters)) {
+          throw new Error('Invalid data format');
+        }
+
+        // Validate each character
+        data.characters.forEach(char => {
+          if (!char.name || !Array.isArray(char.bosses)) {
+            throw new Error('Invalid character data');
+          }
+          char.bosses.forEach(boss => {
+            if (!boss.name || !boss.difficulty || typeof boss.price !== 'number') {
+              throw new Error('Invalid boss data');
+            }
+          });
+        });
+
+        setCharacters(data.characters);
+        if (data.presets && Array.isArray(data.presets)) {
+          setPresets(data.presets);
+        } else {
+          setPresets([]);
+        }
+        setImportSuccess(true);
+        setTimeout(() => setImportSuccess(false), 2000);
+      } catch (error) {
+        console.error('Error importing data:', error);
+        setImportError('Invalid data file. Please check the format and try again.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
   // Table view
   if (showTable) {
     return (
@@ -766,9 +917,9 @@ function App() {
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700, border: '1px solid #2d2540', borderRadius: 12, overflow: 'hidden' }}>
               <thead>
                 <tr style={{ background: '#3a2a5d', color: '#fff' }}>
-                  <th style={{ padding: '6px 4px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 100, verticalAlign: 'bottom', color: undefined }}>Boss</th>
+                  <th style={{ padding: '6px 14px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 100, verticalAlign: 'bottom', color: undefined }}>Boss</th>
                   <th style={{ padding: '6px 4px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 90, color: undefined }}>Difficulty</th>
-                  <th style={{ padding: '6px 4px', textAlign: 'center', fontWeight: 600, fontSize: '0.9em', minWidth: 90, color: undefined }}>Mesos</th>
+                  <th style={{ padding: '6px 14px', textAlign: 'right', fontWeight: 600, fontSize: '0.9em', minWidth: 120, color: undefined }}>Mesos</th>
                 </tr>
               </thead>
               <tbody>
@@ -794,8 +945,8 @@ function App() {
                       <td style={{ padding: '8px', textAlign: 'left', minWidth: 90 }}>
                         <span style={{ color: undefined, fontWeight: 500 }}>{item.difficulty}</span>
                       </td>
-                      <td style={{ padding: '8px', textAlign: 'center', minWidth: 110, fontWeight: 600, background: 'inherit' }}>
-                        <span style={{ color: '#6a11cb' }}>{item.price.toLocaleString()}</span>
+                      <td style={{ padding: '8px', textAlign: 'right', minWidth: 120 }}>
+                        <span style={{ color: '#6a11cb', fontWeight: 600 }}>{item.price.toLocaleString()}</span>
                       </td>
                     </tr>
                   ));
@@ -821,11 +972,22 @@ function App() {
           <button
             onClick={handleCreateAccount}
             disabled={isCreating || createCooldown > 0}
-            style={{ background: '#a259f7', color: '#fff', border: 'none', borderRadius: 6, padding: '0.7rem 1.5rem', fontWeight: 700, fontSize: '1.1rem', marginBottom: 8, opacity: isCreating || createCooldown > 0 ? 0.6 : 1, cursor: isCreating || createCooldown > 0 ? 'not-allowed' : 'pointer', transition: 'all 0.18s cubic-bezier(.4,2,.6,1)', boxShadow: '0 2px 8px #a259f733', ...(isCreating || createCooldown > 0 ? {} : { ':hover': { background: '#b47aff', transform: 'scale(1.04)', boxShadow: '0 4px 16px #a259f799', } }) }}
-            onMouseOver={e => { if (!(isCreating || createCooldown > 0)) { e.currentTarget.style.background = '#b47aff'; e.currentTarget.style.transform = 'scale(1.04)'; e.currentTarget.style.boxShadow = '0 4px 16px #a259f799'; } }}
-            onMouseOut={e => { e.currentTarget.style.background = '#a259f7'; e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 2px 8px #a259f733'; }}
+            style={{ 
+              background: '#a259f7', 
+              color: '#fff', 
+              border: 'none', 
+              borderRadius: 6, 
+              padding: '0.7rem 1.5rem', 
+              fontWeight: 700, 
+              fontSize: '1.1rem', 
+              marginBottom: 8, 
+              opacity: isCreating || createCooldown > 0 ? 0.6 : 1, 
+              cursor: isCreating || createCooldown > 0 ? 'not-allowed' : 'pointer', 
+              transition: 'all 0.18s cubic-bezier(.4,2,.6,1)', 
+              boxShadow: '0 2px 8px #a259f733'
+            }}
           >
-            Create Account{createCooldown > 0 ? ` (${createCooldown})` : ''}
+            {isCreating ? 'Creating Account...' : createCooldown > 0 ? `Creating Account (${createCooldown})` : 'Create Account'}
           </button>
           {cooldownMsg && <div style={{ color: '#ffbaba', fontSize: '1em', marginBottom: 4 }}>{cooldownMsg}</div>}
           <div style={{ width: '100%', textAlign: 'center', color: '#b39ddb', fontSize: '1.2rem', fontWeight: 700, margin: '16px 0', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -833,14 +995,60 @@ function App() {
             <span style={{ fontSize: '1.2em', fontWeight: 700 }}>or</span>
             <span style={{ flex: 1, height: 1, background: '#3a335a' }}></span>
           </div>
-          <input
-            value={loginInput}
-            onChange={e => setLoginInput(e.target.value.toUpperCase())}
-            placeholder="Enter your code"
-            style={{ background: '#3a335a', color: '#e6e0ff', border: loginInputFocused ? '2px solid #a259f7' : '1.5px solid #2d2540', borderRadius: 6, padding: '0.5rem 1rem', fontSize: '1.1rem', width: '100%', marginBottom: 8, outline: loginInputFocused ? '0 0 0 2px #a259f7' : 'none', boxShadow: loginInputFocused ? '0 0 0 2px #a259f755' : 'none', transition: 'border 0.18s, box-shadow 0.18s', }}
-            onFocus={() => setLoginInputFocused(true)}
-            onBlur={() => setLoginInputFocused(false)}
-          />
+          <div style={{ position: 'relative', width: '100%', marginBottom: 8 }}>
+            <input
+              type={showPassword ? "text" : "password"}
+              value={loginInput}
+              onChange={e => setLoginInput(e.target.value.toUpperCase())}
+              placeholder="Enter your code"
+              style={{ 
+                background: '#3a335a', 
+                color: '#e6e0ff', 
+                border: loginInputFocused ? '2px solid #a259f7' : '1.5px solid #2d2540', 
+                borderRadius: 6, 
+                padding: '0.5rem 1rem', 
+                fontSize: '1.1rem', 
+                width: '80%', 
+                outline: loginInputFocused ? '0 0 0 2px #a259f7' : 'none', 
+                boxShadow: loginInputFocused ? '0 0 0 2px #a259f755' : 'none', 
+                transition: 'border 0.18s, box-shadow 0.18s',
+                paddingRight: '40px' // Make room for the eye icon
+              }}
+              onFocus={() => setLoginInputFocused(true)}
+              onBlur={() => setLoginInputFocused(false)}
+            />
+            <button 
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: 'absolute',
+                right: '10px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#a259f7',
+                padding: '4px'
+              }}
+              title={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              )}
+            </button>
+          </div>
           <button
             onClick={handleLogin}
             style={{ background: '#805ad5', color: '#fff', border: 'none', borderRadius: 6, padding: '0.7rem 1.5rem', fontWeight: 700, fontSize: '1.1rem', transition: 'all 0.18s cubic-bezier(.4,2,.6,1)', boxShadow: '0 2px 8px #805ad533', }}
@@ -885,12 +1093,154 @@ function App() {
             </span>
           </div>
         </div>
+
+        {/* Account Creation Modal */}
+        {showAccountModal && (
+          <div style={{ 
+            position: 'fixed', 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0, 
+            background: 'rgba(40,32,74,0.96)', 
+            zIndex: 5000, 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center' 
+          }}>
+            <div style={{ 
+              background: '#2d2540', 
+              borderRadius: 12, 
+              padding: '2.5rem 2rem', 
+              maxWidth: 440, 
+              color: '#e6e0ff', 
+              boxShadow: '0 4px 24px #0006', 
+              position: 'relative', 
+              minWidth: 320, 
+              textAlign: 'center' 
+            }}>
+              <h2 style={{ color: '#a259f7', fontWeight: 700, marginBottom: 18 }}>Account Created!</h2>
+              <div style={{ fontSize: '1.15rem', marginBottom: 18 }}>
+                <b>Your unique code:</b>
+                <div style={{ 
+                  fontSize: '1.5rem', 
+                  color: '#ffd700', 
+                  margin: '12px 0', 
+                  letterSpacing: 2,
+                  background: '#23203a',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: '1px solid #3a335a'
+                }}>
+                  {lastCreatedCode}
+                </div>
+                <div style={{ color: '#ffbaba', fontWeight: 600, marginBottom: 10 }}>
+                  ⚠️ Save this code somewhere safe!<br/>
+                  If you lose it, <u>all your data will be lost</u>.
+                </div>
+                <div style={{ color: '#b39ddb', fontSize: '1.1rem', marginBottom: 10 }}>
+                  Use this code to log in now.<br/>
+                  You will be redirected in <b>{accountModalCountdown}</b> second{accountModalCountdown !== 1 ? 's' : ''}...
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowAccountModal(false)} 
+                style={{ 
+                  background: '#a259f7', 
+                  color: '#fff', 
+                  border: 'none', 
+                  borderRadius: 8, 
+                  padding: '0.7rem 1.5rem', 
+                  fontWeight: 700, 
+                  fontSize: '1.1rem', 
+                  cursor: 'pointer', 
+                  marginTop: 10,
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseOver={e => e.currentTarget.style.background = '#b47aff'}
+                onMouseOut={e => e.currentTarget.style.background = '#a259f7'}
+              >
+                Continue to Login
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
+  // Main app view - show this regardless of whether there are characters or not
   return (
     <div className="App dark" style={{ background: '#28204a', minHeight: '100vh', color: '#e6e0ff', padding: '2rem 0', border: '1.5px solid #2d2540' }}>
+      <div style={{ position: 'absolute', top: 18, left: 32, zIndex: 10 }}>
+        <span style={{ color: '#d6b4ff', fontSize: '1.08em', fontWeight: 700, letterSpacing: 1, background: 'rgba(128,90,213,0.08)', borderRadius: 8, padding: '0.3rem 1.1rem', boxShadow: '0 2px 8px #a259f722' }}>
+          Code: {userCode}
+        </span>
+      </div>
+      <div style={{ position: 'absolute', top: 18, right: 32, zIndex: 10, display: 'flex', gap: 8 }}>
+        <button
+          onClick={handleLogout}
+          style={{
+            background: '#a259f7',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '20px',
+            padding: '0.4rem 1.2rem',
+            fontWeight: 700,
+            fontSize: '1rem',
+            boxShadow: '0 2px 8px #0002',
+            cursor: 'pointer',
+            transition: 'all 0.18s cubic-bezier(.4,2,.6,1), box-shadow 0.18s',
+            marginRight: 0
+          }}
+          onMouseOver={e => { e.currentTarget.style.background = '#b47aff'; e.currentTarget.style.boxShadow = '0 4px 16px #a259f799'; }}
+          onMouseOut={e => { e.currentTarget.style.background = '#a259f7'; e.currentTarget.style.boxShadow = '0 2px 8px #0002'; }}
+        >
+          Logout
+        </button>
+        <button
+          onClick={() => setShowDeleteConfirm(true)}
+          style={{
+            background: '#ff6b6b',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '20px',
+            padding: '0.4rem 1.2rem',
+            fontWeight: 700,
+            fontSize: '1rem',
+            boxShadow: '0 2px 8px #0002',
+            cursor: 'pointer',
+            transition: 'all 0.18s cubic-bezier(.4,2,.6,1), box-shadow 0.18s',
+            marginRight: 0
+          }}
+          onMouseOver={e => { e.currentTarget.style.background = '#ff8b8b'; e.currentTarget.style.boxShadow = '0 4px 16px #ff6b6b99'; }}
+          onMouseOut={e => { e.currentTarget.style.background = '#ff6b6b'; e.currentTarget.style.boxShadow = '0 2px 8px #0002'; }}
+        >
+          Delete Account
+        </button>
+        <button
+          onClick={() => setShowHelp(true)}
+          style={{
+            background: '#805ad5',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '20px',
+            padding: '0.4rem 1.2rem',
+            fontWeight: 700,
+            fontSize: '1rem',
+            boxShadow: '0 2px 8px #0002',
+            cursor: 'pointer',
+            transition: 'all 0.18s cubic-bezier(.4,2,.6,1), box-shadow 0.18s',
+            marginRight: 0
+          }}
+          title="Help & FAQ"
+          onMouseOver={e => { e.currentTarget.style.background = '#a259f7'; e.currentTarget.style.boxShadow = '0 4px 16px #805ad599'; }}
+          onMouseOut={e => { e.currentTarget.style.background = '#805ad5'; e.currentTarget.style.boxShadow = '0 2px 8px #0002'; }}
+        >
+          Help
+        </button>
+      </div>
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: '1.5rem' }}>
         <img src="/bosses/crystal.png" alt="Crystal" style={{ width: 32, height: 32 }} />
         <img src="/bosses/bluecrystal.png" alt="Blue Crystal" style={{ width: 32, height: 32 }} />
@@ -898,14 +1248,20 @@ function App() {
       </div>
       <h1 style={{ textAlign: 'center', fontWeight: 700, fontSize: '2.2rem', marginBottom: '0.5rem' }}>Maplestory Boss Crystal Calculator</h1>
       <p style={{ color: '#6a11cb', textAlign: 'center', marginBottom: '2rem', fontSize: '1.1rem' }}>Create characters, select bosses, and calculate your total crystal value!</p>
-      <button onClick={() => setShowTable(true)} style={{ background: '#805ad5', color: '#fff', border: 'none', borderRadius: '6px', padding: '0.5rem 1.2rem', fontWeight: 'bold', marginBottom: '1.5rem', cursor: 'pointer', display: 'block', marginLeft: 'auto', marginRight: 'auto' }}>
-        View Boss Price Table
-      </button>
-      <button onClick={() => setShowWeekly(true)} style={{ background: '#a259f7', color: '#fff', border: 'none', borderRadius: '6px', padding: '0.5rem 1.2rem', fontWeight: 'bold', marginBottom: '1.5rem', cursor: 'pointer', display: 'block', marginLeft: 'auto', marginRight: 'auto' }}>
-        Weekly Tracker
-      </button>
-      <div className={`table-container${selectedCharIdx !== null && characters[selectedCharIdx] ? ' wide' : ''}`} style={{ background: '#2d2540', borderRadius: 8, boxShadow: '0 2px 8px rgba(40, 20, 60, 0.18)', padding: '1rem', border: '1.5px solid #2d2540' }}>
+      
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginBottom: '2rem' }}>
+        <button onClick={() => setShowTable(true)} style={{ background: '#805ad5', color: '#fff', border: 'none', borderRadius: '6px', padding: '0.5rem 1.2rem', fontWeight: 'bold', cursor: 'pointer' }}>
+          View Boss Price Table
+        </button>
+        <button onClick={() => setShowWeekly(true)} style={{ background: '#a259f7', color: '#fff', border: 'none', borderRadius: '6px', padding: '0.5rem 1.2rem', fontWeight: 'bold', cursor: 'pointer' }}>
+          Weekly Tracker
+        </button>
+      </div>
+
+      <div className="table-container" style={{ background: '#2d2540', borderRadius: 8, boxShadow: '0 2px 8px rgba(40, 20, 60, 0.18)', padding: '1rem', border: '1.5px solid #2d2540', maxWidth: 800, margin: '0 auto' }}>
         {error && <div style={{ color: 'red', marginBottom: '1rem', fontWeight: 600 }}>{error}</div>}
+        
+        {/* Character Creation Section */}
         <div style={{ margin: '2rem 0', display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'center' }}>
           <input
             type="text"
@@ -931,38 +1287,14 @@ function App() {
             Add Character
           </button>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '-1rem', marginBottom: '1rem' }}>
-          <button
-            className="delete-all-characters-btn"
-            onClick={() => {
-              if (window.confirm('Are you sure you want to delete all characters?')) {
-                setCharacters([]);
-                setSelectedCharIdx(null);
-              }
-            }}
-            style={{ 
-              background: 'transparent', 
-              color: '#666', 
-              border: 'none', 
-              padding: '0.3rem 0.8rem', 
-              cursor: 'pointer', 
-              fontSize: '0.9rem',
-              textDecoration: 'underline',
-              opacity: 0.7,
-              transition: 'opacity 0.2s'
-            }}
-            onMouseOver={e => e.target.style.opacity = 1}
-            onMouseOut={e => e.target.style.opacity = 0.7}
-          >
-            Delete All Characters
-          </button>
-        </div>
+
         {characters.length === 0 ? (
-          <div style={{ padding: '2rem', color: '#888', fontSize: '1.2rem', textAlign: 'center' }}>
-            <span role="img" aria-label="sparkles">✨</span> No characters yet. Add a character to get started!
+          <div style={{ padding: '2rem', color: '#888', fontSize: '1.2rem', textAlign: 'center', background: '#23203a', borderRadius: '8px', margin: '1rem 0' }}>
+            <span role="img" aria-label="sparkles">✨</span> Welcome! Add your first character to get started.
           </div>
         ) : (
           <>
+            {/* Character Management Section */}
             <div className="char-header-row" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, justifyContent: 'center' }}>
               {selectedCharIdx !== null && characters[selectedCharIdx] && (
                 <EditCharacterName
@@ -1001,18 +1333,19 @@ function App() {
                   >
                     Clone
                   </button>
-                  <button 
-                    className="boton-elegante ctene" 
-                    onClick={() => handlePresetApply(cteneBosses, 'ctene')}
-                  >
-                    CTene
-                  </button>
-                  <button 
-                    className="boton-elegante hlom" 
-                    onClick={() => handlePresetApply(hlomBosses, 'hlom')}
-                  >
-                    HLom
-                  </button>
+                  {presets.length < 2 && (
+                    <button 
+                      className="boton-elegante add-preset"
+                      onClick={() => { setEditingPresetIdx(null); setPresetDraft({ name: '', bosses: [] }); setPresetModalOpen(true); }}
+                      style={{ 
+                        minWidth: 60, 
+                        fontWeight: 700
+                      }}
+                      title="Add Preset"
+                    >
+                      +Preset
+                    </button>
+                  )}
                   <button 
                     className="boton-elegante delete" 
                     onClick={() => removeCharacter(selectedCharIdx)}
@@ -1022,444 +1355,546 @@ function App() {
                 </>
               )}
             </div>
-            {selectedCharIdx === null || !characters[selectedCharIdx] ? (
+
+            {/* Preset row below main controls */}
+            {selectedCharIdx !== null && (
+              <div className="preset-row" style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center', margin: '8px 0 18px 0' }}>
+                {presets.map((preset, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <button 
+                      onClick={e => { e.stopPropagation(); setEditingPresetIdx(idx); setPresetDraft(preset); setPresetModalOpen(true); }} 
+                      style={{ 
+                        background: 'none', 
+                        border: 'none', 
+                        color: 'white', 
+                        cursor: 'pointer', 
+                        fontSize: '1.2em', 
+                        padding: '4px', 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        borderRadius: '4px',
+                        transition: 'background-color 0.2s'
+                      }} 
+                      onMouseOver={e => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
+                      onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                      title="Edit Preset"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M20.548 3.452a1.542 1.542 0 0 1 0 2.182l-7.636 7.636-3.273 1.091 1.091-3.273 7.636-7.636a1.542 1.542 0 0 1 2.182 0zM4 21h15a1 1 0 0 0 1-1v-8a1 1 0 0 0-2 0v7H5V6h7a1 1 0 0 0 0-2H4a1 1 0 0 0-1 1v15a1 1 0 0 0 1 1z"/>
+                      </svg>
+                    </button>
+                    <button
+                      className={`boton-elegante preset${idx}`}
+                      onClick={() => applyPreset(idx)}
+                      style={{ 
+                        minWidth: 60, 
+                        maxWidth: 90, 
+                        overflow: 'hidden', 
+                        textOverflow: 'ellipsis', 
+                        whiteSpace: 'nowrap', 
+                        textAlign: 'center', 
+                        fontWeight: 700
+                      }}
+                      title={preset.name}
+                    >
+                      {preset.name}
+                    </button>
+                    <button 
+                      onClick={e => { e.stopPropagation(); setPresets(presets => presets.filter((_, i) => i !== idx)); }} 
+                      style={{ 
+                        background: 'none', 
+                        border: 'none', 
+                        color: '#ff6b6b', 
+                        cursor: 'pointer', 
+                        fontSize: '1.2em', 
+                        padding: '4px', 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        borderRadius: '4px',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseOver={e => e.currentTarget.style.backgroundColor = 'rgba(255, 107, 107, 0.1)'}
+                      onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                      title="Delete Preset"
+                    >
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path fillRule="evenodd" clipRule="evenodd" d="M17 5V4C17 2.89543 16.1046 2 15 2H9C7.89543 2 7 2.89543 7 4V5H4C3.44772 5 3 5.44772 3 6C3 6.55228 3.44772 7 4 7H5V18C5 19.6569 6.34315 21 8 21H16C17.6569 21 19 19.6569 19 18V7H20C20.5523 7 21 6.55228 21 6C21 5.44772 20.5523 5 20 5H17ZM15 4H9V5H15V4ZM17 7H7V18C7 18.5523 7.44772 19 8 19H16C16.5523 19 17 18.5523 17 18V7Z" fill="currentColor"/>
+                        <path d="M9 9H11V17H9V9Z" fill="currentColor" />
+                        <path d="M13 9H15V17H13V9Z" fill="currentColor" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Boss Selection Table */}
+            {selectedCharIdx !== null && characters[selectedCharIdx] ? (
+              <div style={{ marginTop: '1rem' }}>
+                {/* Restored: Original Boss Table with all features and styling */}
+                <div className="table-scroll">
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700, border: '1px solid #2d2540', borderRadius: 12, overflow: 'hidden' }}>
+                    <thead>
+                      <tr style={{ background: '#3a2a5d', color: '#e6e0ff' }}>
+                        <th style={{ padding: '6px 2px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 70 }}>Boss</th>
+                        <th style={{ padding: '6px 2px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 90 }}>Difficulty</th>
+                        <th className="boss-table-price" style={{ padding: '6px 2px', textAlign: 'center', fontWeight: 600, fontSize: '0.9em', minWidth: 70 }}>Mesos</th>
+                        <th className="boss-table-controls" style={{ padding: '6px 2px', textAlign: 'center', fontWeight: 600, fontSize: '0.9em', minWidth: 160 }}>{selectedCharIdx !== null ? characters[selectedCharIdx]?.name : 'Selected Character'}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedBossData.map((boss, bidx) => {
+                        const difficulties = getBossDifficulties(boss);
+                        const selected = selectedCharIdx !== null ? characters[selectedCharIdx]?.bosses.find(b => b.name === boss.name) : null;
+                        return (
+                          <tr 
+                            key={bidx} 
+                            style={{ 
+                              background: bidx % 2 === 0 ? '#23203a' : '#201c32', 
+                              border: '1px solid #3a335a',
+                              color: '#e6e0ff',
+                              transition: 'background-color 0.2s ease, transform 0.2s ease',
+                              cursor: 'pointer'
+                            }}
+                            onMouseOver={e => e.currentTarget.style.background = '#2a2540'}
+                            onMouseOut={e => e.currentTarget.style.background = bidx % 2 === 0 ? '#23203a' : '#201c32'}
+                            onClick={() => {
+                              if (selected) {
+                                toggleBoss(selectedCharIdx, boss.name, '');
+                              } else {
+                                toggleBoss(selectedCharIdx, boss.name, difficulties[0]);
+                              }
+                            }}
+                          >
+                            <td style={{ padding: '8px 2px', display: 'flex', alignItems: 'center', gap: 8, minWidth: 70 }}>
+                              {boss.image && (
+                                <img 
+                                  src={boss.image} 
+                                  alt={boss.name} 
+                                  loading="lazy"
+                                  style={{ 
+                                    width: 40, 
+                                    height: 40, 
+                                    objectFit: 'contain', 
+                                    borderRadius: 6, 
+                                    background: '#fff1', 
+                                    marginRight: 8,
+                                    transition: 'transform 0.2s ease'
+                                  }} 
+                                  onMouseOver={e => e.target.style.transform = 'scale(1.1)'}
+                                  onMouseOut={e => e.target.style.transform = 'scale(1)'}
+                                />
+                              )}
+                              <span className="boss-name" style={{ fontWeight: 600, fontSize: '1.05em', color: undefined }}>{boss.name}</span>
+                            </td>
+                            <td style={{ padding: '8px 2px', textAlign: 'left', minWidth: 90 }}>
+                              <span style={{ color: undefined, fontWeight: 500 }}>{selected ? selected.difficulty : '—'}</span>
+                            </td>
+                            <td className="boss-table-price" style={{ padding: '8px 2px', textAlign: 'center', minWidth: 70, fontWeight: 600, background: 'inherit', verticalAlign: 'middle' }}>
+                              <span style={{ color: '#6a11cb' }}>{selected && selected.difficulty && Math.floor(getBossPrice(boss, selected.difficulty) / (selected.partySize || 1)).toLocaleString()}</span>
+                            </td>
+                            <td className="boss-table-controls" style={{ padding: '8px 2px', textAlign: 'center', minWidth: 160, background: 'inherit', verticalAlign: 'middle' }}>
+                              {selectedCharIdx !== null && (
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 6 }}>
+                                  <div className="checkbox-wrapper" style={{ marginRight: 4, transform: 'scale(0.8)' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={!!selected}
+                                      onClick={e => e.stopPropagation()}
+                                      onChange={() => {
+                                        if (selected) {
+                                          toggleBoss(selectedCharIdx, boss.name, '');
+                                        } else {
+                                          toggleBoss(selectedCharIdx, boss.name, difficulties[0]);
+                                        }
+                                      }}
+                                    />
+                                    <svg viewBox="0 0 35.6 35.6">
+                                      <circle className="background" cx="17.8" cy="17.8" r="17.8"></circle>
+                                      <circle className="stroke" cx="17.8" cy="17.8" r="14.37"></circle>
+                                      <polyline className="check" points="11.78 18.12 15.55 22.23 25.17 12.87"></polyline>
+                                    </svg>
+                                  </div>
+                                  {selected && (
+                                    <>
+                                      <select
+                                        className="boss-table-difficulty"
+                                        value={selected.difficulty}
+                                        onClick={e => e.stopPropagation()}
+                                        onChange={e => {
+                                          toggleBoss(selectedCharIdx, boss.name, e.target.value);
+                                          // Reset party size when changing difficulty
+                                          const availableSizes = getAvailablePartySizes(boss.name, e.target.value);
+                                          updatePartySize(selectedCharIdx, boss.name, e.target.value, availableSizes[0]);
+                                        }}
+                                        style={{ 
+                                          marginLeft: 0, 
+                                          height: 32, 
+                                          borderRadius: 6, 
+                                          border: '1px solid #3a335a', 
+                                          background: '#3a335a', 
+                                          color: '#e6e0ff', 
+                                          fontWeight: 600,
+                                          paddingRight: 18,
+                                          cursor: 'pointer',
+                                          minWidth: 90,
+                                          maxWidth: 120,
+                                          textOverflow: 'ellipsis',
+                                          whiteSpace: 'nowrap',
+                                          overflow: 'hidden',
+                                          boxSizing: 'border-box',
+                                          fontSize: '1rem',
+                                        }}
+                                      >
+                                        {difficulties.map(diff => (
+                                          <option key={diff} value={diff}>{diff}</option>
+                                        ))}
+                                      </select>
+                                      <select
+                                        className="party-size-dropdown boss-table-party-size"
+                                        value={selected.partySize || 1}
+                                        onClick={e => e.stopPropagation()}
+                                        onChange={e => {
+                                          updatePartySize(selectedCharIdx, boss.name, selected.difficulty, parseInt(e.target.value));
+                                        }}
+                                        style={{ 
+                                          marginLeft: 4, 
+                                          height: 32, 
+                                          borderRadius: 6, 
+                                          border: '1px solid #3a335a', 
+                                          background: '#3a335a', 
+                                          color: '#e6e0ff', 
+                                          fontWeight: 600, 
+                                          textAlign: 'center',
+                                          fontSize: '1rem',
+                                          boxSizing: 'border-box',
+                                          appearance: 'none',
+                                          WebkitAppearance: 'none',
+                                          width: 44,
+                                          minWidth: 44,
+                                          padding: '0 10px 0 6px',
+                                          cursor: 'pointer',
+                                        }}
+                                      >
+                                        {getAvailablePartySizes(boss.name, selected.difficulty).map(size => (
+                                          <option key={size} value={size}>{size}</option>
+                                        ))}
+                                      </select>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
               <div style={{ padding: '2rem', color: '#888', fontSize: '1.1rem', textAlign: 'center' }}>
                 <span role="img" aria-label="arrow">⬅️</span> Select a character to view and manage bosses.
               </div>
-            ) : (
-              <>
-                {characters[selectedCharIdx].bosses.length === 0 && (
-                  <div style={{ padding: '1rem', color: '#888', fontSize: '1.1rem', textAlign: 'center' }}>
-                    <span role="img" aria-label="boss">👾</span> No bosses selected for this character. Use the checkboxes to add bosses!
-                  </div>
-                )}
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700, border: '1px solid #2d2540', borderRadius: 12, overflow: 'hidden' }}>
-                  <thead>
-                    <tr style={{ background: '#3a2a5d', color: '#e6e0ff' }}>
-                      <th style={{ padding: '6px 2px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 70, verticalAlign: 'bottom', color: undefined }}>Boss</th>
-                      <th style={{ padding: '6px 2px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 90, color: undefined }}>Difficulty</th>
-                      <th className="boss-table-price" style={{ padding: '6px 2px', textAlign: 'center', fontWeight: 600, fontSize: '0.9em', minWidth: 70, color: undefined }}>Mesos</th>
-                      <th className="boss-table-controls" style={{ padding: '6px 2px', textAlign: 'center', fontWeight: 600, fontSize: '0.9em', minWidth: 160, color: undefined }}>{selectedCharIdx !== null ? characters[selectedCharIdx]?.name : 'Selected Character'}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedBossData.map((boss, bidx) => {
-                      const difficulties = getBossDifficulties(boss);
-                      const selected = selectedCharIdx !== null ? characters[selectedCharIdx]?.bosses.find(b => b.name === boss.name) : null;
-                      return (
-                        <tr 
-                          key={bidx} 
-                          style={{ 
-                            background: bidx % 2 === 0 ? '#23203a' : '#201c32', 
-                            border: '1px solid #3a335a',
-                            color: '#e6e0ff',
-                            transition: 'background-color 0.2s ease, transform 0.2s ease',
-                            cursor: 'pointer'
-                          }}
-                          onMouseOver={e => e.currentTarget.style.background = '#2a2540'}
-                          onMouseOut={e => e.currentTarget.style.background = bidx % 2 === 0 ? '#23203a' : '#201c32'}
-                          onClick={() => {
-                            if (selected) {
-                              toggleBoss(selectedCharIdx, boss.name, '');
-                            } else {
-                              toggleBoss(selectedCharIdx, boss.name, difficulties[0]);
-                            }
-                          }}
-                        >
-                          <td style={{ padding: '8px 2px', display: 'flex', alignItems: 'center', gap: 8, minWidth: 70 }}>
-                            {boss.image && (
-                              <img 
-                                src={boss.image} 
-                                alt={boss.name} 
-                                loading="lazy"
-                                style={{ 
-                                  width: 40, 
-                                  height: 40, 
-                                  objectFit: 'contain', 
-                                  borderRadius: 6, 
-                                  background: '#fff1', 
-                                  marginRight: 8,
-                                  transition: 'transform 0.2s ease'
-                                }} 
-                                onMouseOver={e => e.target.style.transform = 'scale(1.1)'}
-                                onMouseOut={e => e.target.style.transform = 'scale(1)'}
-                              />
-                            )}
-                            <span className="boss-name" style={{ fontWeight: 600, fontSize: '1.05em', color: undefined }}>{boss.name}</span>
-                          </td>
-                          <td style={{ padding: '8px 2px', textAlign: 'left', minWidth: 90 }}>
-                            <span style={{ color: undefined, fontWeight: 500 }}>{selected ? selected.difficulty : '—'}</span>
-                          </td>
-                          <td className="boss-table-price" style={{ padding: '8px 2px', textAlign: 'center', minWidth: 70, fontWeight: 600, background: 'inherit', verticalAlign: 'middle' }}>
-                            <span style={{ color: '#6a11cb' }}>{selected && selected.difficulty && Math.floor(getBossPrice(boss, selected.difficulty) / (selected.partySize || 1)).toLocaleString()}</span>
-                          </td>
-                          <td className="boss-table-controls" style={{ padding: '8px 2px', textAlign: 'center', minWidth: 160, background: 'inherit', verticalAlign: 'middle' }}>
-                            {selectedCharIdx !== null && (
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 6 }}>
-                                <div className="checkbox-wrapper" style={{ marginRight: 4, transform: 'scale(0.8)' }}>
-                                  <input
-                                    type="checkbox"
-                                    checked={!!selected}
-                                    onClick={e => e.stopPropagation()}
-                                    onChange={() => {
-                                      if (selected) {
-                                        toggleBoss(selectedCharIdx, boss.name, '');
-                                      } else {
-                                        toggleBoss(selectedCharIdx, boss.name, difficulties[0]);
-                                      }
-                                    }}
-                                  />
-                                  <svg viewBox="0 0 35.6 35.6">
-                                    <circle className="background" cx="17.8" cy="17.8" r="17.8"></circle>
-                                    <circle className="stroke" cx="17.8" cy="17.8" r="14.37"></circle>
-                                    <polyline className="check" points="11.78 18.12 15.55 22.23 25.17 12.87"></polyline>
-                                  </svg>
-                                </div>
-                                {selected && (
-                                  <>
-                                    <select
-                                      className="boss-table-difficulty"
-                                      value={selected.difficulty}
-                                      onClick={e => e.stopPropagation()}
-                                      onChange={e => {
-                                        toggleBoss(selectedCharIdx, boss.name, e.target.value);
-                                        // Reset party size when changing difficulty
-                                        const availableSizes = getAvailablePartySizes(boss.name, e.target.value);
-                                        updatePartySize(selectedCharIdx, boss.name, e.target.value, availableSizes[0]);
-                                      }}
-                                      style={{ 
-                                        marginLeft: 0, 
-                                        height: 32, 
-                                        borderRadius: 6, 
-                                        border: '1px solid #3a335a', 
-                                        background: '#3a335a', 
-                                        color: '#e6e0ff', 
-                                        fontWeight: 600,
-                                        paddingRight: 18,
-                                        cursor: 'pointer',
-                                        minWidth: 90,
-                                        maxWidth: 120,
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
-                                        overflow: 'hidden',
-                                        boxSizing: 'border-box',
-                                        fontSize: '1rem',
-                                      }}
-                                    >
-                                      {difficulties.map(diff => (
-                                        <option key={diff} value={diff}>{diff}</option>
-                                      ))}
-                                    </select>
-                                    <select
-                                      className="party-size-dropdown boss-table-party-size"
-                                      value={selected.partySize || 1}
-                                      onClick={e => e.stopPropagation()}
-                                      onChange={e => {
-                                        updatePartySize(selectedCharIdx, boss.name, selected.difficulty, parseInt(e.target.value));
-                                      }}
-                                      style={{ 
-                                        marginLeft: 4, 
-                                        height: 32, 
-                                        borderRadius: 6, 
-                                        border: '1px solid #3a335a', 
-                                        background: '#3a335a', 
-                                        color: '#e6e0ff', 
-                                        fontWeight: 600, 
-                                        textAlign: 'center',
-                                        fontSize: '1rem',
-                                        boxSizing: 'border-box',
-                                        appearance: 'none',
-                                        WebkitAppearance: 'none',
-                                        width: 44,
-                                        minWidth: 44,
-                                        padding: '0 10px 0 6px',
-                                        cursor: 'pointer',
-                                      }}
-                                    >
-                                      {getAvailablePartySizes(boss.name, selected.difficulty).map(size => (
-                                        <option key={size} value={size}>{size}</option>
-                                      ))}
-                                    </select>
-                                  </>
-                                )}
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </>
             )}
           </>
         )}
       </div>
-      <div style={{ marginTop: '2rem', fontSize: '1.2rem', fontWeight: 'bold', color: undefined, textAlign: 'center' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          <img src="/bosses/crystal.png" alt="Crystal" style={{ width: 28, height: 28, verticalAlign: 'middle', marginRight: 4 }} />
-          Overall Total: <span style={{ color: '#a259f7' }}>{overallTotal.toLocaleString()} meso</span>
-        </span>
-        <br />
-        <span style={{ fontSize: '1rem', color: '#6a11cb' }}>Bosses selected: {totalBossCount()} / {TOTAL_BOSS_CAP}</span>
-      </div>
 
-      {/* Loading Overlay */}
-      {isLoading && (
+      {/* Preset Modal for create/edit */}
+      {presetModalOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(40,32,74,0.92)', zIndex: 4000, display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{ background: '#2d2540', borderRadius: 12, padding: '2.5rem 2rem', maxWidth: 440, color: '#e6e0ff', boxShadow: '0 4px 24px #0006', position: 'relative', minWidth: 320 }}>
+            <button onClick={() => setPresetModalOpen(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', color: '#fff', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }} title="Close">×</button>
+            <h2 style={{ color: '#a259f7', fontWeight: 700, marginBottom: 18 }}>{editingPresetIdx === null ? 'Create Preset' : 'Edit Preset'}</h2>
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ fontWeight: 600, fontSize: '1.1em', marginRight: 8 }}>Name:</label>
+              <input
+                type="text"
+                value={presetDraft.name}
+                maxLength={5}
+                onChange={e => setPresetDraft(d => ({ ...d, name: e.target.value.replace(/[^\w\s]/g, '').slice(0, 5) }))}
+                style={{ background: '#3a335a', color: '#e6e0ff', border: '1.5px solid #2d2540', borderRadius: 6, padding: '0.5rem 1rem', fontSize: '1.1rem', width: 120, marginRight: 8 }}
+                placeholder="Name"
+              />
+            </div>
+            <div style={{ maxHeight: 260, overflowY: 'auto', marginBottom: 18, background: '#23203a', borderRadius: 8, padding: 12 }}>
+              <div style={{ fontWeight: 600, marginBottom: 8 }}>Select Bosses (max 14):</div>
+              {[...bossData].sort((a, b) => {
+                const maxA = Math.max(...a.difficulties.map(d => d.price));
+                const maxB = Math.max(...b.difficulties.map(d => d.price));
+                return maxB - maxA;
+              }).map(boss => {
+                const selected = presetDraft.bosses.find(b => b.name === boss.name);
+                return (
+                  <div key={boss.name} style={{ marginBottom: 6 }}>
+                    <div style={{ fontWeight: 600, color: '#a259f7', marginBottom: 2 }}>{boss.name}</div>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }} key={selected ? selected.difficulty : 'none'}>
+                      {boss.difficulties.map(diff => {
+                        const checked = selected && selected.difficulty === diff.difficulty;
+                        const atMax = !checked && presetDraft.bosses.length >= 14;
+                        return (
+                          <label key={diff.difficulty} style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 500, background: checked ? '#805ad5' : '#3a335a', color: checked ? '#fff' : '#e6e0ff', borderRadius: 6, padding: '2px 8px', cursor: atMax ? 'not-allowed' : 'pointer', fontSize: '0.98em', opacity: atMax ? 0.5 : 1 }}>
+                            <input
+                              type="radio"
+                              name={`preset-boss-${boss.name}`}
+                              checked={checked}
+                              disabled={atMax}
+                              onChange={e => {
+                                // Only add if not already checked
+                                if (!checked && e.target.checked) {
+                                  setPresetDraft(d => {
+                                    let bosses = d.bosses.filter(b => b.name !== boss.name);
+                                    bosses = [...bosses, { name: boss.name, difficulty: diff.difficulty }];
+                                    return { ...d, bosses };
+                                  });
+                                }
+                              }}
+                              onClick={e => {
+                                // If already checked, unselect (toggle off)
+                                if (checked) {
+                                  setPresetDraft(d => ({ ...d, bosses: d.bosses.filter(b => b.name !== boss.name) }));
+                                }
+                              }}
+                              style={{ marginRight: 2 }}
+                            />
+                            {diff.difficulty}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <button
+              style={{ background: '#a259f7', color: '#fff', border: 'none', borderRadius: 8, padding: '0.7rem 1.5rem', fontWeight: 700, fontSize: '1.1rem', cursor: presetDraft.name.length === 0 || presetDraft.bosses.length === 0 ? 'not-allowed' : 'pointer', opacity: presetDraft.name.length === 0 || presetDraft.bosses.length === 0 ? 0.6 : 1, width: '100%', marginTop: 8 }}
+              disabled={presetDraft.name.length === 0 || presetDraft.bosses.length === 0}
+              onClick={() => {
+                if (presetDraft.name.length === 0 || presetDraft.bosses.length === 0) return;
+                if (editingPresetIdx === null) {
+                  setPresets(presets => [...presets, { ...presetDraft, name: presetDraft.name.slice(0, 5) }]);
+                } else {
+                  setPresets(presets => presets.map((p, i) => i === editingPresetIdx ? { ...presetDraft, name: presetDraft.name.slice(0, 5) } : p));
+                }
+                setPresetModalOpen(false);
+              }}
+            >
+              Save Preset
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Help Modal */}
+      {showHelp && (
         <div style={{
           position: 'fixed',
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0, 0, 0, 0.5)',
+          background: 'rgba(40,32,74,0.92)',
+          zIndex: 4000,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
+          justifyContent: 'center'
         }}>
           <div style={{
-            background: '#28204a',
-            padding: '2rem',
-            borderRadius: '12px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
+            background: '#2d2540',
+            borderRadius: 12,
+            padding: '2.5rem 2rem',
+            maxWidth: 600,
+            color: '#e6e0ff',
+            boxShadow: '0 4px 24px #0006',
+            position: 'relative',
+            minWidth: 320,
+            maxHeight: '90vh',
+            overflowY: 'auto'
           }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              border: '4px solid #f3f3f3',
-              borderTop: '4px solid #a259f7',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite'
-            }} />
-          </div>
-        </div>
-      )}
+            <button
+              onClick={() => setShowHelp(false)}
+              style={{
+                position: 'absolute',
+                top: 16,
+                right: 16,
+                background: 'transparent',
+                color: '#fff',
+                border: 'none',
+                fontSize: '1.5rem',
+                cursor: 'pointer'
+              }}
+              title="Close"
+            >
+              ×
+            </button>
+            <h2 style={{ color: '#a259f7', fontWeight: 700, marginBottom: 24 }}>Help & FAQ</h2>
+            
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={{ color: '#b39ddb', marginBottom: 12 }}>Getting Started</h3>
+              <p style={{ marginBottom: 8 }}>1. Create an account or log in with your existing code</p>
+              <p style={{ marginBottom: 8 }}>2. Add characters using the input field at the top</p>
+              <p style={{ marginBottom: 8 }}>3. Select a character and choose their bosses</p>
+              <p style={{ marginBottom: 8 }}>4. Adjust party sizes for each boss as needed</p>
+            </div>
 
-      {showDeleteLoading && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
-          <div style={{ background: '#28204a', padding: '2rem', borderRadius: '12px', color: '#fff', fontWeight: 600 }}>
-            Deleting account...
-          </div>
-        </div>
-      )}
-      {deleteError && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, background: '#ffbaba', color: '#a00', padding: '1rem', textAlign: 'center', zIndex: 2001 }}>
-          {deleteError}
-          <button onClick={() => setDeleteError('')} style={{ marginLeft: 16, background: '#fff', color: '#a00', border: '1px solid #a00', borderRadius: 6, padding: '2px 10px', fontWeight: 600, cursor: 'pointer' }}>Dismiss</button>
-        </div>
-      )}
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={{ color: '#b39ddb', marginBottom: 12 }}>Features</h3>
+              <p style={{ marginBottom: 8 }}>• Create up to 2 presets per character for quick boss selection</p>
+              <p style={{ marginBottom: 8 }}>• Track weekly progress with the Weekly Tracker</p>
+              <p style={{ marginBottom: 8 }}>• View all boss crystal prices in the Price Table</p>
+              <p style={{ marginBottom: 8 }}>• Export/Import your data for backup</p>
+            </div>
 
-      {showCloudSync && (
-        <span style={{ marginLeft: 8, verticalAlign: 'middle', display: 'inline-block', animation: 'cloudPop 0.5s' }} title="Data synced to cloud">
-          <svg width="22" height="16" viewBox="0 0 22 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <ellipse cx="11" cy="10" rx="9" ry="6" fill="#a259f7"/>
-            <ellipse cx="7" cy="8" rx="4" ry="3" fill="#b39ddb"/>
-            <ellipse cx="15" cy="8" rx="4" ry="3" fill="#b39ddb"/>
-          </svg>
-        </span>
-      )}
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={{ color: '#b39ddb', marginBottom: 12 }}>Limits</h3>
+              <p style={{ marginBottom: 8 }}>• Each character can select up to 14 bosses</p>
+              <p style={{ marginBottom: 8 }}>• Total boss cap across all characters: 180</p>
+              <p style={{ marginBottom: 8 }}>• Party size restrictions apply to certain bosses</p>
+            </div>
 
-      <style>
-        {`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-          @keyframes cloudPop {
-            0% { opacity: 0; transform: scale(0.8); }
-            50% { opacity: 1; transform: scale(1.2); }
-            100% { opacity: 0; transform: scale(0.8); }
-          }
-          @media (max-width: 600px) {
-            /* Top bar: compact, horizontal scroll if needed */
-            div[style*='position: absolute'][style*='top: 18px'] {
-              position: static !important;
-              display: flex !important;
-              flex-direction: row !important;
-              flex-wrap: wrap !important;
-              align-items: center !important;
-              gap: 6px !important;
-              margin-bottom: 12px;
-              width: 100vw;
-              left: 0 !important;
-              right: 0 !important;
-              top: 0 !important;
-              z-index: 100;
-              overflow-x: auto;
-              justify-content: flex-start;
-            }
-            div[style*='position: absolute'][style*='top: 18px'] > * {
-              margin: 0 !important;
-              min-width: 0;
-              width: auto !important;
-              max-width: 90vw;
-              font-size: 0.95em !important;
-              padding: 0.5rem 1rem !important;
-              box-sizing: border-box;
-              flex: 0 0 auto;
-            }
-            /* Code and cloud icon */
-            div[style*='position: absolute'][style*='top: 18px'] span {
-              font-size: 0.9em !important;
-              word-break: break-all;
-              text-align: center;
-              margin: 0 4px !important;
-              width: auto;
-              display: inline-block;
-            }
-            /* Main content */
-            .App.dark > * {
-              max-width: 100vw !important;
-              box-sizing: border-box;
-            }
-            /* Character controls row */
-            .char-header-row {
-              display: flex !important;
-              flex-direction: row !important;
-              flex-wrap: wrap !important;
-              gap: 6px !important;
-              align-items: center !important;
-              justify-content: flex-start !important;
-              margin-bottom: 10px !important;
-            }
-            .char-header-row > * {
-              min-width: 0;
-              width: auto !important;
-              max-width: 90vw;
-              font-size: 0.95em !important;
-              padding: 0.5rem 1rem !important;
-              margin: 0 !important;
-              flex: 0 0 auto;
-            }
-            /* Table scroll container */
-            .table-scroll {
-              width: 100%;
-              overflow-x: auto;
-              -webkit-overflow-scrolling: touch;
-              padding-bottom: 8px;
-              margin-bottom: 12px;
-            }
-            table {
-              min-width: 650px !important;
-              width: auto !important;
-              max-width: none !important;
-              display: table;
-              font-size: 0.95em;
-            }
-            thead, tbody, tr {
-              display: table-row;
-              width: auto;
-              table-layout: auto;
-            }
-            th, td {
-              padding: 6px 2px !important;
-              font-size: 0.95em !important;
-              white-space: nowrap;
-            }
-            /* Inputs and main containers */
-            input, select {
-              font-size: 1em !important;
-              min-height: 44px !important;
-              width: 100% !important;
-              max-width: 100%;
-              box-sizing: border-box;
-            }
-            button {
-              font-size: 0.95em !important;
-              min-height: 38px !important;
-              width: auto !important;
-              max-width: 90vw;
-              padding: 0.5rem 1rem !important;
-              margin-bottom: 4px !important;
-              box-sizing: border-box;
-              border-radius: 12px !important;
-            }
-            .table-container {
-              min-width: 0 !important;
-              width: 100vw !important;
-              padding: 0.5rem !important;
-            }
-            /* Modal overlays */
-            [style*='position: fixed'][style*='z-index: 3000'],
-            [style*='position: fixed'][style*='z-index: 4000'],
-            [style*='position: fixed'][style*='z-index: 4100'] {
-              padding: 0 !important;
-              align-items: flex-start !important;
-            }
-            [style*='position: fixed'][style*='z-index: 3000'] > div,
-            [style*='position: fixed'][style*='z-index: 4000'] > div,
-            [style*='position: fixed'][style*='z-index: 4100'] > div {
-              width: 98vw !important;
-              max-width: 98vw !important;
-              min-width: 0 !important;
-              padding: 1.2rem 0.5rem !important;
-              font-size: 1em !important;
-            }
-            html, body {
-              overflow-x: hidden !important;
-            }
-          }
-        `}
-      </style>
-      <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-      <div style={{ position: 'absolute', top: 18, right: 32, zIndex: 10 }}>
-        <button onClick={handleLogout} style={{ background: '#a259f7', color: '#fff', border: 'none', borderRadius: '20px', padding: '0.4rem 1.2rem', fontWeight: 700, fontSize: '1rem', boxShadow: '0 2px 8px #0002', cursor: 'pointer', transition: 'all 0.2s', marginRight: 8 }}>Logout</button>
-        <button onClick={() => setShowDeleteConfirm(true)} style={{ background: '#ff6b6b', color: '#fff', border: 'none', borderRadius: '20px', padding: '0.4rem 1.2rem', fontWeight: 700, fontSize: '1rem', boxShadow: '0 2px 8px #0002', cursor: 'pointer', transition: 'all 0.2s', marginRight: 8 }}>Delete Account</button>
-        <button onClick={() => setShowHelp(true)} style={{ background: '#805ad5', color: '#fff', border: 'none', borderRadius: '20px', padding: '0.4rem 1.2rem', fontWeight: 700, fontSize: '1rem', boxShadow: '0 2px 8px #0002', cursor: 'pointer', transition: 'all 0.2s', marginRight: 8 }}>Help</button>
-        <span style={{ marginLeft: 12, color: '#b39ddb', fontSize: '0.95em' }}>Code: {userCode}</span>
-      </div>
-
-      {showHelp && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(40,32,74,0.96)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#2d2540', borderRadius: 12, padding: '2.5rem 2rem', maxWidth: 480, color: '#e6e0ff', boxShadow: '0 4px 24px #0006', position: 'relative' }}>
-            <button onClick={() => setShowHelp(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', color: '#fff', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }} title="Close">×</button>
-            <h2 style={{ color: '#a259f7', fontWeight: 700, marginBottom: 16 }}>Help & FAQ</h2>
-            <div style={{ fontSize: '1.08rem', lineHeight: 1.6 }}>
-              <b>What is this site?</b><br />
-              This is a Maplestory Boss Crystal Calculator and Weekly Tracker. You can manage your characters, track boss clears, and sync your data to the cloud.
-              <br /><br />
-              <b>How does the code system work?</b><br />
-              When you create an account, you get a unique code. Use this code to log in from any device and access your data. <b>Keep your code safe!</b>
-              <br /><br />
-              <b>How is my data saved?</b><br />
-              Your data is saved to the cloud (Supabase) and automatically synced whenever you make changes. A cloud icon will briefly appear when your data is synced.
-              <br /><br />
-              <b>When does the weekly reset happen?</b><br />
-              The weekly reset is every Thursday at 00:00 UTC. Your boss clears will reset automatically.
-              <br /><br />
-              <b>How can I recover my data?</b><br />
-              If you lose your code, your data cannot be recovered. Consider writing down your code or exporting your data (feature coming soon).
-              <br /><br />
-              <b>Need more help?</b><br />
-              Contact the developer or check for updates.
+            <div>
+              <h3 style={{ color: '#b39ddb', marginBottom: 12 }}>Tips</h3>
+              <p style={{ marginBottom: 8 }}>• Use presets to quickly switch between boss sets</p>
+              <p style={{ marginBottom: 8 }}>• Clone characters to create similar setups</p>
+              <p style={{ marginBottom: 8 }}>• Check the Weekly Tracker to monitor your progress</p>
+              <p style={{ marginBottom: 8 }}>• Save your code somewhere safe - you'll need it to log in!</p>
             </div>
           </div>
         </div>
       )}
 
+      {/* Delete Account Confirmation Modal */}
       {showDeleteConfirm && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(40,32,74,0.92)', zIndex: 4000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#2d2540', borderRadius: 12, padding: '2.5rem 2rem', maxWidth: 400, color: '#e6e0ff', boxShadow: '0 4px 24px #0006', position: 'relative', textAlign: 'center' }}>
-            <h2 style={{ color: '#ff6b6b', fontWeight: 700, marginBottom: 16 }}>Delete Account</h2>
-            <div style={{ fontSize: '1.08rem', lineHeight: 1.6, marginBottom: 24 }}>
-              Are you <b>sure</b> you want to delete your account?<br />
-              <span style={{ color: '#ffbaba', fontWeight: 600 }}>This cannot be undone!</span>
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(40,32,74,0.92)',
+          zIndex: 4000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{
+            background: '#2d2540',
+            borderRadius: 12,
+            padding: '2.5rem 2rem',
+            maxWidth: 440,
+            color: '#e6e0ff',
+            boxShadow: '0 4px 24px #0006',
+            position: 'relative',
+            minWidth: 320,
+            textAlign: 'center'
+          }}>
+            <h2 style={{ color: '#ff6b6b', fontWeight: 700, marginBottom: 18 }}>Delete Account</h2>
+            <p style={{ marginBottom: 24, fontSize: '1.1rem' }}>
+              Are you sure you want to delete your account? This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                style={{
+                  background: '#3a335a',
+                  color: '#e6e0ff',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '0.7rem 1.5rem',
+                  fontWeight: 700,
+                  fontSize: '1.1rem',
+                  cursor: 'pointer',
+                  minWidth: 120
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={showDeleteLoading}
+                style={{
+                  background: '#ff6b6b',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '0.7rem 1.5rem',
+                  fontWeight: 700,
+                  fontSize: '1.1rem',
+                  cursor: showDeleteLoading ? 'not-allowed' : 'pointer',
+                  opacity: showDeleteLoading ? 0.6 : 1,
+                  minWidth: 120
+                }}
+              >
+                {showDeleteLoading ? 'Deleting...' : 'Delete Account'}
+              </button>
             </div>
-            <button onClick={handleDeleteAccount} style={{ background: '#ff6b6b', color: '#fff', border: 'none', borderRadius: 8, padding: '0.6rem 1.5rem', fontWeight: 700, fontSize: '1.1rem', marginRight: 12, cursor: 'pointer' }}>Yes, Delete</button>
-            <button onClick={() => setShowDeleteConfirm(false)} style={{ background: '#805ad5', color: '#fff', border: 'none', borderRadius: 8, padding: '0.6rem 1.5rem', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer' }}>Cancel</button>
+            {deleteError && (
+              <div style={{ color: '#ff6b6b', marginTop: 16, fontWeight: 600 }}>
+                {deleteError}
+              </div>
+            )}
           </div>
         </div>
       )}
 
+      {/* Delete Success Modal */}
       {deleteSuccess && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(40,32,74,0.92)', zIndex: 4100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#2d2540', borderRadius: 12, padding: '2.5rem 2rem', maxWidth: 400, color: '#e6e0ff', boxShadow: '0 4px 24px #0006', textAlign: 'center' }}>
-            <h2 style={{ color: '#38a169', fontWeight: 700, marginBottom: 16 }}>Account Deleted</h2>
-            <div style={{ fontSize: '1.08rem', lineHeight: 1.6 }}>
-              Your account and all data have been deleted.<br />
-              You will be logged out.
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(40,32,74,0.92)',
+          zIndex: 4000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{
+            background: '#2d2540',
+            borderRadius: 12,
+            padding: '2.5rem 2rem',
+            maxWidth: 440,
+            color: '#e6e0ff',
+            boxShadow: '0 4px 24px #0006',
+            position: 'relative',
+            minWidth: 320,
+            textAlign: 'center'
+          }}>
+            <div style={{ 
+              width: 64, 
+              height: 64, 
+              background: '#4caf50', 
+              borderRadius: '50%', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              margin: '0 auto 24px',
+              boxShadow: '0 4px 16px #4caf5033'
+            }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="#fff"/>
+              </svg>
+            </div>
+            <h2 style={{ color: '#4caf50', fontWeight: 700, marginBottom: 16 }}>Account Deleted</h2>
+            <p style={{ marginBottom: 24, fontSize: '1.1rem', color: '#e6e0ff' }}>
+              Your account has been successfully deleted. You will be logged out shortly.
+            </p>
+            <div style={{ 
+              background: '#4caf5022', 
+              padding: '12px 16px', 
+              borderRadius: 8, 
+              border: '1px solid #4caf5033',
+              marginTop: 16
+            }}>
+              <p style={{ color: '#4caf50', margin: 0, fontSize: '0.95rem' }}>
+                Thank you for using the Boss Crystal Calculator!
+              </p>
             </div>
           </div>
         </div>
@@ -1471,21 +1906,22 @@ function App() {
 function EditCharacterName({ name, onSave }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(name);
+  const [isFocused, setIsFocused] = useState(false);
+  
   if (!editing) {
     return (
       <button
-        className="editBtn"
+        className="character-name-edit-btn"
         title="Edit character name"
         onClick={() => setEditing(true)}
       >
-        <svg height="1em" viewBox="0 0 512 512">
-          <path
-            d="M410.3 231l11.3-11.3-33.9-33.9-62.1-62.1L291.7 89.8l-11.3 11.3-22.6 22.6L58.6 322.9c-10.4 10.4-18 23.3-22.2 37.4L1 480.7c-2.5 8.4-.2 17.5 6.1 23.7s15.3 8.5 23.7 6.1l120.3-35.4c14.1-4.2 27-11.8 37.4-22.2L387.7 253.7 410.3 231zM160 399.4l-9.1 22.7c-4 3.1-8.5 5.4-13.3 6.9L59.4 452l23-78.1c1.4-4.9 3.8-9.4 6.9-13.3l22.7-9.1v32c0 8.8 7.2 16 16 16h32zM362.7 18.7L348.3 33.2 325.7 55.8 314.3 67.1l33.9 33.9 62.1 62.1 33.9 33.9 11.3-11.3 22.6-22.6 14.5-14.5c25-25 25-65.5 0-90.5L453.3 18.7c-25-25-65.5-25-90.5 0zm-47.4 168l-144 144c-6.2 6.2-16.4 6.2-22.6 0s-6.2-16.4 0-22.6l144-144c6.2-6.2 16.4-6.2 22.6 0s6.2 16.4 0 22.6z"
-          ></path>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+          <path fill="currentColor" d="M20.548 3.452a1.542 1.542 0 0 1 0 2.182l-7.636 7.636-3.273 1.091 1.091-3.273 7.636-7.636a1.542 1.542 0 0 1 2.182 0zM4 21h15a1 1 0 0 0 1-1v-8a1 1 0 0 0-2 0v7H5V6h7a1 1 0 0 0 0-2H4a1 1 0 0 0-1 1v15a1 1 0 0 0 1 1z"/>
         </svg>
       </button>
     );
   }
+  
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', marginLeft: 0, marginRight: 4 }}>
       <input
@@ -1493,30 +1929,61 @@ function EditCharacterName({ name, onSave }) {
         onChange={e => setValue(e.target.value)}
         style={{
           fontSize: '0.95em',
-          borderRadius: 6,
-          border: '1px solid #a259f7',
-          padding: '2px 6px',
-          marginRight: 2,
-          minWidth: 70,
-          maxWidth: 120
+          borderRadius: 8,
+          border: isFocused ? '1px solid #a259f7' : '1px solid #4a4370',
+          padding: '4px 8px',
+          marginRight: 4,
+          minWidth: 80,
+          maxWidth: 120,
+          background: '#3a335a',
+          color: '#e6e0ff',
+          boxShadow: isFocused ? '0 0 0 2px rgba(162, 89, 247, 0.3), 0 0 10px rgba(255, 255, 255, 0.15)' : 'none',
+          transition: 'all 0.25s ease',
+          outline: 'none'
         }}
         autoFocus
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
         onKeyDown={e => {
           if (e.key === 'Enter') { onSave(value); setEditing(false); }
           if (e.key === 'Escape') { setEditing(false); setValue(name); }
         }}
       />
       <button
-        style={{ background: '#a259f7', color: '#fff', border: 'none', borderRadius: 6, padding: '2px 6px', marginRight: 2, cursor: 'pointer', fontSize: '0.95em' }}
+        style={{ 
+          background: '#a259f7', 
+          color: '#fff', 
+          border: 'none', 
+          borderRadius: 8, 
+          padding: '4px 8px', 
+          marginRight: 4, 
+          cursor: 'pointer', 
+          fontSize: '0.95em',
+          boxShadow: '0 2px 6px rgba(162, 89, 247, 0.3)',
+          transition: 'all 0.2s ease'
+        }}
         onClick={() => { onSave(value); setEditing(false); }}
         title="Save"
+        onMouseOver={e => { e.currentTarget.style.background = '#b47aff'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+        onMouseOut={e => { e.currentTarget.style.background = '#a259f7'; e.currentTarget.style.transform = 'translateY(0)'; }}
       >
         ✔
       </button>
       <button
-        style={{ background: 'transparent', color: '#a259f7', border: 'none', borderRadius: 6, padding: '2px 6px', cursor: 'pointer', fontSize: '0.95em' }}
+        style={{ 
+          background: 'transparent', 
+          color: '#a259f7', 
+          border: '1px solid #a259f7', 
+          borderRadius: 8, 
+          padding: '4px 8px', 
+          cursor: 'pointer', 
+          fontSize: '0.95em',
+          transition: 'all 0.2s ease'
+        }}
         onClick={() => { setEditing(false); setValue(name); }}
         title="Cancel"
+        onMouseOver={e => { e.currentTarget.style.background = 'rgba(162, 89, 247, 0.1)'; }}
+        onMouseOut={e => { e.currentTarget.style.background = 'transparent'; }}
       >
         ✖
       </button>

@@ -455,9 +455,9 @@
 /* Elegant Button Styles */
 .boton-elegante {
   padding: 8px 16px;
-  border: 2px solid #2c2c2c;
-  background-color: #1a1a1a;
-  color: #ffffff;
+  border: 2px solid #1E0321;
+  background-color: #1E0321;
+  color: #1E0321;
   font-size: 0.9rem;
   cursor: pointer;
   border-radius: 30px;
@@ -643,14 +643,14 @@ body.dark, .App.dark {
 }
 
 .App.dark .boton-elegante {
-  background-color: #28204a !important;
+  background-color: #50AD7E !important;
   color: #e6e0ff !important;
-  border: 2px solid #3a335a !important;
+  border: 2px solid #AFE4C9 !important;
 }
 
 .App.dark .boton-elegante:hover {
-  background: #3a335a !important;
-  border-color: #2d2540 !important;
+  background: #7BCAA2 !important;
+  border-color: #AFE4C9 !important;
 }
 
 .App.dark .boton-elegante.clone {
@@ -668,6 +668,72 @@ body.dark, .App.dark {
 .App.dark .boton-elegante.delete {
   background-color: #e53e3e !important;
   border-color: #fc8181 !important;
+}
+
+/* Separate styling for the +Preset button */
+.App.dark .boton-elegante.add-preset {
+  background-color: #356159 !important;
+  border-color: #2B4D4C !important;
+  color: #F0EEFA !important;
+}
+
+/* Separate styling for created preset buttons */
+.App.dark .boton-elegante.preset0,
+.App.dark .boton-elegante.preset1,
+.App.dark .boton-elegante.preset2,
+.App.dark .boton-elegante.preset3,
+.App.dark .boton-elegante.preset4,
+.App.dark .boton-elegante.preset5 {
+  background-color: #447a70 !important;
+  border-color: #498381 !important;
+  color: #F0EEFA !important;
+}
+
+/* Styling for character name edit button */
+.character-name-edit-btn {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 1.2em;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.character-name-edit-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.character-name-edit-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Enhanced input styles for dark theme */
+.App.dark input[type="text"], 
+.App.dark input[type="password"], 
+.App.dark input[type="email"], 
+.App.dark textarea {
+  background-color: #3a335a !important;
+  border: 1px solid #4a4370 !important;
+  color: #e6e0ff !important;
+  transition: all 0.25s ease !important;
+}
+
+.App.dark input:focus, 
+.App.dark textarea:focus {
+  border-color: #a259f7 !important;
+  box-shadow: 0 0 0 2px rgba(162, 89, 247, 0.3), 0 0 10px rgba(255, 255, 255, 0.15) !important;
+  outline: none !important;
+}
+
+.App.dark input:hover:not(:focus),
+.App.dark textarea:hover:not(:focus) {
+  border-color: #6a5c9e !important;
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.1) !important;
 }
 
 .App.dark .party-size-dropdown, .App.dark .boss-table-difficulty {
@@ -714,7 +780,7 @@ body.dark th, body.dark thead th {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.12);
+  /*box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.12);*/
   cursor: pointer;
   position: relative;
   overflow: hidden;

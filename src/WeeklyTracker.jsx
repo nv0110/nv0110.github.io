@@ -488,7 +488,7 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
                   {cs.total === 0 ? (
                     <span style={{ color: '#888', fontWeight: 500, fontSize: '0.95em' }}>No bosses</span>
                   ) : (
-                    <span>{cs.cleared}/{cs.total}</span>
+                    <span>{cs.cleared} / {cs.total} sold</span>
                   )}
                 </>
               )}
@@ -497,6 +497,12 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
               </span>
             </div>
           ))}
+        </div>
+        <div style={{ marginTop: '1.2rem', fontSize: '1.1rem', fontWeight: 'bold', textAlign: 'center' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <img src="/bosses/crystal.png" alt="Crystal" style={{ width: 24, height: 24, verticalAlign: 'middle', marginRight: 4 }} />
+            Total Meso This Week: <span>{totalMeso.toLocaleString()} meso</span>
+          </span>
         </div>
       </div>
       {showCharacterDetails && (
@@ -593,10 +599,7 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
             fontWeight: 'bold', 
             textAlign: 'center' 
           }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <img src="/bosses/crystal.png" alt="Crystal" style={{ width: 28, height: 28, verticalAlign: 'middle', marginRight: 4 }} />
-              Total Meso This Week: <span>{totalMeso.toLocaleString()} meso</span>
-            </span>
+
           </div>
 
           {/* Progress Bar */}
