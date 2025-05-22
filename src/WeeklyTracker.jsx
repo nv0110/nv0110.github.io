@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 function getCurrentWeekKey() {
   // Returns a string like '2024-23' for year-week, based on UTC
@@ -108,6 +108,17 @@ function CrystalAnimation({ startPosition, endPosition, onComplete }) {
   );
 }
 
+// Helper: get pitched item state key
+function getPitchedKey(charName, charIdx, bossName, itemName, weekKey) {
+  return `${charName}-${charIdx}__${bossName}__${itemName}__${weekKey}`;
+}
+
+// Helper: get current month key (YYYY-MM)
+function getCurrentMonthKey() {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
 export default function WeeklyTracker({ characters, bossData, onBack, checked, setChecked }) {
   // Helper function to get boss price (now has access to bossData prop)
   function getBossPrice(bossName, difficulty) {
@@ -143,6 +154,24 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Pitched item state (per week, per char, per boss, per item)
+  const [pitchedChecked, setPitchedChecked] = useState(() => {
+    const saved = localStorage.getItem('ms-weekly-pitched');
+    return saved ? JSON.parse(saved) : {};
+  });
+  // Save pitchedChecked to localStorage
+  useEffect(() => {
+    localStorage.setItem('ms-weekly-pitched', JSON.stringify(pitchedChecked));
+  }, [pitchedChecked]);
+  // Reset pitchedChecked if week changes
+  useEffect(() => {
+    const savedWeekKey = localStorage.getItem('ms-weekly-pitched-week-key');
+    if (savedWeekKey !== weekKey) {
+      setPitchedChecked({});
+      localStorage.setItem('ms-weekly-pitched-week-key', weekKey);
+    }
+  }, [weekKey]);
 
   // Handle checkbox changes
   const handleCheck = (boss, checkedVal, event) => {
@@ -308,6 +337,160 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
 
   // Check if any character has at least one selected boss
   const anyBossesSelected = characters.some(char => (char.bosses || []).length > 0);
+
+  // Stats modal state
+  const [showStats, setShowStats] = useState(false);
+  const [showStatsResetConfirm, setShowStatsResetConfirm] = useState(false);
+  // Persistent stats (never reset unless user requests)
+  const [statsPanel, setStatsPanel] = useState(() => {
+    const saved = localStorage.getItem('ms-stats-panel');
+    return saved ? JSON.parse(saved) : { weekly: [], monthly: [] };
+  });
+  // Save statsPanel to localStorage
+  useEffect(() => {
+    localStorage.setItem('ms-stats-panel', JSON.stringify(statsPanel));
+  }, [statsPanel]);
+
+  // Helper: update stats panel on pitched/clears change
+  useEffect(() => {
+    // Only update if not viewing stats (avoid double counting)
+    if (showStats) return;
+    // Weekly
+    const weekKey = getCurrentWeekKey();
+    const monthKey = getCurrentMonthKey();
+    // Gather weekly data
+    const weeklyData = [];
+    characters.forEach((char, charIdx) => {
+      (char.bosses || []).forEach(boss => {
+        const bossObj = bossData.find(bd => bd.name === boss.name);
+        if (!bossObj) return;
+        // Cleared?
+        const cleared = checked[`${char.name}-${charIdx}`]?.[boss.name + '-' + boss.difficulty];
+        // Pitched items
+        const pitched = (bossObj.pitchedItems || []).map(item => {
+          const key = getPitchedKey(char.name, charIdx, boss.name, item.name, weekKey);
+          return { name: item.name, image: item.image, obtained: !!pitchedChecked[key] };
+        });
+        weeklyData.push({
+          char: char.name,
+          boss: boss.name,
+          difficulty: boss.difficulty,
+          cleared,
+          mesos: cleared ? getBossPrice(boss.name, boss.difficulty) / (boss.partySize || 1) : 0,
+          pitched: pitched.filter(p => p.obtained)
+        });
+      });
+    });
+    // Monthly: aggregate all weeks in this month
+    let monthlyData = statsPanel.monthly.filter(m => m.monthKey === monthKey);
+    if (monthlyData.length === 0) monthlyData = [{ monthKey, data: [] }];
+    // Add this week's data to monthly
+    const thisMonth = monthlyData[0];
+    // Only add if not already present for this week
+    if (!thisMonth.data.some(d => d.weekKey === weekKey)) {
+      thisMonth.data.push({ weekKey, weeklyData });
+      setStatsPanel(prev => ({
+        weekly: [{ weekKey, weeklyData }],
+        monthly: [
+          ...prev.monthly.filter(m => m.monthKey !== monthKey),
+          thisMonth
+        ]
+      }));
+    } else {
+      // Always update weekly
+      setStatsPanel(prev => ({
+        ...prev,
+        weekly: [{ weekKey, weeklyData }]
+      }));
+    }
+    // eslint-disable-next-line
+  }, [characters, checked, pitchedChecked, showStats]);
+
+  // Reset stats panel
+  const handleStatsReset = () => {
+    setStatsPanel({ weekly: [], monthly: [] });
+    setShowStatsResetConfirm(false);
+    setShowStats(false);
+  };
+
+  // State for selected month and character in stats modal
+  const allMonths = useMemo(() => statsPanel.monthly.map(m => m.monthKey).sort((a, b) => b.localeCompare(a)), [statsPanel.monthly]);
+  const [selectedMonth, setSelectedMonth] = useState(() => allMonths[0] || getCurrentMonthKey());
+  useEffect(() => {
+    if (!allMonths.includes(selectedMonth) && allMonths.length > 0) {
+      setSelectedMonth(allMonths[0]);
+    }
+    // eslint-disable-next-line
+  }, [allMonths.length]);
+  // Character selector for monthly stats
+  const charsInMonth = useMemo(() => {
+    const monthData = statsPanel.monthly.find(m => m.monthKey === selectedMonth);
+    if (!monthData) return [];
+    const charSet = new Set();
+    monthData.data.forEach(w => w.weeklyData.forEach(d => charSet.add(d.char)));
+    return Array.from(charSet);
+  }, [statsPanel.monthly, selectedMonth]);
+  const [selectedChar, setSelectedChar] = useState('');
+  useEffect(() => {
+    if (charsInMonth.length > 0 && !charsInMonth.includes(selectedChar)) {
+      setSelectedChar(charsInMonth[0]);
+    }
+    // eslint-disable-next-line
+  }, [charsInMonth.length, selectedChar]);
+  // --- Aggregate pitched items for selected month (all characters) ---
+  const monthlyPitchedSummary = useMemo(() => {
+    const monthData = statsPanel.monthly.find(m => m.monthKey === selectedMonth);
+    if (!monthData) return [];
+    const pitchedMap = new Map();
+    monthData.data.forEach(w => w.weeklyData.forEach(d => {
+      d.pitched.forEach(p => {
+        const key = p.name + '|' + p.image;
+        if (!pitchedMap.has(key)) pitchedMap.set(key, { ...p, count: 0 });
+        pitchedMap.get(key).count += 1;
+      });
+    }));
+    return Array.from(pitchedMap.values()).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  }, [statsPanel.monthly, selectedMonth]);
+  // --- Aggregate pitched items for selected character in selected month ---
+  const charPitchedSummary = useMemo(() => {
+    if (!selectedChar) return [];
+    const monthData = statsPanel.monthly.find(m => m.monthKey === selectedMonth);
+    if (!monthData) return [];
+    const pitchedMap = new Map();
+    monthData.data.forEach(w => w.weeklyData.forEach(d => {
+      if (d.char !== selectedChar) return;
+      d.pitched.forEach(p => {
+        const key = p.name + '|' + p.image;
+        if (!pitchedMap.has(key)) pitchedMap.set(key, { ...p, count: 0 });
+        pitchedMap.get(key).count += 1;
+      });
+    }));
+    return Array.from(pitchedMap.values()).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  }, [statsPanel.monthly, selectedMonth, selectedChar]);
+
+  // --- Add to WeeklyTracker component state ---
+  const [showPitchedModal, setShowPitchedModal] = useState(false);
+  const [pitchedModalItem, setPitchedModalItem] = useState(null);
+
+  // --- Compute pitched item details for modal ---
+  const pitchedModalDetails = useMemo(() => {
+    if (!pitchedModalItem) return [];
+    const monthData = statsPanel.monthly.find(m => m.monthKey === selectedMonth);
+    if (!monthData) return [];
+    // For each week, find which characters got this item
+    const details = [];
+    monthData.data.forEach(w => {
+      const week = w.weekKey;
+      w.weeklyData.forEach(d => {
+        d.pitched.forEach(p => {
+          if (p.name === pitchedModalItem.name && p.image === pitchedModalItem.image) {
+            details.push({ char: d.char, boss: d.boss, week });
+          }
+        });
+      });
+    });
+    return details;
+  }, [pitchedModalItem, statsPanel.monthly, selectedMonth]);
 
   if (error) {
     return (
@@ -559,9 +742,9 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700, border: '1px solid #e0e0ef', borderRadius: 12, overflow: 'hidden' }}>
               <thead>
                 <tr style={{ background: '#3a2a5d', color: '#e6e0ff' }}>
-                  <th style={{ padding: '6px 4px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 180 }}>Boss</th>
+                  <th style={{ padding: '6px 14px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 180 }}>Boss</th>
                   <th style={{ padding: '6px 4px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 110 }}>Difficulty</th>
-                  <th style={{ padding: '6px 4px', textAlign: 'right', fontWeight: 600, fontSize: '0.9em', minWidth: 110 }}>Mesos</th>
+                  <th style={{ padding: '6px 24px', textAlign: 'right', fontWeight: 600, fontSize: '0.9em', minWidth: 110 }}>Mesos</th>
                   <th style={{ padding: '6px 4px', textAlign: 'center', fontWeight: 600, fontSize: '0.9em', minWidth: 90 }}>Cleared</th>
                 </tr>
               </thead>
@@ -569,6 +752,7 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
                 {sortedBosses.map((b, idx) => {
                   const bossObj = bossData.find(bd => bd.name === b.name);
                   const isChecked = !!checked[charKey]?.[b.name + '-' + b.difficulty];
+                  const pitched = bossObj?.pitchedItems || [];
                   return (
                     <tr
                       key={b.name + '-' + b.difficulty}
@@ -582,8 +766,8 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
                       onMouseOver={e => e.currentTarget.style.background = '#2a2540'}
                       onMouseOut={e => e.currentTarget.style.background = idx % 2 === 0 ? '#23203a' : '#201c32'}
                       onClick={(e) => {
-                        // Only trigger if the click wasn't on the checkbox
-                        if (!e.target.closest('.checkbox-wrapper')) {
+                        // Only trigger if the click wasn't on the checkbox or pitched item
+                        if (!e.target.closest('.checkbox-wrapper') && !e.target.closest('.pitched-item-icon')) {
                           handleCheck(b, !isChecked, e);
                         }
                       }}
@@ -607,6 +791,75 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
                           />
                         )}
                         <span style={{ fontWeight: 600 }}>{b.name}</span>
+                        {pitched.length > 0 && (
+                          <div style={{ display: 'flex', gap: 6, marginLeft: 8 }}>
+                            {pitched.map(item => {
+                              const key = getPitchedKey(char.name, selectedCharIdx, b.name, item.name, weekKey);
+                              const got = !!pitchedChecked[key];
+                              return (
+                                <span
+                                  key={item.name}
+                                  className="pitched-item-icon"
+                                  title={`Track: ${item.name}`}
+                                  style={{
+                                    position: 'relative',
+                                    display: 'inline-block',
+                                    cursor: 'pointer',
+                                    borderRadius: 6,
+                                    boxShadow: got ? '0 0 8px #a259f7' : 'none',
+                                    border: got ? '2px solid #a259f7' : '2px solid #3a335a',
+                                    background: got ? '#3a335a' : '#23203a',
+                                    transition: 'box-shadow 0.2s, border 0.2s, background 0.2s',
+                                    width: 32,
+                                    height: 32,
+                                    marginLeft: 2
+                                  }}
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    // If boss is not cleared, check it too
+                                    const bossCleared = !!checked[charKey]?.[b.name + '-' + b.difficulty];
+                                    if (!bossCleared) {
+                                      handleCheck(b, true, e);
+                                    }
+                                    setPitchedChecked(prev => ({ ...prev, [key]: !got }));
+                                  }}
+                                >
+                                  <img
+                                    src={item.image}
+                                    alt={item.name}
+                                    style={{
+                                      width: 28,
+                                      height: 28,
+                                      objectFit: 'contain',
+                                      borderRadius: 4,
+                                      opacity: got ? 1 : 0.7,
+                                      filter: got ? 'drop-shadow(0 0 6px #a259f7)' : 'none',
+                                      transition: 'opacity 0.2s, filter 0.2s'
+                                    }}
+                                  />
+                                  {got && (
+                                    <span style={{
+                                      position: 'absolute',
+                                      top: 2,
+                                      right: 2,
+                                      background: '#a259f7',
+                                      color: '#fff',
+                                      borderRadius: '50%',
+                                      width: 14,
+                                      height: 14,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: 12,
+                                      fontWeight: 700,
+                                      boxShadow: '0 1px 4px #0004'
+                                    }}>✓</span>
+                                  )}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '8px', textAlign: 'left' }}>
                         <span>{b.difficulty}</span>
@@ -637,6 +890,199 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
 
           </div>
         </>
+      )}
+      {/* Add View Stats button at top */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+        <button
+          style={{ background: '#805ad5', color: '#fff', border: 'none', borderRadius: 8, padding: '0.4rem 1.1rem', fontWeight: 700, fontSize: '1em', cursor: 'pointer' }}
+          onClick={() => setShowStats(true)}
+        >
+          View Stats
+        </button>
+      </div>
+      {/* Stats Modal Panel */}
+      {showStats && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(40,32,74,0.92)',
+          zIndex: 5000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+          onClick={() => setShowStats(false)}
+        >
+          <div className="modal-fade" style={{ background: '#2d2540', borderRadius: 14, padding: '2.5rem 2rem', maxWidth: 600, color: '#e6e0ff', boxShadow: '0 4px 24px #0006', position: 'relative', minWidth: 320, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowStats(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', color: '#fff', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }} title="Close">×</button>
+            <h2 style={{ color: '#a259f7', fontWeight: 700, marginBottom: 18, textAlign: 'center' }}>Weekly & Monthly Stats</h2>
+            {/* Weekly Stats */}
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={{ color: '#b39ddb', marginBottom: 10 }}>This Week</h3>
+              <div style={{ marginBottom: 8 }}>Bosses Cleared: <b>{statsPanel.weekly[0]?.weeklyData.filter(d => d.cleared).length || 0}</b></div>
+              <div style={{ marginBottom: 8 }}>Total Mesos: <b>{(statsPanel.weekly[0]?.weeklyData.reduce((sum, d) => sum + d.mesos, 0) || 0).toLocaleString()}</b></div>
+              <div style={{ marginBottom: 8 }}>Pitched Items Obtained:</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
+                {statsPanel.weekly[0]?.weeklyData.flatMap(d => d.pitched.map(p => ({ ...p, char: d.char, boss: d.boss }))).length === 0 ? (
+                  <span style={{ color: '#888' }}></span>
+                ) : (
+                  statsPanel.weekly[0]?.weeklyData.flatMap(d => d.pitched.map(p => ({ ...p, char: d.char, boss: d.boss }))).map((p, i) => (
+                    <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#3a335a', borderRadius: 6, padding: '2px 8px', fontSize: '0.98em' }}>
+                      <img src={p.image} alt={p.name} style={{ width: 20, height: 20, borderRadius: 4, marginRight: 2 }} />
+                      {p.name} <span style={{ color: '#a259f7', marginLeft: 4 }}>{p.char}</span> <span style={{ color: '#b39ddb', marginLeft: 4 }}>({p.boss})</span>
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+            {/* Monthly Stats */}
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={{ color: '#b39ddb', marginBottom: 10 }}>Monthly Stats</h3>
+              {/* Month selector dropdown */}
+              <div style={{ marginBottom: 18, display: 'flex', justifyContent: 'center' }}>
+                <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} style={{ background: '#3a335a', color: '#e6e0ff', border: '1px solid #805ad5', borderRadius: 6, padding: '6px 18px', fontWeight: 600, fontSize: '1.08em', minWidth: 120, textAlign: 'center' }}>
+                  {allMonths.map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ marginBottom: 8 }}>Bosses Cleared: <b>{(() => {
+                const monthData = statsPanel.monthly.find(m => m.monthKey === selectedMonth);
+                return monthData ? monthData.data.flatMap(w => w.weeklyData).filter(d => d.cleared).length : 0;
+              })()}</b></div>
+              <div style={{ marginBottom: 8 }}>Total Mesos: <b>{(() => {
+                const monthData = statsPanel.monthly.find(m => m.monthKey === selectedMonth);
+                return monthData ? monthData.data.flatMap(w => w.weeklyData).reduce((sum, d) => sum + d.mesos, 0).toLocaleString() : 0;
+              })()}</b></div>
+              <div style={{ marginBottom: 8 }}>Pitched Items Obtained:</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
+                {monthlyPitchedSummary.map((p, i) => (
+                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#3a335a', borderRadius: 6, padding: '2px 10px', fontSize: '1em', cursor: 'pointer', fontWeight: 600 }}
+                    onClick={() => { setPitchedModalItem(p); setShowPitchedModal(true); }}
+                    title="Click for details"
+                  >
+                    <img src={p.image} alt={p.name} style={{ width: 22, height: 22, borderRadius: 4, marginRight: 2 }} />
+                    {p.name}
+                    <span style={{ color: '#a259f7', marginLeft: 6, fontWeight: 700, fontSize: '1.1em' }}>×{p.count}</span>
+                  </span>
+                ))}
+              </div>
+              {/* Character selector for pitched breakdown */}
+              <div style={{ margin: '18px 0 8px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: '#b39ddb', fontWeight: 600, marginBottom: 2 }}>Character</span>
+                <select value={selectedChar} onChange={e => setSelectedChar(e.target.value)} style={{ background: '#3a335a', color: '#e6e0ff', border: '1px solid #805ad5', borderRadius: 6, padding: '6px 18px', fontWeight: 600, fontSize: '1.08em', minWidth: 120, textAlign: 'center' }}>
+                  {charsInMonth.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ marginBottom: 8, textAlign: 'center' }}>Pitched Items for <b>{selectedChar}</b>:</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 8, justifyContent: 'center' }}>
+                {charPitchedSummary.map((p, i) => (
+                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#23203a', borderRadius: 6, padding: '2px 10px', fontSize: '1em', fontWeight: 600 }}>
+                    <img src={p.image} alt={p.name} style={{ width: 22, height: 22, borderRadius: 4, marginRight: 2 }} />
+                    {p.name}
+                    <span style={{ color: '#a259f7', marginLeft: 6, fontWeight: 700, fontSize: '1.1em' }}>×{p.count}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div style={{ textAlign: 'center', marginTop: 24 }}>
+              <button
+                style={{ background: '#e53e3e', color: '#fff', border: 'none', borderRadius: 8, padding: '0.6rem 1.5rem', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer' }}
+                onClick={() => setShowStatsResetConfirm(true)}
+              >
+                Reset Stats
+              </button>
+            </div>
+            {/* Double-confirm dialog */}
+            {showStatsResetConfirm && (
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(40,32,74,0.92)',
+                zIndex: 6000,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <div className="modal-fade" style={{ background: '#2d2540', borderRadius: 14, padding: '2rem 1.5rem', maxWidth: 340, color: '#e6e0ff', boxShadow: '0 4px 24px #0006', position: 'relative', minWidth: 220, textAlign: 'center' }}>
+                  <h3 style={{ color: '#ffbaba', marginBottom: 16 }}>Are you sure?</h3>
+                  <p style={{ marginBottom: 18 }}>This will permanently erase all stats. This cannot be undone.</p>
+                  <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                    <button
+                      onClick={() => setShowStatsResetConfirm(false)}
+                      style={{ background: '#3a335a', color: '#e6e0ff', border: 'none', borderRadius: 8, padding: '0.7rem 1.5rem', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer', minWidth: 100 }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleStatsReset}
+                      style={{ background: '#e53e3e', color: '#fff', border: 'none', borderRadius: 8, padding: '0.7rem 1.5rem', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer', minWidth: 100 }}
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {showPitchedModal && pitchedModalItem && (
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(40,32,74,0.92)',
+                zIndex: 6000,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+                onClick={() => setShowPitchedModal(false)}
+              >
+                <div className="modal-fade" style={{ background: '#2d2540', borderRadius: 14, padding: '2rem 1.5rem', maxWidth: 400, color: '#e6e0ff', boxShadow: '0 4px 24px #0006', position: 'relative', minWidth: 220, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                  <button onClick={() => setShowPitchedModal(false)} style={{ position: 'absolute', top: 12, right: 12, background: 'transparent', color: '#fff', border: 'none', fontSize: '1.3rem', cursor: 'pointer' }} title="Close">×</button>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 16 }}>
+                    <img src={pitchedModalItem.image} alt={pitchedModalItem.name} style={{ width: 32, height: 32, borderRadius: 6 }} />
+                    <span style={{ fontWeight: 700, fontSize: '1.1em', color: '#a259f7' }}>{pitchedModalItem.name}</span>
+                  </div>
+                  <div style={{ marginBottom: 10, color: '#b39ddb', fontWeight: 600 }}>Obtained by:</div>
+                  {pitchedModalDetails.length === 0 ? (
+                    <div style={{ color: '#888', marginBottom: 8 }}>None this month.</div>
+                  ) : (
+                    <div style={{ maxHeight: 220, overflowY: 'auto', marginBottom: 8 }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '1em', background: 'none' }}>
+                        <thead>
+                          <tr style={{ color: '#b39ddb', background: 'none' }}>
+                            <th style={{ padding: '4px 8px', fontWeight: 700 }}>Character</th>
+                            <th style={{ padding: '4px 8px', fontWeight: 700 }}>Boss</th>
+                            <th style={{ padding: '4px 8px', fontWeight: 700 }}>Week</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pitchedModalDetails.map((d, i) => (
+                            <tr key={i} style={{ background: i % 2 === 0 ? '#23203a' : '#201c32' }}>
+                              <td style={{ padding: '4px 8px', fontWeight: 600 }}>{d.char}</td>
+                              <td style={{ padding: '4px 8px' }}>{d.boss}</td>
+                              <td style={{ padding: '4px 8px', color: '#b39ddb' }}>{d.week}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
