@@ -127,6 +127,15 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
   const [selectedCharIdx, setSelectedCharIdx] = useState(0);
   const [error, setError] = useState(null);
   
+  // Hide completed characters toggle
+  const [hideCompleted, setHideCompleted] = useState(() => {
+    const saved = localStorage.getItem('ms-weekly-hide-completed');
+    return saved ? JSON.parse(saved) : false;
+  });
+  useEffect(() => {
+    localStorage.setItem('ms-weekly-hide-completed', JSON.stringify(hideCompleted));
+  }, [hideCompleted]);
+
   // Update countdown every second
   useEffect(() => {
     const timer = setInterval(() => {
@@ -357,6 +366,9 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
     };
   });
 
+  // Filtered summaries if hideCompleted is on
+  const visibleCharSummaries = hideCompleted ? charSummaries.filter(cs => !cs.allCleared) : charSummaries;
+
   // --- 4. Custom checkbox component ---
   function CustomCheckbox({ checked, onChange }) {
     return (
@@ -437,10 +449,38 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
         border: '1.5px solid #2d2540'
       }}>
         <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 10 }}>Weekly Clear Status</h3>
+        {/* Progress Bar directly under heading */}
+        <div style={{ margin: '0 auto 0.8rem auto', background: '#23203a', borderRadius: 8, padding: '1.2rem', border: '1px solid #3a335a', maxWidth: 420 }}>
+          <div style={{ background: '#3a335a', height: 8, borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
+            <div style={{ background: 'linear-gradient(90deg, #805ad5, #a259f7)', height: '100%', width: `${obtainableMeso > 0 ? Math.min((totalMeso / obtainableMeso) * 100, 100) : 0}%`, borderRadius: 4, transition: 'width 0.3s ease' }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', color: '#b39ddb', fontSize: '0.9rem' }}>
+            <span>{totalMeso.toLocaleString()}</span>
+            <img src="/bosses/crystal.png" alt="Crystal" style={{ width: 20, height: 20, margin: '0 auto' }} />
+            <span>{obtainableMeso.toLocaleString()}</span>
+          </div>
+          {/* Checkbox moved here, under the progress bar */}
+          <div style={{ marginTop: '12px', textAlign: 'center' }}>
+            <label style={{ fontSize: '0.98em', color: '#b39ddb', cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center' }}>
+              <input
+                type="checkbox"
+                checked={hideCompleted}
+                onChange={e => setHideCompleted(e.target.checked)}
+                style={{ marginRight: 6, accentColor: '#805ad5' }}
+              />
+              Hide characters with all bosses cleared
+            </label>
+          </div>
+          {visibleCharSummaries.length === 0 && (
+            <div style={{ color: '#888', fontSize: '1.05em', margin: '1.5rem 0 0 0', textAlign: 'center', width: '100%', display: 'block' }}>
+              {hideCompleted ? 'No characters with bosses left to clear.' : 'No characters found.'}
+            </div>
+          )}
+        </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
-          {charSummaries.map(cs => (
+          {visibleCharSummaries.map(cs => (
             <div
-              key={cs.name}
+              key={cs.name + '-' + cs.idx}
               onClick={() => setSelectedCharIdx(cs.idx)}
               style={{
                 display: 'flex',
@@ -498,12 +538,7 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
             </div>
           ))}
         </div>
-        <div style={{ marginTop: '1.2rem', fontSize: '1.1rem', fontWeight: 'bold', textAlign: 'center' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <img src="/bosses/crystal.png" alt="Crystal" style={{ width: 24, height: 24, verticalAlign: 'middle', marginRight: 4 }} />
-            Total Meso This Week: <span>{totalMeso.toLocaleString()} meso</span>
-          </span>
-        </div>
+
       </div>
       {showCharacterDetails && (
         <>
@@ -600,46 +635,6 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
             textAlign: 'center' 
           }}>
 
-          </div>
-
-          {/* Progress Bar */}
-          <div style={{ 
-            maxWidth: 900, 
-            margin: '2rem auto', 
-            padding: '1rem',
-            background: '#28204a',
-            borderRadius: '12px',
-            boxShadow: '0 2px 8px rgba(40, 20, 60, 0.18)',
-            border: '1.5px solid #2d2540'
-          }}>
-            <h3 style={{ color: '#a259f7', marginBottom: '1rem', textAlign: 'center' }}>Weekly Progress</h3>
-            <div style={{ 
-              width: '100%', 
-              height: '20px', 
-              background: '#3a335a',
-              borderRadius: '10px',
-              overflow: 'hidden',
-              marginBottom: 12
-            }}>
-              <div style={{
-                width: `${obtainableMeso === 0 ? 0 : Math.min(100, (totalMeso / obtainableMeso) * 100)}%`,
-                height: '100%',
-                background: 'linear-gradient(90deg, #a259f7, #6a11cb)',
-                transition: 'width 0.5s ease',
-                borderRadius: '10px'
-              }} />
-            </div>
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 4,
-              color: '#e6e0ff',
-              fontSize: '1.1rem',
-            }}>
-              <span>{totalMeso.toLocaleString()} meso</span>
-              <span style={{ fontSize: '0.95rem', color: '#b39ddb', marginTop: 2 }}>Goal: {obtainableMeso.toLocaleString()} meso</span>
-            </div>
           </div>
         </>
       )}
