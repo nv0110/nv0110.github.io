@@ -108,7 +108,15 @@ function CrystalAnimation({ startPosition, endPosition, onComplete }) {
   );
 }
 
-export default function WeeklyTracker({ characters, bossData, onBack }) {
+export default function WeeklyTracker({ characters, bossData, onBack, checked, setChecked }) {
+  // Helper function to get boss price (now has access to bossData prop)
+  function getBossPrice(bossName, difficulty) {
+    const boss = bossData.find(b => b.name === bossName);
+    if (!boss) return 0;
+    const d = boss.difficulties.find(d => d.difficulty === difficulty);
+    return d ? d.price : 0;
+  }
+
   const weekKey = getCurrentWeekKey();
   const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilReset());
   const [windowSize, setWindowSize] = useState({
@@ -116,36 +124,126 @@ export default function WeeklyTracker({ characters, bossData, onBack }) {
     height: window.innerHeight
   });
   const [crystalAnimation, setCrystalAnimation] = useState(null);
+  const [selectedCharIdx, setSelectedCharIdx] = useState(0);
+  const [error, setError] = useState(null);
   
   // Update countdown every second
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeUntilReset(getTimeUntilReset());
     }, 1000);
-    
     return () => clearInterval(timer);
   }, []);
 
-  // Only load from localStorage on first mount
-  const [checked, setChecked] = useState(() => {
-    const saved = localStorage.getItem('ms-weekly-clears');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.weekKey === weekKey) {
-          return parsed.checked || {};
-        }
-      } catch {}
-    }
-    return {};
-  });
-  const [selectedCharIdx, setSelectedCharIdx] = useState(0);
+  // Handle checkbox changes
+  const handleCheck = (boss, checkedVal, event) => {
+    try {
+      if (checkedVal) {
+        const startPosition = {
+          x: event.clientX,
+          y: event.clientY
+        };
 
-  // Save to localStorage with weekKey
+        // Calculate end position (progress bar)
+        const progressBar = document.querySelector('.progress-bar');
+        if (progressBar) {
+          const progressBarRect = progressBar.getBoundingClientRect();
+          const endPosition = {
+            x: progressBarRect.left + progressBarRect.width / 2,
+            y: progressBarRect.top + progressBarRect.height / 2
+          };
+
+          setCrystalAnimation({
+            startPosition,
+            endPosition
+          });
+        }
+      }
+
+      const charKey = `${characters[selectedCharIdx]?.name || ''}-${selectedCharIdx}`;
+      const newChecked = {
+        ...checked,
+        [charKey]: {
+          ...(checked[charKey] || {}),
+          [boss.name + '-' + boss.difficulty]: checkedVal
+        }
+      };
+
+      setChecked(newChecked);
+    } catch (err) {
+      console.error('Error in handleCheck:', err);
+      setError('Failed to update boss status. Please try again.');
+    }
+  };
+
+  // Handle tick all
+  const handleTickAll = () => {
+    try {
+      const charKey = `${characters[selectedCharIdx]?.name || ''}-${selectedCharIdx}`;
+      const currentState = checked[charKey] || {};
+      const allChecked = charBosses.every(b => currentState[b.name + '-' + b.difficulty]);
+      
+      const newChecked = {
+        ...checked,
+        [charKey]: Object.fromEntries(charBosses.map(b => [b.name + '-' + b.difficulty, !allChecked]))
+      };
+
+      setChecked(newChecked);
+    } catch (err) {
+      console.error('Error in handleTickAll:', err);
+      setError('Failed to update all bosses. Please try again.');
+    }
+  };
+
+  // Check if week has changed
   useEffect(() => {
-    localStorage.setItem('ms-weekly-clears', JSON.stringify({ weekKey, checked }));
+    try {
+      const savedWeekKey = localStorage.getItem('ms-weekly-week-key');
+      if (savedWeekKey !== weekKey) {
+        setChecked({});
+        localStorage.setItem('ms-weekly-week-key', weekKey);
+      }
+    } catch (err) {
+      console.error('Error checking week change:', err);
+      setError('Failed to check week change. Please refresh the page.');
+    }
+  }, [weekKey, setChecked]);
+
+  // Save checked state to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('ms-weekly-clears', JSON.stringify({ weekKey, checked }));
+    } catch (err) {
+      console.error('Error saving to localStorage:', err);
+      setError('Failed to save progress. Please try again.');
+    }
   }, [checked, weekKey]);
 
+  // Reset selectedCharIdx if it's out of bounds
+  useEffect(() => {
+    if (selectedCharIdx >= characters.length) {
+      setSelectedCharIdx(Math.max(0, characters.length - 1));
+    }
+  }, [characters.length, selectedCharIdx]);
+
+  // --- Main table for selected character ---
+  const char = characters[selectedCharIdx];
+  const charKey = `${char?.name || ''}-${selectedCharIdx}`;
+  const charBosses = char?.bosses || [];
+
+  // --- 3. Sort bosses by price (highest to lowest) ---
+  const sortedBosses = [...charBosses].sort((a, b) => {
+    try {
+      const priceA = getBossPrice(a.name, a.difficulty) / (a.partySize || 1);
+      const priceB = getBossPrice(b.name, b.difficulty) / (b.partySize || 1);
+      return priceB - priceA;
+    } catch (err) {
+      console.error('Error sorting bosses:', err);
+      return 0;
+    }
+  });
+
+  // Only load from localStorage on first mount
   const [progressData, setProgressData] = useState(() => {
     const saved = localStorage.getItem('ms-progress');
     return saved ? JSON.parse(saved) : {
@@ -202,6 +300,16 @@ export default function WeeklyTracker({ characters, bossData, onBack }) {
   // Check if any character has at least one selected boss
   const anyBossesSelected = characters.some(char => (char.bosses || []).length > 0);
 
+  if (error) {
+    return (
+      <div className="App dark" style={{ padding: '2rem', color: '#e6e0ff', fontSize: '1.2rem', textAlign: 'center' }}>
+        <div style={{ color: '#ff6b6b', marginBottom: '1rem' }}>{error}</div>
+        <button onClick={() => setError(null)} style={{ marginRight: '1rem' }}>Try Again</button>
+        <button onClick={onBack}>Back to Calculator</button>
+      </div>
+    );
+  }
+
   if (!characters.length) {
     return (
       <div className="App dark" style={{ padding: '2rem', color: '#e6e0ff', fontSize: '1.2rem', textAlign: 'center' }}>
@@ -211,14 +319,6 @@ export default function WeeklyTracker({ characters, bossData, onBack }) {
       </div>
     );
   }
-
-  // Helper to get boss price
-  const getBossPrice = (bossName, difficulty) => {
-    const boss = bossData.find(b => b.name === bossName);
-    if (!boss) return 0;
-    const d = boss.difficulties.find(d => d.difficulty === difficulty);
-    return d ? d.price : 0;
-  };
 
   // --- 2. Total meso for all characters ---
   const totalMeso = characters.reduce((sum, char, charIndex) => {
@@ -275,64 +375,6 @@ export default function WeeklyTracker({ characters, bossData, onBack }) {
       </div>
     );
   }
-
-  // --- Main table for selected character ---
-  const char = characters[selectedCharIdx];
-  const charKey = `${char?.name || ''}-${selectedCharIdx}`;
-  const charBosses = char?.bosses || [];
-
-  // --- 3. Sort bosses by price (highest to lowest) ---
-  const sortedBosses = [...charBosses].sort((a, b) => {
-    const priceA = getBossPrice(a.name, a.difficulty) / (a.partySize || 1);
-    const priceB = getBossPrice(b.name, b.difficulty) / (b.partySize || 1);
-    return priceB - priceA;
-  });
-
-  const handleCheck = (boss, checkedVal, event) => {
-    if (checkedVal) {
-      const startPosition = {
-        x: event.clientX,
-        y: event.clientY
-      };
-
-      // Calculate end position (progress bar)
-      const progressBar = document.querySelector('.progress-bar');
-      if (progressBar) {
-        const progressBarRect = progressBar.getBoundingClientRect();
-        const endPosition = {
-          x: progressBarRect.left + progressBarRect.width / 2,
-          y: progressBarRect.top + progressBarRect.height / 2
-        };
-
-        setCrystalAnimation({
-          startPosition,
-          endPosition
-        });
-      }
-    }
-
-    setChecked(prev => {
-      const newChecked = {
-        ...prev,
-        [charKey]: {
-          ...(prev[charKey] || {}),
-          [boss.name + '-' + boss.difficulty]: checkedVal
-        }
-      };
-
-      return newChecked;
-    });
-  };
-
-  const handleTickAll = () => {
-    const currentState = checked[charKey] || {};
-    const allChecked = charBosses.every(b => currentState[b.name + '-' + b.difficulty]);
-    
-    setChecked(prev => ({
-      ...prev,
-      [charKey]: Object.fromEntries(charBosses.map(b => [b.name + '-' + b.difficulty, !allChecked]))
-    }));
-  };
 
   // Only show main table, total meso, progress bar, and Tick All button if the selected character has bosses
   const showCharacterDetails = charBosses.length > 0;
@@ -446,7 +488,7 @@ export default function WeeklyTracker({ characters, bossData, onBack }) {
                   {cs.total === 0 ? (
                     <span style={{ color: '#888', fontWeight: 500, fontSize: '0.95em' }}>No bosses</span>
                   ) : (
-                    <span>{cs.left} left</span>
+                    <span>{cs.cleared}/{cs.total}</span>
                   )}
                 </>
               )}
@@ -472,77 +514,79 @@ export default function WeeklyTracker({ characters, bossData, onBack }) {
               {charBosses.every(b => checked[`${char?.name || ''}-${selectedCharIdx}`]?.[b.name + '-' + b.difficulty]) && charBosses.length > 0 ? 'Untick All' : 'Tick All'}
             </button>
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', maxWidth: 700, margin: '0 auto', border: '1px solid #e0e0ef', borderRadius: 12, overflow: 'hidden' }}>
-            <thead>
-              <tr style={{ background: '#3a2a5d', color: '#e6e0ff' }}>
-                <th style={{ padding: '6px 4px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 180 }}>Boss</th>
-                <th style={{ padding: '6px 4px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 110 }}>Difficulty</th>
-                <th style={{ padding: '6px 4px', textAlign: 'right', fontWeight: 600, fontSize: '0.9em', minWidth: 110 }}>Mesos</th>
-                <th style={{ padding: '6px 4px', textAlign: 'center', fontWeight: 600, fontSize: '0.9em', minWidth: 90 }}>Cleared</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedBosses.map((b, idx) => {
-                const bossObj = bossData.find(bd => bd.name === b.name);
-                const isChecked = !!checked[charKey]?.[b.name + '-' + b.difficulty];
-                return (
-                  <tr
-                    key={b.name + '-' + b.difficulty}
-                    style={{
-                      background: idx % 2 === 0 ? '#23203a' : '#201c32',
-                      border: '1px solid #3a335a',
-                      transition: 'background-color 0.2s ease, transform 0.2s ease',
-                      cursor: 'pointer',
-                      color: '#e6e0ff'
-                    }}
-                    onMouseOver={e => e.currentTarget.style.background = '#2a2540'}
-                    onMouseOut={e => e.currentTarget.style.background = idx % 2 === 0 ? '#23203a' : '#201c32'}
-                    onClick={(e) => {
-                      // Only trigger if the click wasn't on the checkbox
-                      if (!e.target.closest('.checkbox-wrapper')) {
-                        handleCheck(b, !isChecked, e);
-                      }
-                    }}
-                  >
-                    <td style={{ padding: '8px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                      {bossObj?.image && (
-                        <img
-                          src={bossObj.image}
-                          alt={b.name}
-                          style={{
-                            width: 40,
-                            height: 40,
-                            objectFit: 'contain',
-                            borderRadius: 6,
-                            background: '#fff2',
-                            marginRight: 8,
-                            transition: 'transform 0.2s ease'
-                          }}
-                          onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1)'}
-                          onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
-                        />
-                      )}
-                      <span style={{ fontWeight: 600 }}>{b.name}</span>
-                    </td>
-                    <td style={{ padding: '8px', textAlign: 'left' }}>
-                      <span>{b.difficulty}</span>
-                    </td>
-                    <td style={{ padding: '8px', textAlign: 'right', fontWeight: 600 }}>
-                      <span>{Math.floor(getBossPrice(b.name, b.difficulty) / (b.partySize || 1)).toLocaleString()}</span>
-                    </td>
-                    <td style={{ padding: '8px', textAlign: 'center', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                      <span onClick={e => e.stopPropagation()}>
-                        <CustomCheckbox
-                          checked={isChecked}
-                          onChange={e => handleCheck(b, e.target.checked, e)}
-                        />
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="table-scroll">
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700, border: '1px solid #e0e0ef', borderRadius: 12, overflow: 'hidden' }}>
+              <thead>
+                <tr style={{ background: '#3a2a5d', color: '#e6e0ff' }}>
+                  <th style={{ padding: '6px 4px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 180 }}>Boss</th>
+                  <th style={{ padding: '6px 4px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 110 }}>Difficulty</th>
+                  <th style={{ padding: '6px 4px', textAlign: 'right', fontWeight: 600, fontSize: '0.9em', minWidth: 110 }}>Mesos</th>
+                  <th style={{ padding: '6px 4px', textAlign: 'center', fontWeight: 600, fontSize: '0.9em', minWidth: 90 }}>Cleared</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedBosses.map((b, idx) => {
+                  const bossObj = bossData.find(bd => bd.name === b.name);
+                  const isChecked = !!checked[charKey]?.[b.name + '-' + b.difficulty];
+                  return (
+                    <tr
+                      key={b.name + '-' + b.difficulty}
+                      style={{
+                        background: idx % 2 === 0 ? '#23203a' : '#201c32',
+                        border: '1px solid #3a335a',
+                        transition: 'background-color 0.2s ease, transform 0.2s ease',
+                        cursor: 'pointer',
+                        color: '#e6e0ff'
+                      }}
+                      onMouseOver={e => e.currentTarget.style.background = '#2a2540'}
+                      onMouseOut={e => e.currentTarget.style.background = idx % 2 === 0 ? '#23203a' : '#201c32'}
+                      onClick={(e) => {
+                        // Only trigger if the click wasn't on the checkbox
+                        if (!e.target.closest('.checkbox-wrapper')) {
+                          handleCheck(b, !isChecked, e);
+                        }
+                      }}
+                    >
+                      <td style={{ padding: '8px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {bossObj?.image && (
+                          <img
+                            src={bossObj.image}
+                            alt={b.name}
+                            style={{
+                              width: 40,
+                              height: 40,
+                              objectFit: 'contain',
+                              borderRadius: 6,
+                              background: '#fff2',
+                              marginRight: 8,
+                              transition: 'transform 0.2s ease'
+                            }}
+                            onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1)'}
+                            onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
+                          />
+                        )}
+                        <span style={{ fontWeight: 600 }}>{b.name}</span>
+                      </td>
+                      <td style={{ padding: '8px', textAlign: 'left' }}>
+                        <span>{b.difficulty}</span>
+                      </td>
+                      <td style={{ padding: '8px', textAlign: 'right', fontWeight: 600 }}>
+                        <span>{Math.floor(getBossPrice(b.name, b.difficulty) / (b.partySize || 1)).toLocaleString()}</span>
+                      </td>
+                      <td style={{ padding: '8px', textAlign: 'center', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                        <span onClick={e => e.stopPropagation()}>
+                          <CustomCheckbox
+                            checked={isChecked}
+                            onChange={e => handleCheck(b, e.target.checked, e)}
+                          />
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
           <div style={{ 
             marginTop: '2rem', 
             fontSize: '1.2rem', 
@@ -598,4 +642,98 @@ export default function WeeklyTracker({ characters, bossData, onBack }) {
       )}
     </div>
   );
-} 
+}
+
+<style>
+{`
+  @media (max-width: 600px) {
+    /* Table scroll container: full viewport width, no cutoff */
+    .table-scroll {
+      width: 100vw;
+      margin-left: -8px;
+      margin-right: -8px;
+      padding-left: 8px;
+      padding-right: 8px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+      box-sizing: border-box;
+    }
+    table {
+      min-width: 700px !important;
+      width: auto !important;
+      max-width: none !important;
+      display: table;
+      font-size: 0.95em;
+      border-collapse: separate !important;
+      border-spacing: 0;
+    }
+    thead, tbody, tr {
+      display: table-row;
+      width: auto;
+      table-layout: auto;
+    }
+    th, td {
+      padding: 6px 2px !important;
+      font-size: 0.95em !important;
+      white-space: nowrap;
+    }
+    thead tr {
+      background: #3a2a5d !important;
+    }
+    table, th, td {
+      border: 1.5px solid #2d2540 !important;
+    }
+    /* Remove padding from main content to avoid cutoff */
+    .App.dark > * {
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+      max-width: 100vw !important;
+      box-sizing: border-box;
+    }
+    /* Center and align buttons */
+    .char-header-row, .table-container, .App.dark > div[style*='display: flex'] {
+      display: flex !important;
+      flex-wrap: wrap !important;
+      justify-content: center !important;
+      align-items: center !important;
+      gap: 8px !important;
+    }
+    .char-header-row > *, .table-container > button, .App.dark > div[style*='display: flex'] > button {
+      margin: 0 auto !important;
+      min-width: 0;
+      width: auto !important;
+      max-width: 90vw;
+      font-size: 0.95em !important;
+      padding: 0.5rem 1rem !important;
+      flex: 0 0 auto;
+    }
+    input, select {
+      font-size: 1em !important;
+      min-height: 44px !important;
+      width: 100% !important;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    button {
+      font-size: 0.95em !important;
+      min-height: 38px !important;
+      width: auto !important;
+      max-width: 90vw;
+      padding: 0.5rem 1rem !important;
+      margin-bottom: 4px !important;
+      box-sizing: border-box;
+      border-radius: 12px !important;
+    }
+    .table-container {
+      min-width: 0 !important;
+      width: 100vw !important;
+      padding: 0.5rem 0 !important;
+    }
+    html, body {
+      overflow-x: hidden !important;
+    }
+  }
+`}
+</style> 
