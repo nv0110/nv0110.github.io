@@ -12,20 +12,21 @@ function getCurrentWeekKey() {
 function getTimeUntilReset() {
   const now = new Date();
   const utcNow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds()));
-  
   // Get next Thursday 00:00 UTC
   const daysUntilThursday = (4 - utcNow.getUTCDay() + 7) % 7;
   const nextReset = new Date(Date.UTC(utcNow.getUTCFullYear(), utcNow.getUTCMonth(), utcNow.getUTCDate() + daysUntilThursday));
-  
+  if (daysUntilThursday === 0 && utcNow.getUTCHours() >= 0) {
+    nextReset.setUTCDate(nextReset.getUTCDate() + 7);
+  }
   const diff = nextReset - utcNow;
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-  
+  const totalMinutes = Math.floor(diff / (1000 * 60));
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
   return {
+    days: days.toString(),
     hours: hours.toString().padStart(2, '0'),
-    minutes: minutes.toString().padStart(2, '0'),
-    seconds: seconds.toString().padStart(2, '0')
+    minutes: minutes.toString().padStart(2, '0')
   };
 }
 
@@ -110,10 +111,6 @@ function CrystalAnimation({ startPosition, endPosition, onComplete }) {
 export default function WeeklyTracker({ characters, bossData, onBack }) {
   const weekKey = getCurrentWeekKey();
   const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilReset());
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('ms-darkMode');
-    return saved ? JSON.parse(saved) : false;
-  });
   const [windowSize, setWindowSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight
@@ -127,17 +124,6 @@ export default function WeeklyTracker({ characters, bossData, onBack }) {
     }, 1000);
     
     return () => clearInterval(timer);
-  }, []);
-
-  // Listen for dark mode changes
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const saved = localStorage.getItem('ms-darkMode');
-      setDarkMode(saved ? JSON.parse(saved) : false);
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   // Only load from localStorage on first mount
@@ -213,9 +199,12 @@ export default function WeeklyTracker({ characters, bossData, onBack }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Check if any character has at least one selected boss
+  const anyBossesSelected = characters.some(char => (char.bosses || []).length > 0);
+
   if (!characters.length) {
     return (
-      <div className={`App${darkMode ? ' dark' : ''}`} style={{ padding: '2rem', color: darkMode ? '#e6e0ff' : '#888', fontSize: '1.2rem', textAlign: 'center' }}>
+      <div className="App dark" style={{ padding: '2rem', color: '#e6e0ff', fontSize: '1.2rem', textAlign: 'center' }}>
         No characters found. Go back and add a character first.
         <br /><br />
         <button onClick={onBack} style={{ marginTop: 16 }}>Back to Calculator</button>
@@ -236,13 +225,13 @@ export default function WeeklyTracker({ characters, bossData, onBack }) {
     // Use both name and index to create a unique key for each character
     const charKey = `${char?.name || ''}-${charIndex}`;
     return sum + (char.bosses || []).reduce((s, b) =>
-      checked[charKey]?.[b.name + '-' + b.difficulty] ? s + getBossPrice(b.name, b.difficulty) : s, 0
+      checked[charKey]?.[b.name + '-' + b.difficulty] ? s + (getBossPrice(b.name, b.difficulty) / (b.partySize || 1)) : s, 0
     );
   }, 0);
 
   // --- 2b. Total obtainable meso for all characters (goal) ---
   const obtainableMeso = characters.reduce((sum, char) =>
-    sum + (char.bosses || []).reduce((s, b) => s + getBossPrice(b.name, b.difficulty), 0)
+    sum + (char.bosses || []).reduce((s, b) => s + (getBossPrice(b.name, b.difficulty) / (b.partySize || 1)), 0)
   , 0);
 
   // Calculate progress percentage
@@ -254,6 +243,9 @@ export default function WeeklyTracker({ characters, bossData, onBack }) {
     const bosses = char?.bosses || [];
     const cleared = bosses.filter(b => checked[charKey]?.[b.name + '-' + b.difficulty]).length;
     const total = bosses.length;
+    const totalMeso = bosses.reduce((sum, b) => 
+      checked[charKey]?.[b.name + '-' + b.difficulty] ? sum + (getBossPrice(b.name, b.difficulty) / (b.partySize || 1)) : sum, 0
+    );
     return {
       name: char.name,
       cleared,
@@ -261,6 +253,7 @@ export default function WeeklyTracker({ characters, bossData, onBack }) {
       allCleared: total > 0 && cleared === total,
       left: total - cleared,
       idx,
+      totalMeso
     };
   });
 
@@ -272,6 +265,7 @@ export default function WeeklyTracker({ characters, bossData, onBack }) {
           type="checkbox"
           checked={checked}
           onChange={onChange}
+          style={{ background: '#3a335a', color: '#e6e0ff', border: '1.5px solid #2d2540' }}
         />
         <svg viewBox="0 0 35.6 35.6">
           <circle className="background" cx="17.8" cy="17.8" r="17.8"></circle>
@@ -289,8 +283,8 @@ export default function WeeklyTracker({ characters, bossData, onBack }) {
 
   // --- 3. Sort bosses by price (highest to lowest) ---
   const sortedBosses = [...charBosses].sort((a, b) => {
-    const priceA = getBossPrice(a.name, a.difficulty);
-    const priceB = getBossPrice(b.name, b.difficulty);
+    const priceA = getBossPrice(a.name, a.difficulty) / (a.partySize || 1);
+    const priceB = getBossPrice(b.name, b.difficulty) / (b.partySize || 1);
     return priceB - priceA;
   });
 
@@ -340,8 +334,11 @@ export default function WeeklyTracker({ characters, bossData, onBack }) {
     }));
   };
 
+  // Only show main table, total meso, progress bar, and Tick All button if the selected character has bosses
+  const showCharacterDetails = charBosses.length > 0;
+
   return (
-    <div className={`App${darkMode ? ' dark' : ''}`} style={{ minHeight: '100vh', color: darkMode ? '#e6e0ff' : '#222', padding: '2rem 0' }}>
+    <div className="App dark" style={{ minHeight: '100vh', color: '#e6e0ff', padding: '2rem 0', background: '#28204a' }}>
       {crystalAnimation && (
         <CrystalAnimation
           startPosition={crystalAnimation.startPosition}
@@ -349,31 +346,8 @@ export default function WeeklyTracker({ characters, bossData, onBack }) {
           onComplete={() => setCrystalAnimation(null)}
         />
       )}
-      <div style={{ position: 'absolute', top: 18, right: 32, zIndex: 10 }}>
-        <button
-          onClick={() => {
-            const newDarkMode = !darkMode;
-            setDarkMode(newDarkMode);
-            localStorage.setItem('ms-darkMode', JSON.stringify(newDarkMode));
-          }}
-          style={{
-            background: darkMode ? '#fff' : '#222',
-            color: darkMode ? '#222' : '#fff',
-            border: 'none',
-            borderRadius: '20px',
-            padding: '0.4rem 1.2rem',
-            fontWeight: 700,
-            fontSize: '1rem',
-            boxShadow: '0 2px 8px #0002',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-          }}
-        >
-          {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
-        </button>
-      </div>
       <button onClick={onBack} style={{ marginBottom: 24 }}>← Back to Calculator</button>
-      <h2 style={{ textAlign: 'center', fontWeight: 700, fontSize: '2rem', marginBottom: '0.5rem', color: darkMode ? '#a259f7' : '#222' }}>Weekly Boss Tracker</h2>
+      <h2 style={{ textAlign: 'center', fontWeight: 700, fontSize: '2rem', marginBottom: '0.5rem' }}>Weekly Boss Tracker</h2>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: '1.5rem' }}>
         <img src="/bosses/crystal.png" alt="Crystal" style={{ width: 32, height: 32 }} />
         <img src="/bosses/bluecrystal.png" alt="Blue Crystal" style={{ width: 32, height: 32 }} />
@@ -384,28 +358,27 @@ export default function WeeklyTracker({ characters, bossData, onBack }) {
       <div style={{ 
         maxWidth: 700, 
         margin: '0 auto 1.5rem auto', 
-        background: darkMode ? '#28204a' : '#f4f6fb', 
+        background: '#28204a', 
         borderRadius: 10, 
         padding: '1rem', 
-        boxShadow: darkMode ? '0 2px 8px rgba(40, 20, 60, 0.18)' : '0 2px 8px #0001',
+        boxShadow: '0 2px 8px rgba(40, 20, 60, 0.18)',
         textAlign: 'center',
-        border: darkMode ? '1.5px solid #6a11cb' : 'none'
+        border: '1.5px solid #2d2540'
       }}>
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 10, color: darkMode ? '#b39ddb' : '#805ad5' }}>Next Reset</h3>
+        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 10 }}>Next Reset</h3>
         <div style={{ 
           fontSize: '1.5rem', 
           fontFamily: 'monospace', 
           fontWeight: 600, 
-          color: darkMode ? '#a259f7' : '#a259f7',
           display: 'flex',
           justifyContent: 'center',
           gap: '0.5rem'
         }}>
-          <span>{timeUntilReset.hours}</span>:
-          <span>{timeUntilReset.minutes}</span>:
-          <span>{timeUntilReset.seconds}</span>
+          <span>{timeUntilReset.days}d</span>
+          <span>{timeUntilReset.hours}h</span>
+          <span>{timeUntilReset.minutes}m</span>
         </div>
-        <div style={{ fontSize: '0.9rem', color: darkMode ? '#8d80c4' : '#666', marginTop: '0.5rem' }}>
+        <div style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>
           Thursday 00:00 UTC
         </div>
       </div>
@@ -414,220 +387,215 @@ export default function WeeklyTracker({ characters, bossData, onBack }) {
       <div style={{ 
         maxWidth: 700, 
         margin: '0 auto 1.5rem auto', 
-        background: darkMode ? '#28204a' : '#f4f6fb', 
+        background: '#28204a', 
         borderRadius: 10, 
         padding: '1rem', 
-        boxShadow: darkMode ? '0 2px 8px rgba(40, 20, 60, 0.18)' : '0 2px 8px #0001',
-        border: darkMode ? '1.5px solid #6a11cb' : 'none'
+        boxShadow: '0 2px 8px rgba(40, 20, 60, 0.18)',
+        textAlign: 'center',
+        border: '1.5px solid #2d2540'
       }}>
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 10, color: darkMode ? '#b39ddb' : '#805ad5', textAlign: 'center' }}>Weekly Clear Status</h3>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, justifyContent: 'center' }}>
+        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 10 }}>Weekly Clear Status</h3>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
           {charSummaries.map(cs => (
             <div
               key={cs.name}
               onClick={() => setSelectedCharIdx(cs.idx)}
               style={{
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 8,
-                background: selectedCharIdx === cs.idx ? (darkMode ? '#3a335a' : '#e0e0ff') : (darkMode ? '#23203a' : '#fff'),
+                gap: 6,
+                background: selectedCharIdx === cs.idx ? '#3a335a' : '#23203a',
                 borderRadius: 8,
-                padding: '0.5rem 1.2rem',
-                minWidth: 160,
-                boxShadow: darkMode ? '0 1px 4px rgba(40, 20, 60, 0.18)' : '0 1px 4px #0001',
+                padding: '0.6rem 1rem',
+                minWidth: 140,
+                maxWidth: 160,
+                boxShadow: '0 1px 4px rgba(40, 20, 60, 0.18)',
                 fontWeight: 600,
                 cursor: 'pointer',
-                transition: 'background 0.3s',
-                border: darkMode ? '1px solid #3a335a' : 'none',
+                transition: 'all 0.2s ease',
+                border: '1px solid #3a335a',
                 textAlign: 'center',
+                transform: 'translateY(0)',
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 4px 12px rgba(40, 20, 60, 0.25)',
+                  background: '#2a2540'
+                }
+              }}
+              onMouseOver={e => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(40, 20, 60, 0.25)';
+                e.currentTarget.style.background = '#2a2540';
+              }}
+              onMouseOut={e => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 1px 4px rgba(40, 20, 60, 0.18)';
+                e.currentTarget.style.background = selectedCharIdx === cs.idx ? '#3a335a' : '#23203a';
               }}
             >
               {cs.allCleared ? (
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontWeight: 700, fontSize: '1em', width: '100%' }}>
-                  <span style={{ color: darkMode ? '#e6e0ff' : '#222' }}>{cs.name}</span>
+                  <span>{cs.name}</span>
                   <svg width="19" height="19" viewBox="0 0 22 22"><circle cx="11" cy="11" r="11" fill="#38a169"/><polyline points="6,12 10,16 16,7" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </span>
               ) : (
                 <>
-                  <span style={{ color: darkMode ? '#e6e0ff' : '#222', fontWeight: 700 }}>{cs.name}</span>
+                  <span>{cs.name}</span>
                   {cs.total === 0 ? (
-                    <span style={{ color: darkMode ? '#8d80c4' : '#888', fontWeight: 500, fontSize: '0.95em' }}>No bosses</span>
+                    <span style={{ color: '#888', fontWeight: 500, fontSize: '0.95em' }}>No bosses</span>
                   ) : (
-                    <span style={{ color: darkMode ? '#a259f7' : '#a259f7', fontWeight: 700, fontSize: '1.05em' }}>{cs.left} left</span>
+                    <span>{cs.left} left</span>
                   )}
                 </>
               )}
+              <span>
+                {cs.totalMeso.toLocaleString()} meso
+              </span>
             </div>
           ))}
         </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 24 }}>
-        <button onClick={handleTickAll} style={{ 
-          padding: '0.5rem 1.2rem', 
-          borderRadius: 6, 
-          background: darkMode ? '#805ad5' : '#a259f7', 
-          color: '#fff', 
-          fontWeight: 600, 
-          cursor: 'pointer',
-          border: darkMode ? '1px solid #9f7aea' : 'none'
-        }}>
-          {charBosses.every(b => checked[`${char?.name || ''}-${selectedCharIdx}`]?.[b.name + '-' + b.difficulty]) ? 'Untick All' : 'Tick All'}
-        </button>
-      </div>
-      <table style={{ width: '100%', borderCollapse: 'collapse', maxWidth: 700, margin: '0 auto' }}>
-        <thead>
-          <tr style={{ background: darkMode ? '#3a2a5d' : '#444', color: '#fff' }}>
-            <th style={{ padding: '6px 4px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', borderRadius: '6px 0 0 0', minWidth: 180 }}>Boss</th>
-            <th style={{ padding: '6px 4px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 110 }}>Difficulty</th>
-            <th style={{ padding: '6px 4px', textAlign: 'right', fontWeight: 600, fontSize: '0.9em', minWidth: 110 }}>Mesos</th>
-            <th style={{ padding: '6px 4px', textAlign: 'center', fontWeight: 600, fontSize: '0.9em', borderRadius: '0 6px 0 0', minWidth: 90 }}>Cleared</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sortedBosses.map((b, idx) => {
-            const bossObj = bossData.find(bd => bd.name === b.name);
-            const isChecked = !!checked[charKey]?.[b.name + '-' + b.difficulty];
-            return (
-              <tr
-                key={b.name + '-' + b.difficulty}
-                style={{
-                  background: idx % 2 === 0 ? (darkMode ? '#23203a' : '#f4f6fb') : (darkMode ? '#201c32' : '#e9e9ef'),
-                  border: darkMode ? '1px solid #3a335a' : 'none',
-                  transition: 'background-color 0.2s ease, transform 0.2s ease',
-                  cursor: 'pointer'
-                }}
-                onMouseOver={e => e.currentTarget.style.background = darkMode ? '#2a2540' : '#eef0f5'}
-                onMouseOut={e => e.currentTarget.style.background = darkMode ? (idx % 2 === 0 ? '#23203a' : '#201c32') : (idx % 2 === 0 ? '#f4f6fb' : '#e9e9ef')}
-                onClick={(e) => {
-                  // Only trigger if the click wasn't on the checkbox
-                  if (!e.target.closest('.checkbox-wrapper')) {
-                    handleCheck(b, !isChecked, e);
-                  }
-                }}
-              >
-                <td style={{ padding: '8px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  {bossObj?.image && (
-                    <img
-                      src={bossObj.image}
-                      alt={b.name}
-                      style={{
-                        width: 40,
-                        height: 40,
-                        objectFit: 'contain',
-                        borderRadius: 6,
-                        background: darkMode ? '#fff1' : '#fff2',
-                        marginRight: 8,
-                        transition: 'transform 0.2s ease'
-                      }}
-                      onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1)'}
-                      onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
-                    />
-                  )}
-                  <span style={{ fontWeight: 600, color: darkMode ? '#e6e0ff' : '#222' }}>{b.name}</span>
-                </td>
-                <td style={{ padding: '8px', textAlign: 'left' }}>
-                  <span style={{ color: darkMode ? '#e6e0ff' : '#222' }}>{b.difficulty}</span>
-                </td>
-                <td style={{ padding: '8px', textAlign: 'right', fontWeight: 600 }}>
-                  <span style={{ color: darkMode ? '#e6e0ff' : '#222' }}>{getBossPrice(b.name, b.difficulty).toLocaleString()}</span>
-                </td>
-                <td style={{ padding: '8px', textAlign: 'center', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                  <span onClick={e => e.stopPropagation()}>
-                    <CustomCheckbox
-                      checked={isChecked}
-                      onChange={e => handleCheck(b, e.target.checked, e)}
-                    />
-                  </span>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      <div style={{ 
-        marginTop: '2rem', 
-        fontSize: '1.2rem', 
-        fontWeight: 'bold', 
-        color: darkMode ? '#e6e0ff' : '#222', 
-        textAlign: 'center' 
-      }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          <img src="/bosses/crystal.png" alt="Crystal" style={{ width: 28, height: 28, verticalAlign: 'middle', marginRight: 4 }} />
-          Total Meso This Week: <span style={{ color: darkMode ? '#b39ddb' : '#a259f7' }}>{totalMeso.toLocaleString()} meso</span>
-        </span>
-      </div>
-
-      {/* Progress Bar */}
-      <div style={{ 
-        maxWidth: 900, 
-        margin: '2rem auto', 
-        padding: '1rem',
-        background: '#28204a',
-        borderRadius: '12px',
-        boxShadow: '0 2px 8px rgba(40, 20, 60, 0.18)',
-        border: '1.5px solid #6a11cb'
-      }}>
-        <h3 style={{ color: '#a259f7', marginBottom: '1rem', textAlign: 'center' }}>Weekly Progress</h3>
-        <div style={{ 
-          width: '100%', 
-          height: '20px', 
-          background: '#3a335a',
-          borderRadius: '10px',
-          overflow: 'hidden',
-          marginBottom: 12
-        }}>
-          <div style={{
-            width: `${obtainableMeso === 0 ? 0 : Math.min(100, (totalMeso / obtainableMeso) * 100)}%`,
-            height: '100%',
-            background: 'linear-gradient(90deg, #a259f7, #6a11cb)',
-            transition: 'width 0.5s ease',
-            borderRadius: '10px'
-          }} />
-        </div>
-        <div style={{ 
-          display: 'flex', 
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 4,
-          color: '#e6e0ff',
-          fontSize: '1.1rem',
-        }}>
-          <span>{totalMeso.toLocaleString()} meso</span>
-          <span style={{ fontSize: '0.95rem', color: '#b39ddb', marginTop: 2 }}>Goal: {obtainableMeso.toLocaleString()} meso</span>
-        </div>
-      </div>
-
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1rem' }}>
-        <div style={{ 
-          marginBottom: '2rem', 
-          textAlign: 'center',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '1rem'
-        }}>
-          <h1 style={{ 
-            fontSize: '2rem', 
-            fontWeight: 'bold', 
-            color: darkMode ? '#e6e0ff' : '#222',
-            margin: 0
-          }}>
-            Weekly Progress Tracker
-          </h1>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '1rem',
-            fontSize: '1.2rem'
-          }}>
-            <span style={{ color: darkMode ? '#e6e0ff' : '#222' }}>
-              Progress: {Math.round(progressPercentage * 100)}%
-            </span>
-            <ProgressFace progress={progressPercentage} darkMode={darkMode} />
+      {showCharacterDetails && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 24 }}>
+            <button onClick={handleTickAll} style={{ 
+              padding: '0.5rem 1.2rem', 
+              borderRadius: 6, 
+              background: '#805ad5', 
+              color: '#fff', 
+              fontWeight: 600, 
+              cursor: 'pointer',
+              border: '1px solid #9f7aea'
+            }}>
+              {charBosses.every(b => checked[`${char?.name || ''}-${selectedCharIdx}`]?.[b.name + '-' + b.difficulty]) && charBosses.length > 0 ? 'Untick All' : 'Tick All'}
+            </button>
           </div>
-        </div>
-      </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', maxWidth: 700, margin: '0 auto', border: '1px solid #e0e0ef', borderRadius: 12, overflow: 'hidden' }}>
+            <thead>
+              <tr style={{ background: '#3a2a5d', color: '#e6e0ff' }}>
+                <th style={{ padding: '6px 4px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 180 }}>Boss</th>
+                <th style={{ padding: '6px 4px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 110 }}>Difficulty</th>
+                <th style={{ padding: '6px 4px', textAlign: 'right', fontWeight: 600, fontSize: '0.9em', minWidth: 110 }}>Mesos</th>
+                <th style={{ padding: '6px 4px', textAlign: 'center', fontWeight: 600, fontSize: '0.9em', minWidth: 90 }}>Cleared</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedBosses.map((b, idx) => {
+                const bossObj = bossData.find(bd => bd.name === b.name);
+                const isChecked = !!checked[charKey]?.[b.name + '-' + b.difficulty];
+                return (
+                  <tr
+                    key={b.name + '-' + b.difficulty}
+                    style={{
+                      background: idx % 2 === 0 ? '#23203a' : '#201c32',
+                      border: '1px solid #3a335a',
+                      transition: 'background-color 0.2s ease, transform 0.2s ease',
+                      cursor: 'pointer',
+                      color: '#e6e0ff'
+                    }}
+                    onMouseOver={e => e.currentTarget.style.background = '#2a2540'}
+                    onMouseOut={e => e.currentTarget.style.background = idx % 2 === 0 ? '#23203a' : '#201c32'}
+                    onClick={(e) => {
+                      // Only trigger if the click wasn't on the checkbox
+                      if (!e.target.closest('.checkbox-wrapper')) {
+                        handleCheck(b, !isChecked, e);
+                      }
+                    }}
+                  >
+                    <td style={{ padding: '8px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                      {bossObj?.image && (
+                        <img
+                          src={bossObj.image}
+                          alt={b.name}
+                          style={{
+                            width: 40,
+                            height: 40,
+                            objectFit: 'contain',
+                            borderRadius: 6,
+                            background: '#fff2',
+                            marginRight: 8,
+                            transition: 'transform 0.2s ease'
+                          }}
+                          onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1)'}
+                          onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
+                        />
+                      )}
+                      <span style={{ fontWeight: 600 }}>{b.name}</span>
+                    </td>
+                    <td style={{ padding: '8px', textAlign: 'left' }}>
+                      <span>{b.difficulty}</span>
+                    </td>
+                    <td style={{ padding: '8px', textAlign: 'right', fontWeight: 600 }}>
+                      <span>{Math.floor(getBossPrice(b.name, b.difficulty) / (b.partySize || 1)).toLocaleString()}</span>
+                    </td>
+                    <td style={{ padding: '8px', textAlign: 'center', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <span onClick={e => e.stopPropagation()}>
+                        <CustomCheckbox
+                          checked={isChecked}
+                          onChange={e => handleCheck(b, e.target.checked, e)}
+                        />
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <div style={{ 
+            marginTop: '2rem', 
+            fontSize: '1.2rem', 
+            fontWeight: 'bold', 
+            textAlign: 'center' 
+          }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <img src="/bosses/crystal.png" alt="Crystal" style={{ width: 28, height: 28, verticalAlign: 'middle', marginRight: 4 }} />
+              Total Meso This Week: <span>{totalMeso.toLocaleString()} meso</span>
+            </span>
+          </div>
+
+          {/* Progress Bar */}
+          <div style={{ 
+            maxWidth: 900, 
+            margin: '2rem auto', 
+            padding: '1rem',
+            background: '#28204a',
+            borderRadius: '12px',
+            boxShadow: '0 2px 8px rgba(40, 20, 60, 0.18)',
+            border: '1.5px solid #2d2540'
+          }}>
+            <h3 style={{ color: '#a259f7', marginBottom: '1rem', textAlign: 'center' }}>Weekly Progress</h3>
+            <div style={{ 
+              width: '100%', 
+              height: '20px', 
+              background: '#3a335a',
+              borderRadius: '10px',
+              overflow: 'hidden',
+              marginBottom: 12
+            }}>
+              <div style={{
+                width: `${obtainableMeso === 0 ? 0 : Math.min(100, (totalMeso / obtainableMeso) * 100)}%`,
+                height: '100%',
+                background: 'linear-gradient(90deg, #a259f7, #6a11cb)',
+                transition: 'width 0.5s ease',
+                borderRadius: '10px'
+              }} />
+            </div>
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 4,
+              color: '#e6e0ff',
+              fontSize: '1.1rem',
+            }}>
+              <span>{totalMeso.toLocaleString()} meso</span>
+              <span style={{ fontSize: '0.95rem', color: '#b39ddb', marginTop: 2 }}>Goal: {obtainableMeso.toLocaleString()} meso</span>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 } 

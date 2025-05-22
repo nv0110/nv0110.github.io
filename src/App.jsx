@@ -229,10 +229,6 @@ function App() {
     return saved ? JSON.parse(saved) : null;
   });
   const [error, setError] = useState('');
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('ms-darkMode');
-    return saved ? JSON.parse(saved) : false;
-  });
   const [showWeekly, setShowWeekly] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [progressData, setProgressData] = useState(() => {
@@ -260,10 +256,6 @@ function App() {
   useEffect(() => {
     localStorage.setItem('ms-lastPreset', JSON.stringify(lastPreset));
   }, [lastPreset]);
-  useEffect(() => {
-    localStorage.setItem('ms-darkMode', JSON.stringify(darkMode));
-    document.body.classList.toggle('dark', darkMode);
-  }, [darkMode]);
 
   // Total meso value for a character (split by party size)
   const charTotal = (char) => char.bosses.reduce((sum, b) => sum + (b.price / (b.partySize || 1)), 0);
@@ -310,44 +302,14 @@ function App() {
     setTimeout(() => setIsLoading(false), 300);
   };
 
-  // Dynamic sorting based on selected value for current character, otherwise max possible value
-  const dynamicSortedBossData = useMemo(() => {
-    if (selectedCharIdx === null || !characters[selectedCharIdx]) {
-      return [...bossData].sort((a, b) => {
-        const maxPriceA = Math.max(...a.difficulties.map(d => d.price));
-        const maxPriceB = Math.max(...b.difficulties.map(d => d.price));
-        return maxPriceB - maxPriceA;
-      });
-    }
-    const char = characters[selectedCharIdx];
-    
-    // Split bosses into selected and unselected
-    const selectedBosses = [...bossData].filter(boss => 
-      char.bosses.some(b => b.name === boss.name)
-    );
-    const unselectedBosses = [...bossData].filter(boss => 
-      !char.bosses.some(b => b.name === boss.name)
-    );
-
-    // Sort selected bosses by their actual selected value
-    selectedBosses.sort((a, b) => {
-      const selectedA = char.bosses.find(boss => boss.name === a.name);
-      const selectedB = char.bosses.find(boss => boss.name === b.name);
-      const valueA = getBossPrice(a, selectedA.difficulty) / (selectedA.partySize || 1);
-      const valueB = getBossPrice(b, selectedB.difficulty) / (selectedB.partySize || 1);
-      return valueB - valueA;
-    });
-
-    // Sort unselected bosses by their maximum possible value
-    unselectedBosses.sort((a, b) => {
+  // Remove the dynamicSortedBossData useMemo and replace with a simple sort by max price
+  const sortedBossData = useMemo(() => {
+    return [...bossData].sort((a, b) => {
       const maxPriceA = Math.max(...a.difficulties.map(d => d.price));
       const maxPriceB = Math.max(...b.difficulties.map(d => d.price));
       return maxPriceB - maxPriceA;
     });
-
-    // Combine the sorted arrays
-    return [...selectedBosses, ...unselectedBosses];
-  }, [selectedCharIdx, characters]);
+  }, []);
 
   // Get available party sizes for a boss and difficulty
   const getAvailablePartySizes = (bossName, difficulty) => {
@@ -572,16 +534,16 @@ function App() {
   // Table view
   if (showTable) {
     return (
-      <div className={`App${darkMode ? ' dark' : ''}`} style={{ background: darkMode ? '#28204a' : '#f4f6fb', minHeight: '100vh', color: darkMode ? '#e6e0ff' : '#222', padding: '2rem 0' }}>
-        <button onClick={() => setShowTable(false)} style={{ background: darkMode ? '#805ad5' : '#a259f7', color: '#fff', border: 'none', borderRadius: '6px', padding: '0.5rem 1.2rem', fontWeight: 'bold', marginBottom: '1.5rem', cursor: 'pointer' }}>← Back to Calculator</button>
-        <div style={{ background: darkMode ? '#28204a' : '#fff', borderRadius: '12px', padding: '1.5rem', boxShadow: darkMode ? '0 2px 8px rgba(40, 20, 60, 0.18)' : '0 2px 8px #0002', maxWidth: 900, margin: '0 auto', border: darkMode ? '1.5px solid #6a11cb' : 'none' }}>
-          <h2 style={{ color: darkMode ? '#a259f7' : '#6a11cb', marginBottom: '1rem', textAlign: 'center', fontWeight: 700 }}>Boss Crystal Price Table</h2>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+      <div className="App dark" style={{ background: '#28204a', minHeight: '100vh', color: '#e6e0ff', padding: '2rem 0', border: '1.5px solid #2d2540' }}>
+        <button onClick={() => setShowTable(false)} style={{ background: '#805ad5', color: '#fff', border: 'none', borderRadius: '6px', padding: '0.5rem 1.2rem', fontWeight: 'bold', marginBottom: '1.5rem', cursor: 'pointer' }}>← Back to Calculator</button>
+        <div style={{ background: '#28204a', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(40, 20, 60, 0.18)', maxWidth: 900, margin: '0 auto', border: '1.5px solid #2d2540' }}>
+          <h2 style={{ color: '#a259f7', marginBottom: '1rem', textAlign: 'center', fontWeight: 700 }}>Boss Crystal Price Table</h2>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700, border: '1px solid #2d2540', borderRadius: 12, overflow: 'hidden' }}>
             <thead>
-              <tr style={{ background: darkMode ? '#3a2a5d' : '#444', color: '#fff' }}>
-                <th style={{ padding: '6px 4px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', borderRadius: '6px 0 0 0', minWidth: 100, verticalAlign: 'bottom', color: darkMode ? '#e6e0ff' : undefined }}>Boss</th>
-                <th style={{ padding: '6px 4px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 90, color: darkMode ? '#e6e0ff' : undefined }}>Difficulty</th>
-                <th style={{ padding: '6px 4px', textAlign: 'center', fontWeight: 600, fontSize: '0.9em', minWidth: 90, color: darkMode ? '#e6e0ff' : undefined }}>Mesos</th>
+              <tr style={{ background: '#3a2a5d', color: '#fff' }}>
+                <th style={{ padding: '6px 4px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 100, verticalAlign: 'bottom', color: undefined }}>Boss</th>
+                <th style={{ padding: '6px 4px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 90, color: undefined }}>Difficulty</th>
+                <th style={{ padding: '6px 4px', textAlign: 'center', fontWeight: 600, fontSize: '0.9em', minWidth: 90, color: undefined }}>Mesos</th>
               </tr>
             </thead>
             <tbody>
@@ -597,18 +559,18 @@ function App() {
                 // Sort by price descending
                 allBossDiffs.sort((a, b) => b.price - a.price);
                 return allBossDiffs.map((item, idx) => (
-                  <tr key={item.boss.name + '-' + item.difficulty} style={{ background: idx % 2 === 0 ? (darkMode ? '#23203a' : '#f4f6fb') : (darkMode ? '#201c32' : '#e9e9ef'), border: darkMode ? '1px solid #3a335a' : 'none' }}>
+                  <tr key={item.boss.name + '-' + item.difficulty} style={{ background: idx % 2 === 0 ? '#23203a' : '#201c32', border: '1px solid #3a335a' }}>
                     <td style={{ padding: '8px', display: 'flex', alignItems: 'center', gap: 10, minWidth: 100 }}>
                       {item.boss.image && (
-                        <img src={item.boss.image} alt={item.boss.name} style={{ width: 40, height: 40, objectFit: 'contain', borderRadius: 6, background: darkMode ? '#fff1' : '#fff2', marginRight: 8 }} />
+                        <img src={item.boss.image} alt={item.boss.name} style={{ width: 40, height: 40, objectFit: 'contain', borderRadius: 6, background: '#fff1', marginRight: 8 }} />
                       )}
-                      <span className="boss-name" style={{ fontWeight: 600, fontSize: '1.05em', color: darkMode ? '#e6e0ff' : '#222' }}>{item.boss.name}</span>
+                      <span className="boss-name" style={{ fontWeight: 600, fontSize: '1.05em', color: undefined }}>{item.boss.name}</span>
                     </td>
                     <td style={{ padding: '8px', textAlign: 'left', minWidth: 90 }}>
-                      <span style={{ color: darkMode ? '#e6e0ff' : '#222', fontWeight: 500 }}>{item.difficulty}</span>
+                      <span style={{ color: undefined, fontWeight: 500 }}>{item.difficulty}</span>
                     </td>
                     <td style={{ padding: '8px', textAlign: 'center', minWidth: 110, fontWeight: 600, background: 'inherit' }}>
-                      <span style={{ color: darkMode ? '#e6e0ff' : '#6a11cb' }}>{item.price.toLocaleString()}</span>
+                      <span style={{ color: '#6a11cb' }}>{item.price.toLocaleString()}</span>
                     </td>
                   </tr>
                 ));
@@ -626,40 +588,21 @@ function App() {
 
   // Main calculator view
   return (
-    <div className={`App${darkMode ? ' dark' : ''}`} style={{ background: darkMode ? '#28204a' : '#f4f6fb', minHeight: '100vh', color: darkMode ? '#e6e0ff' : '#222', padding: '2rem 0' }}>
-      <div style={{ position: 'absolute', top: 18, right: 32, zIndex: 10 }}>
-        <button
-          onClick={() => setDarkMode(d => !d)}
-          style={{
-            background: darkMode ? '#fff' : '#222',
-            color: darkMode ? '#222' : '#fff',
-            border: 'none',
-            borderRadius: '20px',
-            padding: '0.4rem 1.2rem',
-            fontWeight: 700,
-            fontSize: '1rem',
-            boxShadow: '0 2px 8px #0002',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-          }}
-        >
-          {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
-        </button>
-      </div>
+    <div className="App dark" style={{ background: '#28204a', minHeight: '100vh', color: '#e6e0ff', padding: '2rem 0', border: '1.5px solid #2d2540' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: '1.5rem' }}>
         <img src="/bosses/crystal.png" alt="Crystal" style={{ width: 32, height: 32 }} />
         <img src="/bosses/bluecrystal.png" alt="Blue Crystal" style={{ width: 32, height: 32 }} />
         <img src="/bosses/yellowcrystal.png" alt="Yellow Crystal" style={{ width: 32, height: 32 }} />
       </div>
-      <h1 style={{ textAlign: 'center', fontWeight: 700, fontSize: '2.2rem', marginBottom: '0.5rem', color: darkMode ? '#a259f7' : '#222' }}>Maplestory Boss Crystal Calculator</h1>
-      <p style={{ color: darkMode ? '#b39ddb' : '#6a11cb', textAlign: 'center', marginBottom: '2rem', fontSize: '1.1rem' }}>Create characters, select bosses, and calculate your total crystal value!</p>
-      <button onClick={() => setShowTable(true)} style={{ background: darkMode ? '#805ad5' : '#a259f7', color: '#fff', border: 'none', borderRadius: '6px', padding: '0.5rem 1.2rem', fontWeight: 'bold', marginBottom: '1.5rem', cursor: 'pointer', display: 'block', marginLeft: 'auto', marginRight: 'auto' }}>
+      <h1 style={{ textAlign: 'center', fontWeight: 700, fontSize: '2.2rem', marginBottom: '0.5rem' }}>Maplestory Boss Crystal Calculator</h1>
+      <p style={{ color: '#6a11cb', textAlign: 'center', marginBottom: '2rem', fontSize: '1.1rem' }}>Create characters, select bosses, and calculate your total crystal value!</p>
+      <button onClick={() => setShowTable(true)} style={{ background: '#805ad5', color: '#fff', border: 'none', borderRadius: '6px', padding: '0.5rem 1.2rem', fontWeight: 'bold', marginBottom: '1.5rem', cursor: 'pointer', display: 'block', marginLeft: 'auto', marginRight: 'auto' }}>
         View Boss Price Table
       </button>
-      <button onClick={() => setShowWeekly(true)} style={{ background: darkMode ? '#a259f7' : '#805ad5', color: '#fff', border: 'none', borderRadius: '6px', padding: '0.5rem 1.2rem', fontWeight: 'bold', marginBottom: '1.5rem', cursor: 'pointer', display: 'block', marginLeft: 'auto', marginRight: 'auto' }}>
+      <button onClick={() => setShowWeekly(true)} style={{ background: '#a259f7', color: '#fff', border: 'none', borderRadius: '6px', padding: '0.5rem 1.2rem', fontWeight: 'bold', marginBottom: '1.5rem', cursor: 'pointer', display: 'block', marginLeft: 'auto', marginRight: 'auto' }}>
         Weekly Tracker
       </button>
-      <div className={`table-container${selectedCharIdx !== null && characters[selectedCharIdx] ? ' wide' : ''}`} style={{ background: darkMode ? '#28204a' : '#fff', borderRadius: 8, boxShadow: darkMode ? '0 2px 8px rgba(40, 20, 60, 0.18)' : '0 2px 8px #0001', padding: '1rem', border: darkMode ? '1.5px solid #6a11cb' : 'none' }}>
+      <div className={`table-container${selectedCharIdx !== null && characters[selectedCharIdx] ? ' wide' : ''}`} style={{ background: '#2d2540', borderRadius: 8, boxShadow: '0 2px 8px rgba(40, 20, 60, 0.18)', padding: '1rem', border: '1.5px solid #2d2540' }}>
         {error && <div style={{ color: 'red', marginBottom: '1rem', fontWeight: 600 }}>{error}</div>}
         <div style={{ margin: '2rem 0', display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'center' }}>
           <input
@@ -670,11 +613,11 @@ function App() {
             style={{ 
               padding: '0.5rem', 
               borderRadius: '6px', 
-              border: darkMode ? '1px solid #6a11cb' : '1px solid #ccc', 
+              border: '1px solid #3a335a', 
               minWidth: '180px', 
               fontSize: '1rem', 
-              background: darkMode ? '#3a335a' : '#fff', 
-              color: darkMode ? '#e6e0ff' : '#222',
+              background: '#3a335a', 
+              color: '#e6e0ff',
               outline: 'none',
               boxShadow: 'none',
             }}
@@ -729,14 +672,14 @@ function App() {
                 value={selectedCharIdx ?? ''}
                 onChange={handleCharacterChange}
                 style={{
-                  background: darkMode ? '#3a335a' : '#fff',
-                  color: darkMode ? '#e6e0ff' : '#222',
-                  border: darkMode ? '1px solid #6a11cb' : '1px solid #ccc',
+                  background: '#3a335a',
+                  color: '#e6e0ff',
+                  border: '1px solid #3a335a',
                   borderRadius: 10,
                   fontSize: '1.1em',
                   minWidth: 140,
                   height: 36,
-                  boxShadow: darkMode ? 'none' : '0 1px 4px #0001',
+                  boxShadow: 'none',
                   textAlign: 'center',
                   textAlignLast: 'center',
                   paddingRight: 20,
@@ -788,30 +731,31 @@ function App() {
                     <span role="img" aria-label="boss">👾</span> No bosses selected for this character. Use the checkboxes to add bosses!
                   </div>
                 )}
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700, border: '1px solid #2d2540', borderRadius: 12, overflow: 'hidden' }}>
                   <thead>
-                    <tr style={{ background: darkMode ? '#3a2a5d' : '#444', color: '#fff' }}>
-                      <th style={{ padding: '6px 2px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', borderRadius: '6px 0 0 0', minWidth: 70, verticalAlign: 'bottom', color: darkMode ? '#e6e0ff' : undefined }}>Boss</th>
-                      <th style={{ padding: '6px 2px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 90, color: darkMode ? '#e6e0ff' : undefined }}>Difficulty</th>
-                      <th className="boss-table-price" style={{ padding: '6px 2px', textAlign: 'center', fontWeight: 600, fontSize: '0.9em', minWidth: 70, color: darkMode ? '#e6e0ff' : undefined }}>Mesos</th>
-                      <th className="boss-table-controls" style={{ padding: '6px 2px', textAlign: 'center', fontWeight: 600, fontSize: '0.9em', minWidth: 160, borderRadius: '0 6px 0 0', color: darkMode ? '#e6e0ff' : undefined }}>{selectedCharIdx !== null ? characters[selectedCharIdx]?.name : 'Selected Character'}</th>
+                    <tr style={{ background: '#3a2a5d', color: '#e6e0ff' }}>
+                      <th style={{ padding: '6px 2px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 70, verticalAlign: 'bottom', color: undefined }}>Boss</th>
+                      <th style={{ padding: '6px 2px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 90, color: undefined }}>Difficulty</th>
+                      <th className="boss-table-price" style={{ padding: '6px 2px', textAlign: 'center', fontWeight: 600, fontSize: '0.9em', minWidth: 70, color: undefined }}>Mesos</th>
+                      <th className="boss-table-controls" style={{ padding: '6px 2px', textAlign: 'center', fontWeight: 600, fontSize: '0.9em', minWidth: 160, color: undefined }}>{selectedCharIdx !== null ? characters[selectedCharIdx]?.name : 'Selected Character'}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {dynamicSortedBossData.map((boss, bidx) => {
+                    {sortedBossData.map((boss, bidx) => {
                       const difficulties = getBossDifficulties(boss);
                       const selected = selectedCharIdx !== null ? characters[selectedCharIdx]?.bosses.find(b => b.name === boss.name) : null;
                       return (
                         <tr 
                           key={bidx} 
                           style={{ 
-                            background: darkMode ? (bidx % 2 === 0 ? '#23203a' : '#201c32') : (bidx % 2 === 0 ? '#f4f6fb' : '#e9e9ef'), 
-                            border: darkMode ? '1px solid #3a335a' : 'none',
+                            background: bidx % 2 === 0 ? '#23203a' : '#201c32', 
+                            border: '1px solid #3a335a',
+                            color: '#e6e0ff',
                             transition: 'background-color 0.2s ease, transform 0.2s ease',
                             cursor: 'pointer'
                           }}
-                          onMouseOver={e => e.currentTarget.style.background = darkMode ? '#2a2540' : '#eef0f5'}
-                          onMouseOut={e => e.currentTarget.style.background = darkMode ? (bidx % 2 === 0 ? '#23203a' : '#201c32') : (bidx % 2 === 0 ? '#f4f6fb' : '#e9e9ef')}
+                          onMouseOver={e => e.currentTarget.style.background = '#2a2540'}
+                          onMouseOut={e => e.currentTarget.style.background = bidx % 2 === 0 ? '#23203a' : '#201c32'}
                           onClick={() => {
                             if (selected) {
                               toggleBoss(selectedCharIdx, boss.name, '');
@@ -831,7 +775,7 @@ function App() {
                                   height: 40, 
                                   objectFit: 'contain', 
                                   borderRadius: 6, 
-                                  background: darkMode ? '#fff1' : '#fff2', 
+                                  background: '#fff1', 
                                   marginRight: 8,
                                   transition: 'transform 0.2s ease'
                                 }} 
@@ -839,13 +783,13 @@ function App() {
                                 onMouseOut={e => e.target.style.transform = 'scale(1)'}
                               />
                             )}
-                            <span className="boss-name" style={{ fontWeight: 600, fontSize: '1.05em', color: darkMode ? '#e6e0ff' : '#222' }}>{boss.name}</span>
+                            <span className="boss-name" style={{ fontWeight: 600, fontSize: '1.05em', color: undefined }}>{boss.name}</span>
                           </td>
                           <td style={{ padding: '8px 2px', textAlign: 'left', minWidth: 90 }}>
-                            <span style={{ color: darkMode ? '#e6e0ff' : '#222', fontWeight: 500 }}>{selected ? selected.difficulty : '—'}</span>
+                            <span style={{ color: undefined, fontWeight: 500 }}>{selected ? selected.difficulty : '—'}</span>
                           </td>
                           <td className="boss-table-price" style={{ padding: '8px 2px', textAlign: 'center', minWidth: 70, fontWeight: 600, background: 'inherit', verticalAlign: 'middle' }}>
-                            <span style={{ color: darkMode ? '#e6e0ff' : '#6a11cb' }}>{selected && selected.difficulty && Math.floor(getBossPrice(boss, selected.difficulty) / (selected.partySize || 1)).toLocaleString()}</span>
+                            <span style={{ color: '#6a11cb' }}>{selected && selected.difficulty && Math.floor(getBossPrice(boss, selected.difficulty) / (selected.partySize || 1)).toLocaleString()}</span>
                           </td>
                           <td className="boss-table-controls" style={{ padding: '8px 2px', textAlign: 'center', minWidth: 160, background: 'inherit', verticalAlign: 'middle' }}>
                             {selectedCharIdx !== null && (
@@ -885,9 +829,9 @@ function App() {
                                         marginLeft: 0, 
                                         height: 32, 
                                         borderRadius: 6, 
-                                        border: darkMode ? '1px solid #3a335a' : '1px solid #ccc', 
-                                        background: darkMode ? '#181622' : '#222', 
-                                        color: '#fff', 
+                                        border: '1px solid #3a335a', 
+                                        background: '#3a335a', 
+                                        color: '#e6e0ff', 
                                         fontWeight: 600,
                                         paddingRight: 18,
                                         cursor: 'pointer',
@@ -915,9 +859,9 @@ function App() {
                                         marginLeft: 4, 
                                         height: 32, 
                                         borderRadius: 6, 
-                                        border: darkMode ? '1px solid #3a335a' : '1px solid #ccc', 
-                                        background: darkMode ? '#181622' : '#222', 
-                                        color: '#fff', 
+                                        border: '1px solid #3a335a', 
+                                        background: '#3a335a', 
+                                        color: '#e6e0ff', 
                                         fontWeight: 600, 
                                         textAlign: 'center',
                                         fontSize: '1rem',
@@ -949,7 +893,7 @@ function App() {
           </>
         )}
       </div>
-      <div style={{ marginTop: '2rem', fontSize: '1.2rem', fontWeight: 'bold', color: darkMode ? '#e6e0ff' : '#222', textAlign: 'center' }}>
+      <div style={{ marginTop: '2rem', fontSize: '1.2rem', fontWeight: 'bold', color: undefined, textAlign: 'center' }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           <img src="/bosses/crystal.png" alt="Crystal" style={{ width: 28, height: 28, verticalAlign: 'middle', marginRight: 4 }} />
           Overall Total: <span style={{ color: '#a259f7' }}>{overallTotal.toLocaleString()} meso</span>
@@ -973,7 +917,7 @@ function App() {
           zIndex: 1000
         }}>
           <div style={{
-            background: darkMode ? '#28204a' : '#fff',
+            background: '#28204a',
             padding: '2rem',
             borderRadius: '12px',
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
