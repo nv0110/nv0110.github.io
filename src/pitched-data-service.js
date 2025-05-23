@@ -476,19 +476,19 @@ export async function getYearlyPitchedStats(userCode, year = null) {
   try {
     const { data, error } = await supabase
       .from('user_data')
-      .select('data')
+      .select('pitched_items')
       .eq('id', userCode)
       .single();
       
     if (error) throw error;
     
-    const pitchedItems = data?.data?.pitchedItems || [];
+    const pitchedItems = data.pitched_items || [];
     
     // Process data to get yearly stats
     const yearlyStats = {};
     
     pitchedItems.forEach(item => {
-      const itemYear = item.year;
+      const itemYear = new Date(item.date).getFullYear();
       
       // Skip if filtering by year and this item is from a different year
       if (year && itemYear !== parseInt(year)) return;

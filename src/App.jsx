@@ -1,311 +1,57 @@
-import { useState, useRef, useMemo, useEffect } from 'react'
+import { useState, useRef, useMemo, useEffect, lazy, Suspense } from 'react'
 import './App.css'
 import WeeklyTracker from './WeeklyTracker'
 import { supabase } from './supabaseClient'
 import { exportUserData, importUserData, syncPitchedItemsToCheckedState, getCurrentWeekKey } from './pitched-data-service'
-import DataBackup from './components/DataBackup'
+import { bossData, getBossPrice } from './data/bossData'
+import { LIMITS, STORAGE_KEYS, PAGES, COOLDOWNS, ANIMATION_DURATIONS } from './constants'
+import { useLocalStorage, useLocalStorageString } from './hooks/useLocalStorage'
+import { useBossCalculations } from './hooks/useBossCalculations'
+import { useAuth } from './hooks/useAuth'
+import { Tooltip } from './components/Tooltip'
 
-// Boss data, grouped by boss name with difficulties as array
-const bossData = [
-
-  {
-    name: 'Pink Bean',
-    difficulties: [
-      { difficulty: 'Chaos', price: 64000000 },
-      { difficulty: 'Normal', price: 7022500 },
-    ],
-    image: '/bosses/PinkBean.png',
-  },
-  {
-    name: 'Cygnus',
-    difficulties: [
-      { difficulty: 'Easy', price: 45562500 },
-      { difficulty: 'Normal', price: 72250000 },
-    ],
-    image: '/bosses/cygnus.png',
-  },
-  {
-    name: 'Zakum',
-    difficulties: [
-      { difficulty: 'Easy', price: 1000000 },
-      { difficulty: 'Normal', price: 3062500 },
-      { difficulty: 'Chaos', price: 81000000 },
-    ],
-    image: '/bosses/zakum.png',
-  },
-  {
-    name: 'Crimson Queen',
-    difficulties: [
-      { difficulty: 'Normal', price: 4840000 },
-      { difficulty: 'Chaos', price: 81000000 },
-    ],
-    image: '/bosses/crimsonqueen.png',
-  },
-  {
-    name: 'Von Bon',
-    difficulties: [
-      { difficulty: 'Normal', price: 4840000 },
-      { difficulty: 'Chaos', price: 81000000 },
-    ],
-    image: '/bosses/von_bon.png',
-  },
-  {
-    name: 'Pierre',
-    difficulties: [
-      { difficulty: 'Normal', price: 4840000 },
-      { difficulty: 'Chaos', price: 81000000 },
-    ],
-    image: '/bosses/pierre.png',
-  },
-  {
-    name: 'Magnus',
-    difficulties: [
-      { difficulty: 'Easy', price: 3610000 },
-      { difficulty: 'Normal', price: 12960000 },
-      { difficulty: 'Hard', price: 95062500 },
-    ],
-    image: '/bosses/magnus.png',
-  },
-  {
-    name: 'Vellum',
-    difficulties: [
-      { difficulty: 'Normal', price: 4840000 },
-      { difficulty: 'Chaos', price: 105062500 },
-    ],
-    image: '/bosses/vellum.png',
-  },
-  {
-    name: 'Papulatus',
-    difficulties: [
-      { difficulty: 'Easy', price: 3422500 },
-      { difficulty: 'Normal', price: 13322500 },
-      { difficulty: 'Chaos', price: 132250000 },
-    ],
-    image: '/bosses/Papulatus.png',
-  },
-  {
-    name: 'Aketchi',
-    difficulties: [
-      { difficulty: 'Normal', price: 144000000 },
-    ],
-    image: '/bosses/akechi.png',
-  },
-  {
-    name: 'Lotus',
-    difficulties: [
-      { difficulty: 'Normal', price: 162562500 },
-      { difficulty: 'Hard', price: 444675000 },
-      { difficulty: 'Extreme', price: 1397500000 },
-    ],
-    image: '/bosses/lotus.png',
-    pitchedItems: [
-      { name: 'Black Heart', image: '/items/blackheart.png' },
-      { name: 'Berserked', image: '/items/berserked.png' },
-      { name: 'Total Control', image: '/items/tc.png' }
-    ]
-  },
-  {
-    name: 'Damien',
-    difficulties: [
-      { difficulty: 'Normal', price: 169000000 },
-      { difficulty: 'Hard', price: 421875000 },
-    ],
-    image: '/bosses/damien.png',
-    pitchedItems: [
-      { name: 'Magic Eyepatch', image: '/items/eyepatch.webp' }
-    ]
-  },
-  {
-    name: 'Guardian Angel Slime',
-    difficulties: [
-      { difficulty: 'Normal', price: 231673500 },
-      { difficulty: 'Chaos', price: 600578125 },
-    ],
-    image: '/bosses/slime.png',
-  },
-  {
-    name: 'Lucid',
-    difficulties: [
-      { difficulty: 'Easy', price: 237009375 },
-      { difficulty: 'Normal', price: 253828125 },
-      { difficulty: 'Hard', price: 504000000 },
-    ],
-    image: '/bosses/lucid.png',
-    pitchedItems: [
-      { name: 'Dreamy Belt', image: '/items/dreamy.png' }
-    ]
-  },
-  {
-    name: 'Will',
-    difficulties: [
-      { difficulty: 'Easy', price: 246744750 },
-      { difficulty: 'Normal', price: 279075000 },
-      { difficulty: 'Hard', price: 621810000 },
-    ],
-    image: '/bosses/will.png',
-    pitchedItems: [
-      { name: 'Cursed Spellbook', image: '/items/book.webp' }
-    ]
-  },
-  {
-    name: 'Gloom',
-    difficulties: [
-      { difficulty: 'Normal', price: 297675000 },
-      { difficulty: 'Chaos', price: 563945000 },
-    ],
-    image: '/bosses/gloom.png',
-    pitchedItems: [
-      { name: 'Endless Terror', image: '/items/et.webp' }
-    ]
-  },
-  {
-    name: 'Darknell',
-    difficulties: [
-      { difficulty: 'Normal', price: 316875000 },
-      { difficulty: 'Hard', price: 667920000 },
-    ],
-    image: '/bosses/darknell.png',
-    pitchedItems: [
-      { name: 'Commanding Force Earring', image: '/items/cfe.webp' }
-    ]
-  },
-  {
-    name: 'Verus Hilla',
-    difficulties: [
-      { difficulty: 'Normal', price: 581880000 },
-      { difficulty: 'Hard', price: 762105000 },
-    ],
-    image: '/bosses/verus_hilla.png',
-    pitchedItems: [
-      { name: 'Source of Suffering', image: '/items/sos.png' }
-    ]
-  },
-  {
-    name: 'Chosen Seren',
-    difficulties: [
-      { difficulty: 'Normal', price: 889021875 },
-      { difficulty: 'Hard', price: 1096562500 },
-      { difficulty: 'Extreme', price: 4235000000 },
-    ],
-    image: '/bosses/seren.png',
-    pitchedItems: [
-      { name: "Mitra's Rage", image: '/items/emblem.webp' }
-    ]
-  },
-  {
-    name: 'Watcher Kalos',
-    difficulties: [
-      { difficulty: 'Easy', price: 937500000 },
-      { difficulty: 'Normal', price: 1300000000 },
-      { difficulty: 'Chaos', price: 2600000000 },
-      { difficulty: 'Extreme', price: 5200000000 },
-    ],
-    image: '/bosses/Kalos.png',
-  },
-  {
-    name: 'Kaling',
-    difficulties: [
-      { difficulty: 'Easy', price: 1031250000 },
-      { difficulty: 'Normal', price: 1506500000 },
-      { difficulty: 'Hard', price: 2990000000 },
-      { difficulty: 'Extreme', price: 6026000000 },
-    ],
-    image: '/bosses/Kaling.png',
-  },
-  {
-    name: 'Limbo',
-    difficulties: [
-      { difficulty: 'Normal', price: 2100000000 },
-      { difficulty: 'Hard', price: 3745000000 }
-    ],
-    image: '/bosses/Limbo.png',
-  },
-  {
-    name: 'Hilla',
-    difficulties: [
-      { difficulty: 'Normal', price: 4000000 },
-      { difficulty: 'Hard', price: 56250000 },
-    ],
-    image: '/bosses/hilla.png',
-  },
-  {
-    name: 'Princess No',
-    difficulties: [
-      { difficulty: 'Normal', price: 81000000 },
-    ],
-    image: '/bosses/pno.png',
-  },
-];
-
-const CHARACTER_BOSS_CAP = 14;
-const TOTAL_BOSS_CAP = 180;
-
-// Helper: get price for a boss/difficulty
-const getBossPrice = (boss, difficulty) => {
-  const d = boss.difficulties.find(d => d.difficulty === difficulty);
-  return d ? d.price : 0;
-};
-
-// Simple Tooltip component
-function Tooltip({ children, text, position = 'top' }) {
-  const [visible, setVisible] = useState(false);
-  return (
-    <span style={{ position: 'relative', display: 'inline-block' }}
-      onMouseEnter={() => setVisible(true)}
-      onMouseLeave={() => setVisible(false)}
-      onFocus={() => setVisible(true)}
-      onBlur={() => setVisible(false)}
-      tabIndex={0}
-    >
-      {children}
-      {visible && (
-        <span style={{
-          position: 'absolute',
-          [position]: '120%',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          background: '#2d2540',
-          color: '#fff',
-          padding: '6px 12px',
-          borderRadius: 6,
-          fontSize: '0.95em',
-          whiteSpace: 'nowrap',
-          zIndex: 9999,
-          boxShadow: '0 2px 8px #0004',
-          pointerEvents: 'none',
-          opacity: 0.95
-        }}>
-          {text}
-        </span>
-      )}
-    </span>
-  );
-}
+// Lazy load DataBackup component
+const DataBackup = lazy(() => import('./components/DataBackup'));
 
 function App() {
-  // State declarations
+  // Auth hook
+  const {
+    userCode,
+    isLoggedIn,
+    loginInput,
+    setLoginInput,
+    loginError,
+    setLoginError,
+    isCreating,
+    createCooldown,
+    showPassword,
+    setShowPassword,
+    handleCreateAccount: createAccount,
+    handleLogin,
+    handleLogout,
+    handleDeleteAccount,
+  } = useAuth();
+
+  // State declarations using custom hooks where applicable
   const [characters, setCharacters] = useState([]);
   const [lastDifficulties, setLastDifficulties] = useState({});
   const [lastPartySizes, setLastPartySizes] = useState({});
   const [newCharName, setNewCharName] = useState('');
-  const [showTable, setShowTable] = useState(() => localStorage.getItem('ms-active-page') === 'table');
+  const [showTable, setShowTable] = useLocalStorage('ms-show-table', false);
   const [selectedCharIdx, setSelectedCharIdx] = useState(null);
   const [lastPreset, setLastPreset] = useState(null);
   const [error, setError] = useState('');
-  const [showWeekly, setShowWeekly] = useState(() => localStorage.getItem('ms-active-page') === 'weekly');
+  const [showWeekly, setShowWeekly] = useLocalStorage('ms-show-weekly', false);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Progress data state
   const [progressData, setProgressData] = useState({
     weeklyTotal: 0,
     lastReset: new Date().toISOString(),
     history: []
   });
-  const [userCode, setUserCode] = useState(() => localStorage.getItem('ms-user-code') || '');
-  const [loginInput, setLoginInput] = useState('');
-  const [isLoggedIn, setIsLoggedIn] = useState(!!userCode);
-  const [loginError, setLoginError] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
-  const [createCooldown, setCreateCooldown] = useState(0);
-  const [cooldownMsg, setCooldownMsg] = useState('');
+
+  // UI state
   const [loginInputFocused, setLoginInputFocused] = useState(false);
   const [checked, setChecked] = useState({});
   const [showDeleteLoading, setShowDeleteLoading] = useState(false);
@@ -313,44 +59,42 @@ function App() {
   const [showCloudSync, setShowCloudSync] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
   const [showBackupOptions, setShowBackupOptions] = useState(false);
   const [showImportExport, setShowImportExport] = useState(false);
   const [importError, setImportError] = useState('');
   const [importSuccess, setImportSuccess] = useState(false);
   const fileInputRef = useRef(null);
-  const [presets, setPresets] = useState(() => {
-    // Try to load from localStorage, else default to empty
-    const saved = localStorage.getItem('ms-presets');
-    return saved ? JSON.parse(saved) : [];
-  });
+  
+  // Presets using custom hook
+  const [presets, setPresets] = useLocalStorage(STORAGE_KEYS.PRESETS, []);
+  
+  // Modal states
   const [editingPresetIdx, setEditingPresetIdx] = useState(null);
   const [presetModalOpen, setPresetModalOpen] = useState(false);
   const [presetDraft, setPresetDraft] = useState({ name: '', bosses: [] });
   const [showAccountModal, setShowAccountModal] = useState(false);
-  const [accountModalCountdown, setAccountModalCountdown] = useState(8);
+  const [accountModalCountdown, setAccountModalCountdown] = useState(COOLDOWNS.ACCOUNT_MODAL);
   const [lastCreatedCode, setLastCreatedCode] = useState('');
   const [cloneError, setCloneError] = useState('');
-  const [undoData, setUndoData] = useState(null); // { character, index }
+  
+  // Undo functionality
+  const [undoData, setUndoData] = useState(null);
   const [showUndo, setShowUndo] = useState(false);
   let undoTimeout = useRef(null);
 
-  // Week key calculation
-  const weekKey = (() => {
-    // Returns a string like '2024-23' for year-week, based on UTC
-    const now = new Date();
-    const utcNow = new Date(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-    const onejan = new Date(utcNow.getUTCFullYear(), 0, 1);
-    const week = Math.ceil((((utcNow - onejan) / 86400000) + onejan.getUTCDay() + 1) / 7);
-    return `${utcNow.getUTCFullYear()}-${week}`;
-  })();
+  // Use boss calculations hook
+  const {
+    charTotal,
+    overallTotal,
+    sortedBossData,
+    totalBossCount,
+    getAvailablePartySizes,
+    getBossDifficulties,
+  } = useBossCalculations(characters, bossData);
 
-  // Total meso value for a character (split by party size)
-  const charTotal = (char) => char.bosses.reduce((sum, b) => sum + Math.ceil(b.price / (b.partySize || 1)), 0);
-
-  // Total meso value for all characters
-  const overallTotal = characters.reduce((sum, c) => sum + charTotal(c), 0);
+  // Week key calculation using getCurrentWeekKey from service
+  const weekKey = getCurrentWeekKey();
 
   // Update progress when total changes
   useEffect(() => {
@@ -380,15 +124,7 @@ function App() {
   const handleCharacterChange = (e) => {
     setIsLoading(true);
     setSelectedCharIdx(e.target.value ? parseInt(e.target.value) : null);
-    setTimeout(() => setIsLoading(false), 300);
-  };
-
-  // Loading state for preset application
-  const handlePresetApply = (preset, presetName) => {
-    setIsLoading(true);
-    // Note: This function isn't used directly anymore, but kept for compatibility
-    // The applyPreset function now handles everything with the presetIdx
-    setTimeout(() => setIsLoading(false), 300);
+    setTimeout(() => setIsLoading(false), ANIMATION_DURATIONS.LOADING);
   };
 
   // Apply a preset to a character with enhanced logic
@@ -427,7 +163,7 @@ function App() {
       const existingPresetBossNames = existingPresetBosses.map(b => b.name);
       
       // Count how many bosses we can still add
-      const availableSlots = CHARACTER_BOSS_CAP - nonPresetBosses.length;
+      const availableSlots = LIMITS.CHARACTER_BOSS_CAP - nonPresetBosses.length;
       
       if (availableSlots <= 0) {
         // No slots available, can't add any preset bosses
@@ -492,27 +228,7 @@ function App() {
       setLastPreset(presetIdx);
     }
     
-    setTimeout(() => setIsLoading(false), 300);
-  };
-
-  // Remove the dynamicSortedBossData useMemo and replace with a simple sort by max price
-  const sortedBossData = useMemo(() => {
-    return [...bossData].sort((a, b) => {
-      const maxPriceA = Math.max(...a.difficulties.map(d => d.price));
-      const maxPriceB = Math.max(...b.difficulties.map(d => d.price));
-      return maxPriceB - maxPriceA;
-    });
-  }, []);
-
-  // Get available party sizes for a boss and difficulty
-  const getAvailablePartySizes = (bossName, difficulty) => {
-    if (bossName === 'Limbo') {
-      return [1, 2, 3];
-    }
-    if (bossName === 'Lotus' && difficulty === 'Extreme') {
-      return [1, 2];
-    }
-    return [1, 2, 3, 4, 5, 6];
+    setTimeout(() => setIsLoading(false), ANIMATION_DURATIONS.LOADING);
   };
 
   // Update party size with restrictions
@@ -552,7 +268,7 @@ function App() {
       setError('Character name cannot be empty.');
       return;
     }
-    if (characters.length >= 50) {
+    if (characters.length >= LIMITS.MAX_CHARACTERS) {
       setError('Character creation is full. Try again later.');
       return;
     }
@@ -574,7 +290,7 @@ function App() {
       setUndoData({ character: removed, index: idx });
       setShowUndo(true);
       if (undoTimeout.current) clearTimeout(undoTimeout.current);
-      undoTimeout.current = setTimeout(() => setShowUndo(false), 4000);
+      undoTimeout.current = setTimeout(() => setShowUndo(false), ANIMATION_DURATIONS.UNDO_TIMEOUT);
       // Determine new selection
       if (newChars.length === 0) {
         setSelectedCharIdx(null);
@@ -645,7 +361,7 @@ function App() {
           };
         }
 
-        if (char.bosses.length < CHARACTER_BOSS_CAP) {
+        if (char.bosses.length < LIMITS.CHARACTER_BOSS_CAP) {
           const lastDifficulty = lastDifficulties[char.name]?.[bossName] || difficulty;
           return {
             ...char,
@@ -665,16 +381,11 @@ function App() {
     );
   };
 
-  const getBossDifficulties = boss => boss.difficulties.map(d => d.difficulty);
-
-  // Total bosses selected across all characters
-  const totalBossCount = () => characters.reduce((sum, c) => sum + c.bosses.length, 0);
-
   // Clone character
   const cloneCharacter = idx => {
     const totalBosses = characters.reduce((sum, char) => sum + (char.bosses ? char.bosses.length : 0), 0);
     const cloneBosses = characters[idx]?.bosses ? characters[idx].bosses.length : 0;
-    if (totalBosses + cloneBosses > 180) {
+    if (totalBosses + cloneBosses > LIMITS.TOTAL_BOSS_CAP) {
       setCloneError('Cannot clone: total crystals cap (180) would be exceeded.');
       setTimeout(() => setCloneError(''), 2500);
       return;
@@ -848,197 +559,52 @@ function App() {
     return () => clearTimeout(timer);
   }, [showAccountModal, accountModalCountdown]);
 
-  const handleCreateAccount = async () => {
-    if (createCooldown > 0) {
-      setCooldownMsg('Please wait a few seconds before creating another account.');
-      return;
-    }
-    setIsCreating(true);
-    setCooldownMsg('');
-    setCreateCooldown(5);
-    const code = Math.random().toString(36).slice(2, 10).toUpperCase();
-    
-    try {
-      // Create a more comprehensive initial data structure with properly initialized fields
-      const initialData = {
-        characters: [],
-        checked: {},
-        weekKey,
-        pitched_item_tracking: {
-          lastUpdated: new Date().toISOString(),
-          itemCount: 0,
-          weekKeys: [weekKey] // Track all week keys we've seen
-        },
-        weeklyHistory: [],
-        lastReset: new Date().toISOString()
-      };
-      
-      const { error } = await supabase.from('user_data').upsert([{ 
-        id: code, 
-        data: initialData,
-        pitched_items: [] // Initialize empty pitched items array
-      }]);
-      
-      if (!error) {
-        // Set states directly without setTimeout
-        setLastCreatedCode(code);
-        setIsCreating(false);
-        setCreateCooldown(0);
-        setShowAccountModal(true);
-        setAccountModalCountdown(8);
-      } else {
-        setLoginError('Failed to create account. Try again.');
-        setIsCreating(false);
-      }
-    } catch (error) {
-      setLoginError('Failed to create account. Try again.');
-      setIsCreating(false);
+  // Wrapper functions to handle the auth hook responses
+  const handleCreateAccountWrapper = async () => {
+    const result = await createAccount();
+    if (result.success) {
+      setLastCreatedCode(result.code);
+      setShowAccountModal(true);
+      setAccountModalCountdown(COOLDOWNS.ACCOUNT_MODAL);
     }
   };
 
-  const handleLogin = async () => {
-    setLoginError('');
-    try {
-      // Get both data and pitched_items from database
-      const { data, error } = await supabase
-        .from('user_data')
-        .select('data, pitched_items')
-        .eq('id', loginInput)
-        .single();
-        
-      if (error || !data) {
-        setLoginError('Invalid code.');
-        return;
-      }
-
-      setUserCode(loginInput);
-      setIsLoggedIn(true);
-      localStorage.setItem('ms-user-code', loginInput);
+  const handleLoginWrapper = async () => {
+    const result = await handleLogin();
+    if (result.success && result.userData) {
+      setCharacters(result.userData.characters);
+      setChecked(result.userData.checked);
       
-      // Load characters
-      if (data.data?.characters) {
-        setCharacters(data.data.characters);
-      }
-      
-      const currentWeekKey = weekKey;
-      const storedWeekKey = data.data?.weekKey;
-      const pitchedItems = data.pitched_items || [];
-      
-      console.log(`Login: Pitched items found: ${pitchedItems.length}`);
-      
-      // Import the synchronization function
-      const { syncPitchedItemsToCheckedState } = await import('./pitched-data-service');
-      
-      // Handle checked state and weekKey transition
-      if (storedWeekKey === currentWeekKey && data.data?.checked) {
-        console.log('Same week - syncing pitched items with existing checked state');
-        
-        // Synchronize pitched items with existing checked state
-        const syncedCheckedState = syncPitchedItemsToCheckedState(
-          pitchedItems,
-          data.data.checked,
-          currentWeekKey
-        );
-        
-        setChecked(syncedCheckedState);
-        
-        // Update database if synced state differs from original
-        const isStateModified = JSON.stringify(syncedCheckedState) !== JSON.stringify(data.data.checked);
-        if (isStateModified) {
-          console.log('Checked state was modified during login sync, updating database');
-          await supabase.from('user_data').upsert([{ 
-            id: loginInput, 
-            data: { 
-              ...data.data, 
-              checked: syncedCheckedState
-            } 
-          }]);
-        }
-      } else {
-        console.log(`Week transition detected during login: ${storedWeekKey} -> ${currentWeekKey}`);
-        
-        // Generate fresh checked state from pitched items for the new week
-        const syncedCheckedState = syncPitchedItemsToCheckedState(
-          pitchedItems,
-          {}, // Start with empty checked state for the new week
-          currentWeekKey
-        );
-        
-        setChecked(syncedCheckedState);
-        
-        // Update Supabase with new weekKey and the synced checked state
-        await supabase.from('user_data').upsert([{ 
-          id: loginInput, 
-          data: { 
-            ...data.data, 
-            weekKey: currentWeekKey, 
-            checked: syncedCheckedState,
-            pitched_item_tracking: {
-              ...(data.data?.pitched_item_tracking || {}),
-              lastUpdated: new Date().toISOString(),
-              weekKeys: [...new Set([...(data.data?.pitched_item_tracking?.weekKeys || []), currentWeekKey])]
-            }
-          } 
-        }]);
-      }
-
       // Load presets from localStorage
       const savedPresets = localStorage.getItem('ms-presets');
       if (savedPresets) {
         setPresets(JSON.parse(savedPresets));
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      setLoginError('Failed to login. Try again.');
     }
   };
 
-  const handleLogout = async () => {
-    if (isLoggedIn && userCode) {
-      try {
-        // Save final state before logout
-        await supabase.from('user_data').upsert([{ 
-          id: userCode, 
-          data: { 
-            characters, 
-            checked, 
-            weekKey,
-            lastUpdated: new Date().toISOString()
-          } 
-        }]);
-      } catch (error) {
-        console.error('Error saving data before logout:', error);
-      }
+  const handleLogoutWrapper = async () => {
+    const result = await handleLogout(characters, checked);
+    if (result.success) {
+      setCharacters([]);
+      setChecked({});
     }
-    
-    setUserCode('');
-    setIsLoggedIn(false);
-    setCharacters([]);
-    setChecked({});
-    localStorage.removeItem('ms-user-code');
   };
 
-  const handleDeleteAccount = async () => {
+  const handleDeleteAccountWrapper = async () => {
     setShowDeleteLoading(true);
     setDeleteError('');
     try {
-      const { error, data, status, count } = await supabase.from('user_data').delete().eq('id', userCode);
-      console.log('Supabase delete response:', { error, data, status, count });
-      if (error) {
-        setDeleteError('Failed to delete account. Try again.');
-      } else if ((data && data.length === 0) || status === 0) {
-        setDeleteError('No account was deleted. Please check your code or contact support.');
-      } else {
+      const result = await handleDeleteAccount();
+      if (result.success) {
         setDeleteSuccess(true);
         setTimeout(() => {
           setDeleteSuccess(false);
-          setUserCode('');
-          setIsLoggedIn(false);
           setCharacters([]);
           setChecked({});
-          localStorage.removeItem('ms-user-code');
-          localStorage.clear();
-        }, 1800);
+        }, ANIMATION_DURATIONS.RESET_SUCCESS);
+      } else {
+        setDeleteError(result.error);
       }
     } catch (error) {
       setDeleteError('Failed to delete account. Try again.');
@@ -1048,13 +614,6 @@ function App() {
       setShowDeleteConfirm(false);
     }
   };
-
-  useEffect(() => {
-    if (createCooldown > 0) {
-      const timer = setTimeout(() => setCreateCooldown(createCooldown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [createCooldown]);
 
   // Export data function
   const handleExport = async () => {
@@ -1237,7 +796,7 @@ function App() {
         <h1 style={{ fontWeight: 700, fontSize: '2.2rem', marginBottom: '1.5rem' }}>Maplestory Boss Crystal Calculator</h1>
         <div style={{ background: '#2d2540', borderRadius: 10, padding: '2rem', boxShadow: '0 2px 8px rgba(40, 20, 60, 0.18)', minWidth: 320, display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
           <button
-            onClick={handleCreateAccount}
+            onClick={handleCreateAccountWrapper}
             disabled={isCreating || createCooldown > 0}
             style={{ 
               background: '#a259f7', 
@@ -1256,7 +815,6 @@ function App() {
           >
             {isCreating ? 'Creating Account...' : createCooldown > 0 ? `Creating Account (${createCooldown})` : 'Create Account'}
           </button>
-          {cooldownMsg && <div style={{ color: '#ffbaba', fontSize: '1em', marginBottom: 4 }}>{cooldownMsg}</div>}
           <div style={{ width: '100%', textAlign: 'center', color: '#b39ddb', fontSize: '1.2rem', fontWeight: 700, margin: '16px 0', display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ flex: 1, height: 1, background: '#3a335a' }}></span>
             <span style={{ fontSize: '1.2em', fontWeight: 700 }}>or</span>
@@ -1317,7 +875,7 @@ function App() {
             </button>
           </div>
           <button
-            onClick={handleLogin}
+            onClick={handleLoginWrapper}
             style={{ background: '#805ad5', color: '#fff', border: 'none', borderRadius: 6, padding: '0.7rem 1.5rem', fontWeight: 700, fontSize: '1.1rem', transition: 'all 0.18s cubic-bezier(.4,2,.6,1)', boxShadow: '0 2px 8px #805ad533', }}
             onMouseOver={e => { e.currentTarget.style.background = '#a259f7'; e.currentTarget.style.transform = 'scale(1.04)'; e.currentTarget.style.boxShadow = '0 4px 16px #a259f799'; }}
             onMouseOut={e => { e.currentTarget.style.background = '#805ad5'; e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 2px 8px #805ad533'; }}
@@ -1446,7 +1004,7 @@ function App() {
       </div>
       <div style={{ position: 'absolute', top: 18, right: 32, zIndex: 10, display: 'flex', gap: 8 }}>
         <button
-          onClick={handleLogout}
+          onClick={handleLogoutWrapper}
           style={{
             background: '#a259f7',
             color: '#fff',
@@ -1953,6 +1511,7 @@ function App() {
         )}
       </div>
 
+      {/* Rest of modals and components (preset, help, delete confirm, etc.) */}
       {/* Preset Modal for create/edit */}
       {presetModalOpen && (
         <div style={{
@@ -2268,7 +1827,7 @@ function App() {
                 Cancel
               </button>
               <button
-                onClick={handleDeleteAccount}
+                onClick={handleDeleteAccountWrapper}
                 disabled={showDeleteLoading}
                 style={{
                   background: '#ff6b6b',
@@ -2484,4 +2043,4 @@ function EditCharacterName({ name, onSave }) {
   );
 }
 
-export default App
+export default App 
