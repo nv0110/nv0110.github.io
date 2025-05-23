@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { savePitchedItem, getYearlyPitchedStats } from './pitched-data-service';
 
 function getCurrentWeekKey() {
   // Returns a string like '2024-23' for year-week, based on UTC
@@ -119,7 +120,16 @@ function getCurrentMonthKey() {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
-export default function WeeklyTracker({ characters, bossData, onBack, checked, setChecked }) {
+// --- Add helper for current year key ---
+function getCurrentYearKey() {
+  const now = new Date();
+  return `${now.getUTCFullYear()}`;
+}
+
+// Helper for month short name
+const monthShort = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function WeeklyTracker({ characters, bossData, onBack, checked, setChecked }) {
   // Helper function to get boss price (now has access to bossData prop)
   function getBossPrice(bossName, difficulty) {
     const boss = bossData.find(b => b.name === bossName);
@@ -208,14 +218,33 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
       };
 
       setChecked(newChecked);
+      // If boss is being unticked, also untick all pitched items for this boss/character/week
+      if (!checkedVal) {
+        const charName = characters[selectedCharIdx]?.name || '';
+        const charIdx = selectedCharIdx;
+        const bossName = boss.name;
+        const weekKey = getCurrentWeekKey();
+        const bossObj = bossData.find(bd => bd.name === bossName);
+        if (bossObj && bossObj.pitchedItems) {
+          setPitchedChecked(prev => {
+            const updated = { ...prev };
+            bossObj.pitchedItems.forEach(item => {
+              const key = getPitchedKey(charName, charIdx, bossName, item.name, weekKey);
+              if (updated[key]) delete updated[key];
+            });
+            return updated;
+          });
+        }
+      }
+      startStatsTrackingIfNeeded();
     } catch (err) {
       console.error('Error in handleCheck:', err);
       setError('Failed to update boss status. Please try again.');
     }
   };
 
-  // Handle tick all
-  const handleTickAll = () => {
+  // Update handleTickAll to handle pitched items
+  const handleTickAll = async () => {
     try {
       const charKey = `${characters[selectedCharIdx]?.name || ''}-${selectedCharIdx}`;
       const currentState = checked[charKey] || {};
@@ -227,6 +256,39 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
       };
 
       setChecked(newChecked);
+
+      // If checking all bosses and not unticking
+      if (!allChecked) {
+        // Get userCode for cloud syncing
+        const userCode = localStorage.getItem('ms-user-code');
+        
+        if (userCode) {
+          // For each boss that has pitched items, mark them in the UI
+          // but don't automatically mark them as obtained in the cloud
+          // Users still need to click each item individually to track it
+          charBosses.forEach(boss => {
+            const bossObj = bossData.find(bd => bd.name === boss.name);
+            // No need to save pitched items to cloud here, user will click on them individually
+          });
+        }
+      } 
+      // If unticking all, also untick all pitched items for this character
+      else {
+        const newPitchedChecked = { ...pitchedChecked };
+        charBosses.forEach(boss => {
+          const bossObj = bossData.find(bd => bd.name === boss.name);
+          if (bossObj?.pitchedItems) {
+            bossObj.pitchedItems.forEach(item => {
+              const key = getPitchedKey(characters[selectedCharIdx].name, selectedCharIdx, boss.name, item.name, weekKey);
+              if (newPitchedChecked[key]) {
+                delete newPitchedChecked[key];
+              }
+            });
+          }
+        });
+        setPitchedChecked(newPitchedChecked);
+        localStorage.setItem('ms-weekly-pitched', JSON.stringify(newPitchedChecked));
+      }
     } catch (err) {
       console.error('Error in handleTickAll:', err);
       setError('Failed to update all bosses. Please try again.');
@@ -343,154 +405,276 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
   const [showStatsResetConfirm, setShowStatsResetConfirm] = useState(false);
   // Persistent stats (never reset unless user requests)
   const [statsPanel, setStatsPanel] = useState(() => {
-    const saved = localStorage.getItem('ms-stats-panel');
-    return saved ? JSON.parse(saved) : { weekly: [], monthly: [] };
+    try {
+      const saved = localStorage.getItem('ms-stats-panel');
+      if (!saved) return { monthly: [], yearly: [] };
+      
+      const parsed = JSON.parse(saved);
+      // Ensure the structure is correct
+      return {
+        monthly: Array.isArray(parsed.monthly) ? parsed.monthly : [],
+        yearly: Array.isArray(parsed.yearly) ? parsed.yearly : []
+      };
+    } catch (error) {
+      console.error('Error parsing stats panel from localStorage:', error);
+      return { monthly: [], yearly: [] };
+    }
   });
   // Save statsPanel to localStorage
   useEffect(() => {
     localStorage.setItem('ms-stats-panel', JSON.stringify(statsPanel));
   }, [statsPanel]);
-
-  // Helper: update stats panel on pitched/clears change
+  // --- Stats tracking flag ---
+  const [statsTrackingStarted, setStatsTrackingStarted] = useState(() => {
+    return localStorage.getItem('ms-stats-tracking-started') === 'true';
+  });
+  // Set flag on first input
+  function startStatsTrackingIfNeeded() {
+    if (!statsTrackingStarted) {
+      setStatsTrackingStarted(true);
+      localStorage.setItem('ms-stats-tracking-started', 'true');
+    }
+  }
+  // --- Update stats panel on pitched/clears change, only if tracking started ---
   useEffect(() => {
-    // Only update if not viewing stats (avoid double counting)
+    if (!statsTrackingStarted) return;
     if (showStats) return;
-    // Weekly
+    
     const weekKey = getCurrentWeekKey();
     const monthKey = getCurrentMonthKey();
-    // Gather weekly data
-    const weeklyData = [];
+    const yearKey = getCurrentYearKey();
+
+    // Gather monthly data
+    const monthlyData = [];
     characters.forEach((char, charIdx) => {
       (char.bosses || []).forEach(boss => {
         const bossObj = bossData.find(bd => bd.name === boss.name);
         if (!bossObj) return;
-        // Cleared?
         const cleared = checked[`${char.name}-${charIdx}`]?.[boss.name + '-' + boss.difficulty];
-        // Pitched items
         const pitched = (bossObj.pitchedItems || []).map(item => {
           const key = getPitchedKey(char.name, charIdx, boss.name, item.name, weekKey);
           return { name: item.name, image: item.image, obtained: !!pitchedChecked[key] };
         });
-        weeklyData.push({
+        monthlyData.push({
           char: char.name,
           boss: boss.name,
           difficulty: boss.difficulty,
           cleared,
           mesos: cleared ? getBossPrice(boss.name, boss.difficulty) / (boss.partySize || 1) : 0,
-          pitched: pitched.filter(p => p.obtained)
+          pitched: pitched.filter(p => p.obtained),
+          weekKey
         });
       });
     });
-    // Monthly: aggregate all weeks in this month
-    let monthlyData = statsPanel.monthly.filter(m => m.monthKey === monthKey);
-    if (monthlyData.length === 0) monthlyData = [{ monthKey, data: [] }];
-    // Add this week's data to monthly
-    const thisMonth = monthlyData[0];
-    // Only add if not already present for this week
-    if (!thisMonth.data.some(d => d.weekKey === weekKey)) {
-      thisMonth.data.push({ weekKey, weeklyData });
-      setStatsPanel(prev => ({
-        weekly: [{ weekKey, weeklyData }],
-        monthly: [
-          ...prev.monthly.filter(m => m.monthKey !== monthKey),
-          thisMonth
-        ]
-      }));
-    } else {
-      // Always update weekly
-      setStatsPanel(prev => ({
-        ...prev,
-        weekly: [{ weekKey, weeklyData }]
-      }));
-    }
-    // eslint-disable-next-line
-  }, [characters, checked, pitchedChecked, showStats]);
 
-  // Reset stats panel
+    // Update monthly stats
+    setStatsPanel(prev => {
+      const newMonthly = prev.monthly.filter(m => m.monthKey !== monthKey);
+      const monthData = newMonthly.find(m => m.monthKey === monthKey) || { monthKey, data: [] };
+      
+      // Remove the current week's data if it exists
+      monthData.data = monthData.data.filter(d => d.weekKey !== weekKey);
+      // Add the new data
+      monthData.data.push({ weekKey, monthlyData });
+      
+      newMonthly.push(monthData);
+      
+      // Update yearly stats
+      const newYearly = prev.yearly.filter(y => y.yearKey !== yearKey);
+      const yearData = newYearly.find(y => y.yearKey === yearKey) || { yearKey, data: [] };
+      
+      // Remove the current week's data if it exists
+      yearData.data = yearData.data.filter(d => d.weekKey !== weekKey);
+      // Add the new data
+      yearData.data.push({ weekKey, monthlyData });
+      
+      newYearly.push(yearData);
+
+      const newStats = {
+        monthly: newMonthly,
+        yearly: newYearly
+      };
+
+      // Save to localStorage immediately
+      localStorage.setItem('ms-stats-panel', JSON.stringify(newStats));
+      
+      return newStats;
+    });
+  }, [characters, checked, pitchedChecked, showStats, statsTrackingStarted]);
+
+  // --- Brand new confirmation state management ---
+  const [resetSuccessVisible, setResetSuccessVisible] = useState(false);
+  
+  // --- Separate function to handle the actual data reset ---
+  const resetAllStatsData = () => {
+    // Clear stats panel
+    setStatsPanel({ monthly: [], yearly: [] });
+    localStorage.setItem('ms-stats-panel', JSON.stringify({ monthly: [], yearly: [] }));
+    
+    // Clear pitched items
+    setPitchedChecked({});
+    localStorage.setItem('ms-weekly-pitched', JSON.stringify({}));
+    
+    // Reset selectors
+    setSelectedYear(getCurrentYearKey());
+    setSelectedChar('');
+  };
+  
+  // --- Reset handler (just closes confirm dialog and shows success message) ---
   const handleStatsReset = () => {
-    setStatsPanel({ weekly: [], monthly: [] });
+    resetAllStatsData();
     setShowStatsResetConfirm(false);
+    setResetSuccessVisible(true);
+  };
+  
+  // --- Close success message handler ---
+  const closeResetSuccess = () => {
+    setResetSuccessVisible(false);
     setShowStats(false);
   };
 
-  // State for selected month and character in stats modal
-  const allMonths = useMemo(() => statsPanel.monthly.map(m => m.monthKey).sort((a, b) => b.localeCompare(a)), [statsPanel.monthly]);
-  const [selectedMonth, setSelectedMonth] = useState(() => allMonths[0] || getCurrentMonthKey());
+  // Cloud-based pitched items stats
+  const [cloudPitchedStats, setCloudPitchedStats] = useState({});
+  const [isLoadingCloudStats, setIsLoadingCloudStats] = useState(false);
+  
+  // Fetch cloud-based pitched items stats when viewing stats
   useEffect(() => {
-    if (!allMonths.includes(selectedMonth) && allMonths.length > 0) {
-      setSelectedMonth(allMonths[0]);
-    }
-    // eslint-disable-next-line
-  }, [allMonths.length]);
-  // Character selector for monthly stats
-  const charsInMonth = useMemo(() => {
-    const monthData = statsPanel.monthly.find(m => m.monthKey === selectedMonth);
-    if (!monthData) return [];
-    const charSet = new Set();
-    monthData.data.forEach(w => w.weeklyData.forEach(d => charSet.add(d.char)));
-    return Array.from(charSet);
-  }, [statsPanel.monthly, selectedMonth]);
-  const [selectedChar, setSelectedChar] = useState('');
-  useEffect(() => {
-    if (charsInMonth.length > 0 && !charsInMonth.includes(selectedChar)) {
-      setSelectedChar(charsInMonth[0]);
-    }
-    // eslint-disable-next-line
-  }, [charsInMonth.length, selectedChar]);
-  // --- Aggregate pitched items for selected month (all characters) ---
-  const monthlyPitchedSummary = useMemo(() => {
-    const monthData = statsPanel.monthly.find(m => m.monthKey === selectedMonth);
-    if (!monthData) return [];
-    const pitchedMap = new Map();
-    monthData.data.forEach(w => w.weeklyData.forEach(d => {
-      d.pitched.forEach(p => {
-        const key = p.name + '|' + p.image;
-        if (!pitchedMap.has(key)) pitchedMap.set(key, { ...p, count: 0 });
-        pitchedMap.get(key).count += 1;
-      });
-    }));
-    return Array.from(pitchedMap.values()).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-  }, [statsPanel.monthly, selectedMonth]);
-  // --- Aggregate pitched items for selected character in selected month ---
-  const charPitchedSummary = useMemo(() => {
-    if (!selectedChar) return [];
-    const monthData = statsPanel.monthly.find(m => m.monthKey === selectedMonth);
-    if (!monthData) return [];
-    const pitchedMap = new Map();
-    monthData.data.forEach(w => w.weeklyData.forEach(d => {
-      if (d.char !== selectedChar) return;
-      d.pitched.forEach(p => {
-        const key = p.name + '|' + p.image;
-        if (!pitchedMap.has(key)) pitchedMap.set(key, { ...p, count: 0 });
-        pitchedMap.get(key).count += 1;
-      });
-    }));
-    return Array.from(pitchedMap.values()).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-  }, [statsPanel.monthly, selectedMonth, selectedChar]);
-
-  // --- Add to WeeklyTracker component state ---
-  const [showPitchedModal, setShowPitchedModal] = useState(false);
-  const [pitchedModalItem, setPitchedModalItem] = useState(null);
-
-  // --- Compute pitched item details for modal ---
-  const pitchedModalDetails = useMemo(() => {
-    if (!pitchedModalItem) return [];
-    const monthData = statsPanel.monthly.find(m => m.monthKey === selectedMonth);
-    if (!monthData) return [];
-    // For each week, find which characters got this item
-    const details = [];
-    monthData.data.forEach(w => {
-      const week = w.weekKey;
-      w.weeklyData.forEach(d => {
-        d.pitched.forEach(p => {
-          if (p.name === pitchedModalItem.name && p.image === pitchedModalItem.image) {
-            details.push({ char: d.char, boss: d.boss, week });
+    if (showStats) {
+      const fetchCloudStats = async () => {
+        try {
+          setIsLoadingCloudStats(true);
+          const userCode = localStorage.getItem('ms-user-code');
+          
+          if (userCode) {
+            const result = await getYearlyPitchedStats(userCode);
+            if (result.success) {
+              setCloudPitchedStats(result.data);
+            }
           }
+        } catch (error) {
+          console.error('Error fetching cloud pitched stats:', error);
+        } finally {
+          setIsLoadingCloudStats(false);
+        }
+      };
+      
+      fetchCloudStats();
+    }
+  }, [showStats]);
+  
+  // State for selected year in stats modal
+  const allYears = useMemo(() => {
+    if (!statsPanel || !statsPanel.yearly || !Array.isArray(statsPanel.yearly)) return [];
+    // Combine years from stats panel and cloud pitched stats
+    const statsYears = statsPanel.yearly.map(y => y.yearKey);
+    const cloudYears = Object.keys(cloudPitchedStats);
+    
+    // Combine and deduplicate years
+    const allYearsSet = new Set([...statsYears, ...cloudYears]);
+    return Array.from(allYearsSet).sort((a, b) => b.localeCompare(a));
+  }, [statsPanel.yearly, cloudPitchedStats]);
+  
+  const [selectedYear, setSelectedYear] = useState(() => {
+    return allYears && allYears.length > 0 ? allYears[0] : getCurrentYearKey();
+  });
+  useEffect(() => {
+    if (allYears && Array.isArray(allYears) && allYears.length > 0) {
+      if (!allYears.includes(selectedYear)) {
+        setSelectedYear(allYears[0]);
+      }
+    }
+    // eslint-disable-next-line
+  }, [allYears]);
+
+  // --- Combined local and cloud pitched items summary ---
+  const yearlyPitchedSummary = useMemo(() => {
+    // Start with an empty map to store all pitched items
+    const pitchedMap = new Map();
+    
+    // Process local data from statsPanel
+    if (statsPanel?.yearly && Array.isArray(statsPanel.yearly)) {
+      const yearData = statsPanel.yearly.find(y => y.yearKey === selectedYear);
+      if (yearData?.data) {
+        yearData.data.forEach(w => {
+          if (!w || !w.monthlyData) return;
+          w.monthlyData.forEach(d => {
+            if (!d || !d.pitched || !Array.isArray(d.pitched)) return;
+            d.pitched.forEach(p => {
+              if (!p || !p.name || !p.image) return;
+              const key = p.name + '|' + p.image;
+              if (!pitchedMap.has(key)) pitchedMap.set(key, { ...p, count: 0, history: [], source: 'local' });
+              pitchedMap.get(key).count += 1;
+              const [year, weekNum] = d.weekKey.split('-');
+              const jan1 = new Date(Date.UTC(parseInt(year), 0, 1));
+              const weekOffset = (parseInt(weekNum) - 1) * 7;
+              const weekDate = new Date(jan1.getTime() + weekOffset * 24 * 60 * 60 * 1000);
+              const monthNum = weekDate.getUTCMonth();
+              const day = weekDate.getUTCDate();
+              pitchedMap.get(key).history.push({ char: d.char, date: `${monthShort[monthNum]} ${day}`, local: true });
+            });
+          });
+        });
+      }
+    }
+    
+    // Process cloud data from cloudPitchedStats
+    const cloudData = cloudPitchedStats[selectedYear];
+    if (cloudData && cloudData.items && Array.isArray(cloudData.items)) {
+      cloudData.items.forEach(item => {
+        if (!item || !item.item || !item.image) return;
+        const key = item.item + '|' + item.image;
+        if (!pitchedMap.has(key)) {
+          pitchedMap.set(key, { 
+            name: item.item, 
+            image: item.image, 
+            count: 0, 
+            history: [],
+            source: 'cloud' 
+          });
+        }
+        pitchedMap.get(key).count += 1;
+        
+        // Format the date for display
+        const date = new Date(item.date);
+        const monthNum = date.getUTCMonth();
+        const day = date.getUTCDate();
+        
+        pitchedMap.get(key).history.push({ 
+          char: item.character, 
+          date: `${monthShort[monthNum]} ${day}`,
+          cloud: true,
+          fullDate: item.date  // Store full date for sorting
         });
       });
+    }
+    
+    // Convert map to array and sort by count (highest first) then name
+    const result = Array.from(pitchedMap.values());
+    
+    // Sort each item's history by date (newest first)
+    result.forEach(item => {
+      if (item.history && Array.isArray(item.history)) {
+        item.history.sort((a, b) => {
+          if (a.fullDate && b.fullDate) {
+            return new Date(b.fullDate) - new Date(a.fullDate);
+          }
+          return 0;
+        });
+      }
     });
-    return details;
-  }, [pitchedModalItem, statsPanel.monthly, selectedMonth]);
+    
+    return result.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  }, [statsPanel.yearly, selectedYear, cloudPitchedStats]);
+
+  // --- State for pitched modal ---
+  const [pitchedModalItem, setPitchedModalItem] = useState(null);
+  const [showPitchedModal, setShowPitchedModal] = useState(false);
+
+  // --- Modal details for clicked pitched item ---
+  const pitchedModalDetails = useMemo(() => {
+    if (!pitchedModalItem) return [];
+    return pitchedModalItem.history || [];
+  }, [pitchedModalItem]);
 
   if (error) {
     return (
@@ -792,8 +976,16 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
                         )}
                         <span style={{ fontWeight: 600 }}>{b.name}</span>
                         {pitched.length > 0 && (
+                          (b.name === 'Lotus' && (b.difficulty === 'Hard' || b.difficulty === 'Extreme')) ||
+                          (b.name !== 'Lotus' && ['Hard', 'Chaos', 'Extreme', 'Hell'].includes(b.difficulty))
+                        ) && (
                           <div style={{ display: 'flex', gap: 6, marginLeft: 8 }}>
                             {pitched.map(item => {
+                              // For Lotus, TC only on Extreme, others on Hard/Extreme
+                              if (b.name === 'Lotus') {
+                                if (item.name === 'Total Control' && b.difficulty !== 'Extreme') return null;
+                                if ((item.name === 'Berserked' || item.name === 'Black Heart') && !['Hard', 'Extreme'].includes(b.difficulty)) return null;
+                              }
                               const key = getPitchedKey(char.name, selectedCharIdx, b.name, item.name, weekKey);
                               const got = !!pitchedChecked[key];
                               return (
@@ -814,14 +1006,44 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
                                     height: 32,
                                     marginLeft: 2
                                   }}
-                                  onClick={e => {
+                                  onClick={async (e) => {
                                     e.stopPropagation();
                                     // If boss is not cleared, check it too
                                     const bossCleared = !!checked[charKey]?.[b.name + '-' + b.difficulty];
                                     if (!bossCleared) {
                                       handleCheck(b, true, e);
                                     }
-                                    setPitchedChecked(prev => ({ ...prev, [key]: !got }));
+                                    
+                                    // Update local state
+                                    setPitchedChecked(prev => {
+                                      const newChecked = { ...prev, [key]: !got };
+                                      // Save to localStorage immediately
+                                      localStorage.setItem('ms-weekly-pitched', JSON.stringify(newChecked));
+                                      return newChecked;
+                                    });
+                                    
+                                    // Only sync to cloud if item is obtained (not when removing)
+                                    if (!got) {
+                                      try {
+                                        // Get userCode from localStorage or props
+                                        const userCode = localStorage.getItem('ms-user-code');
+                                        
+                                        if (userCode) {
+                                          // Save pitched item to Supabase
+                                          await savePitchedItem(userCode, {
+                                            character: char.name,
+                                            bossName: b.name,
+                                            itemName: item.name,
+                                            itemImage: item.image,
+                                            date: new Date().toISOString()
+                                          });
+                                        }
+                                      } catch (error) {
+                                        console.error('Error saving pitched item to cloud:', error);
+                                      }
+                                    }
+                                    
+                                    startStatsTrackingIfNeeded();
                                   }}
                                 >
                                   <img
@@ -918,78 +1140,79 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
         >
           <div className="modal-fade" style={{ background: '#2d2540', borderRadius: 14, padding: '2.5rem 2rem', maxWidth: 600, color: '#e6e0ff', boxShadow: '0 4px 24px #0006', position: 'relative', minWidth: 320, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowStats(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', color: '#fff', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }} title="Close">×</button>
-            <h2 style={{ color: '#a259f7', fontWeight: 700, marginBottom: 18, textAlign: 'center' }}>Weekly & Monthly Stats</h2>
-            {/* Weekly Stats */}
-            <div style={{ marginBottom: 24 }}>
-              <h3 style={{ color: '#b39ddb', marginBottom: 10 }}>This Week</h3>
-              <div style={{ marginBottom: 8 }}>Bosses Cleared: <b>{statsPanel.weekly[0]?.weeklyData.filter(d => d.cleared).length || 0}</b></div>
-              <div style={{ marginBottom: 8 }}>Total Mesos: <b>{(statsPanel.weekly[0]?.weeklyData.reduce((sum, d) => sum + d.mesos, 0) || 0).toLocaleString()}</b></div>
-              <div style={{ marginBottom: 8 }}>Pitched Items Obtained:</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
-                {statsPanel.weekly[0]?.weeklyData.flatMap(d => d.pitched.map(p => ({ ...p, char: d.char, boss: d.boss }))).length === 0 ? (
-                  <span style={{ color: '#888' }}></span>
-                ) : (
-                  statsPanel.weekly[0]?.weeklyData.flatMap(d => d.pitched.map(p => ({ ...p, char: d.char, boss: d.boss }))).map((p, i) => (
-                    <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#3a335a', borderRadius: 6, padding: '2px 8px', fontSize: '0.98em' }}>
-                      <img src={p.image} alt={p.name} style={{ width: 20, height: 20, borderRadius: 4, marginRight: 2 }} />
-                      {p.name} <span style={{ color: '#a259f7', marginLeft: 4 }}>{p.char}</span> <span style={{ color: '#b39ddb', marginLeft: 4 }}>({p.boss})</span>
-                    </span>
-                  ))
-                )}
-              </div>
-            </div>
-            {/* Monthly Stats */}
-            <div style={{ marginBottom: 24 }}>
-              <h3 style={{ color: '#b39ddb', marginBottom: 10 }}>Monthly Stats</h3>
-              {/* Month selector dropdown */}
-              <div style={{ marginBottom: 18, display: 'flex', justifyContent: 'center' }}>
-                <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} style={{ background: '#3a335a', color: '#e6e0ff', border: '1px solid #805ad5', borderRadius: 6, padding: '6px 18px', fontWeight: 600, fontSize: '1.08em', minWidth: 120, textAlign: 'center' }}>
-                  {allMonths.map(m => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
-              </div>
-              <div style={{ marginBottom: 8 }}>Bosses Cleared: <b>{(() => {
-                const monthData = statsPanel.monthly.find(m => m.monthKey === selectedMonth);
-                return monthData ? monthData.data.flatMap(w => w.weeklyData).filter(d => d.cleared).length : 0;
-              })()}</b></div>
-              <div style={{ marginBottom: 8 }}>Total Mesos: <b>{(() => {
-                const monthData = statsPanel.monthly.find(m => m.monthKey === selectedMonth);
-                return monthData ? monthData.data.flatMap(w => w.weeklyData).reduce((sum, d) => sum + d.mesos, 0).toLocaleString() : 0;
-              })()}</b></div>
-              <div style={{ marginBottom: 8 }}>Pitched Items Obtained:</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
-                {monthlyPitchedSummary.map((p, i) => (
-                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#3a335a', borderRadius: 6, padding: '2px 10px', fontSize: '1em', cursor: 'pointer', fontWeight: 600 }}
-                    onClick={() => { setPitchedModalItem(p); setShowPitchedModal(true); }}
-                    title="Click for details"
-                  >
-                    <img src={p.image} alt={p.name} style={{ width: 22, height: 22, borderRadius: 4, marginRight: 2 }} />
-                    {p.name}
-                    <span style={{ color: '#a259f7', marginLeft: 6, fontWeight: 700, fontSize: '1.1em' }}>×{p.count}</span>
-                  </span>
+            <h2 style={{ color: '#a259f7', fontWeight: 700, marginBottom: 18, textAlign: 'center' }}>Yearly Stats</h2>
+            {/* Year selector dropdown */}
+            <div style={{ marginBottom: 18, display: 'flex', justifyContent: 'center' }}>
+              <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)} style={{ background: '#3a335a', color: '#e6e0ff', border: '1px solid #805ad5', borderRadius: 6, padding: '6px 18px', fontWeight: 600, fontSize: '1.08em', minWidth: 120, textAlign: 'center' }}>
+                {allYears.map(y => (
+                  <option key={y} value={y}>{y}</option>
                 ))}
-              </div>
-              {/* Character selector for pitched breakdown */}
-              <div style={{ margin: '18px 0 8px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                <span style={{ color: '#b39ddb', fontWeight: 600, marginBottom: 2 }}>Character</span>
-                <select value={selectedChar} onChange={e => setSelectedChar(e.target.value)} style={{ background: '#3a335a', color: '#e6e0ff', border: '1px solid #805ad5', borderRadius: 6, padding: '6px 18px', fontWeight: 600, fontSize: '1.08em', minWidth: 120, textAlign: 'center' }}>
-                  {charsInMonth.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-              <div style={{ marginBottom: 8, textAlign: 'center' }}>Pitched Items for <b>{selectedChar}</b>:</div>
+              </select>
+            </div>
+            <div style={{ marginBottom: 8 }}>Pitched Items Obtained:</div>
+            {isLoadingCloudStats ? (
+              <div style={{ textAlign: 'center', padding: '15px', color: '#b39ddb' }}>Loading cloud stats...</div>
+            ) : (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 8, justifyContent: 'center' }}>
-                {charPitchedSummary.map((p, i) => (
-                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#23203a', borderRadius: 6, padding: '2px 10px', fontSize: '1em', fontWeight: 600 }}>
-                    <img src={p.image} alt={p.name} style={{ width: 22, height: 22, borderRadius: 4, marginRight: 2 }} />
-                    {p.name}
-                    <span style={{ color: '#a259f7', marginLeft: 6, fontWeight: 700, fontSize: '1.1em' }}>×{p.count}</span>
-                  </span>
-                ))}
+                {yearlyPitchedSummary.map((p, i) => {
+                  const hasCloudItems = p.history && p.history.some(h => h.cloud);
+                  const hasLocalItems = p.history && p.history.some(h => h.local);
+                  
+                  return (
+                    <span
+                      key={i}
+                      className="pitched-count-white pitched-hover"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        background: '#3a335a',
+                        borderRadius: 6,
+                        padding: '2px 10px',
+                        fontSize: '1em',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        boxShadow: hasCloudItems ? '0 0 8px #805ad5' : '0 1px 4px #0002',
+                        border: hasCloudItems ? '1px solid #805ad5' : 'none',
+                        transition: 'transform 0.18s cubic-bezier(.4,2,.6,1), box-shadow 0.18s cubic-bezier(.4,2,.6,1)',
+                        position: 'relative',
+                      }}
+                      onClick={() => { setPitchedModalItem(p); setShowPitchedModal(true); }}
+                      title={`Click for details${hasCloudItems ? ' (includes cloud data)' : ''}`}
+                      onMouseOver={e => {
+                        e.currentTarget.style.transform = 'scale(1.08)';
+                        e.currentTarget.style.boxShadow = '0 4px 16px #a259f7cc';
+                      }}
+                      onMouseOut={e => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.boxShadow = hasCloudItems ? '0 0 8px #805ad5' : '0 1px 4px #0002';
+                      }}
+                    >
+                      <img src={p.image} alt={p.name} style={{ width: 22, height: 22, borderRadius: 4, marginRight: 2, transition: 'box-shadow 0.18s cubic-bezier(.4,2,.6,1)' }} />
+                      {p.name}
+                      <span className="pitched-count-white" style={{ color: '#fff', marginLeft: 6, fontWeight: 700, fontSize: '1.1em' }}>×{p.count}</span>
+                      {hasCloudItems && (
+                        <span style={{ 
+                          position: 'absolute',
+                          top: -5, 
+                          right: -5,
+                          background: '#805ad5', 
+                          color: 'white', 
+                          borderRadius: '50%',
+                          width: 16,
+                          height: 16,
+                          fontSize: '0.6rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 0 4px #0004'
+                        }}>☁️</span>
+                      )}
+                    </span>
+                  );
+                })}
               </div>
-            </div>
+            )}
             <div style={{ textAlign: 'center', marginTop: 24 }}>
               <button
                 style={{ background: '#e53e3e', color: '#fff', border: 'none', borderRadius: 8, padding: '0.6rem 1.5rem', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer' }}
@@ -1000,7 +1223,7 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
             </div>
             {/* Double-confirm dialog */}
             {showStatsResetConfirm && (
-              <div style={{
+              <div style={{ 
                 position: 'fixed',
                 top: 0,
                 left: 0,
@@ -1023,7 +1246,25 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
                       Cancel
                     </button>
                     <button
-                      onClick={handleStatsReset}
+                      onClick={() => {
+                        // Clear stats data
+                        setStatsPanel({ monthly: [], yearly: [] });
+                        localStorage.setItem('ms-stats-panel', JSON.stringify({ monthly: [], yearly: [] }));
+                        setPitchedChecked({});
+                        localStorage.setItem('ms-weekly-pitched', JSON.stringify({}));
+                        
+                        // Close confirmation dialog
+                        setShowStatsResetConfirm(false);
+                        
+                        // Show success message
+                        setResetSuccessVisible(true);
+                        
+                        // Auto-close success message after 2 seconds
+                        setTimeout(() => {
+                          setResetSuccessVisible(false);
+                          setShowStats(false);
+                        }, 2000);
+                      }}
                       style={{ background: '#e53e3e', color: '#fff', border: 'none', borderRadius: 8, padding: '0.7rem 1.5rem', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer', minWidth: 100 }}
                     >
                       Reset
@@ -1033,7 +1274,7 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
               </div>
             )}
             {showPitchedModal && pitchedModalItem && (
-              <div style={{
+              <div style={{ 
                 position: 'fixed',
                 top: 0,
                 left: 0,
@@ -1041,7 +1282,7 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
                 bottom: 0,
                 background: 'rgba(40,32,74,0.92)',
                 zIndex: 6000,
-                display: 'flex',
+                display: 'flex', 
                 alignItems: 'center',
                 justifyContent: 'center'
               }}
@@ -1055,29 +1296,101 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
                   </div>
                   <div style={{ marginBottom: 10, color: '#b39ddb', fontWeight: 600 }}>Obtained by:</div>
                   {pitchedModalDetails.length === 0 ? (
-                    <div style={{ color: '#888', marginBottom: 8 }}>None this month.</div>
+                    <div style={{ color: '#888', marginBottom: 8 }}>None this year.</div>
                   ) : (
                     <div style={{ maxHeight: 220, overflowY: 'auto', marginBottom: 8 }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '1em', background: 'none' }}>
                         <thead>
                           <tr style={{ color: '#b39ddb', background: 'none' }}>
                             <th style={{ padding: '4px 8px', fontWeight: 700 }}>Character</th>
-                            <th style={{ padding: '4px 8px', fontWeight: 700 }}>Boss</th>
-                            <th style={{ padding: '4px 8px', fontWeight: 700 }}>Week</th>
+                            <th style={{ padding: '4px 8px', fontWeight: 700 }}>Date</th>
+                            <th style={{ padding: '4px 8px', fontWeight: 700 }}>Source</th>
                           </tr>
                         </thead>
                         <tbody>
                           {pitchedModalDetails.map((d, i) => (
                             <tr key={i} style={{ background: i % 2 === 0 ? '#23203a' : '#201c32' }}>
                               <td style={{ padding: '4px 8px', fontWeight: 600 }}>{d.char}</td>
-                              <td style={{ padding: '4px 8px' }}>{d.boss}</td>
-                              <td style={{ padding: '4px 8px', color: '#b39ddb' }}>{d.week}</td>
+                              <td style={{ padding: '4px 8px', color: '#b39ddb' }}>{d.date}</td>
+                              <td style={{ padding: '4px 8px', textAlign: 'center' }}>
+                                {d.cloud && (
+                                  <span style={{ 
+                                    background: '#805ad5', 
+                                    color: 'white', 
+                                    padding: '1px 4px', 
+                                    borderRadius: 4, 
+                                    fontSize: '0.7rem',
+                                    display: 'inline-block'
+                                  }}>☁️</span>
+                                )}
+                                {d.local && (
+                                  <span style={{ 
+                                    background: '#38a169', 
+                                    color: 'white', 
+                                    padding: '1px 4px', 
+                                    borderRadius: 4, 
+                                    fontSize: '0.7rem',
+                                    display: 'inline-block'
+                                  }}>💻</span>
+                                )}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+            {/* Success message after stats reset */}
+            {resetSuccessVisible && (
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0,0,0,0.7)',
+                zIndex: 7000,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <div 
+                  className="modal-fade" 
+                  style={{ 
+                    background: '#2d2540', 
+                    borderRadius: 14, 
+                    padding: '2rem 1.5rem', 
+                    maxWidth: 340, 
+                    color: '#e6e0ff', 
+                    boxShadow: '0 4px 24px #0006', 
+                    position: 'relative', 
+                    minWidth: 220, 
+                    textAlign: 'center' 
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h3 style={{ color: '#38a169', marginBottom: 16, fontSize: '1.5rem' }}>Stats reset!</h3>
+                  <p style={{ marginBottom: 24, fontSize: '1.1rem' }}>Your stats have been cleared.</p>
+                  <button
+                    onClick={closeResetSuccess}
+                    style={{ 
+                      background: '#3a335a', 
+                      color: '#e6e0ff', 
+                      border: 'none', 
+                      borderRadius: 8, 
+                      padding: '0.6rem 1.5rem', 
+                      fontWeight: 600, 
+                      fontSize: '1.1rem', 
+                      cursor: 'pointer', 
+                      marginTop: 10, 
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)' 
+                    }}
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
             )}
@@ -1179,5 +1492,17 @@ export default function WeeklyTracker({ characters, bossData, onBack, checked, s
       overflow-x: hidden !important;
     }
   }
+  .pitched-count-white {
+    color: #fff !important;
+  }
+  .pitched-hover:hover {
+    background: #4b3a7a !important;
+    box-shadow: 0 4px 16px #a259f7cc !important;
+    transform: scale(1.08) !important;
+    transition: transform 0.18s cubic-bezier(.4,2,.6,1), box-shadow 0.18s cubic-bezier(.4,2,.6,1);
+  }
 `}
 </style> 
+
+// Export the WeeklyTracker component as default
+export default WeeklyTracker;

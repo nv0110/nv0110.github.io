@@ -142,7 +142,7 @@ const bossData = [
     ],
     image: '/bosses/will.png',
     pitchedItems: [
-      { name: 'Cursed Spellbook', image: '/items/book.png' }
+      { name: 'Cursed Spellbook', image: '/items/book.webp' }
     ]
   },
   {
@@ -1524,50 +1524,23 @@ function App() {
             {/* Preset row below main controls */}
             {selectedCharIdx !== null && (
               <div className="preset-row" style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center', margin: '8px 0 18px 0' }}>
-                {presets.map((preset, idx) => (
+                {presets.slice(0, 2).map((preset, idx) => (
                   <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Tooltip text="Edit this preset">
-                      <button
-                        onClick={e => { e.stopPropagation(); setEditingPresetIdx(idx); setPresetDraft(preset); setPresetModalOpen(true); }}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'white',
-                          cursor: 'pointer',
-                          fontSize: '1.2em',
-                          padding: '4px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          borderRadius: '4px',
-                          transition: 'background-color 0.2s'
-                        }}
-                        onMouseOver={e => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
-                        onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                          <path fill="currentColor" d="M20.548 3.452a1.542 1.542 0 0 1 0 2.182l-7.636 7.636-3.273 1.091 1.091-3.273 7.636-7.636a1.542 1.542 0 0 1 2.182 0zM4 21h15a1 1 0 0 0 1-1v-8a1 1 0 0 0-2 0v7H5V6h7a1 1 0 0 0 0-2H4a1 1 0 0 0-1 1v15a1 1 0 0 0 1 1z"/>
-                        </svg>
-                      </button>
-                    </Tooltip>
                     <Tooltip text="Left click to apply, right click to edit this preset">
                       <button
                         className={`boton-elegante preset${idx}`}
-                        onClick={() => applyPreset(idx)}
-                        onContextMenu={(e) => {
+                        onClick={e => {
+                          if (e.type === 'click' && e.button === 0) {
+                            applyPreset(idx);
+                          }
+                        }}
+                        onContextMenu={e => {
                           e.preventDefault();
                           setEditingPresetIdx(idx);
                           setPresetDraft(preset);
                           setPresetModalOpen(true);
                         }}
-                        style={{
-                          minWidth: 60,
-                          maxWidth: 90,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          textAlign: 'center',
-                          fontWeight: 700
-                        }}
+                        style={{ minWidth: 60, fontWeight: 700 }}
                       >
                         {preset.name}
                       </button>
