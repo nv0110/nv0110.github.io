@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { savePitchedItem, getYearlyPitchedStats, removeManyPitchedItems, syncPitchedItemsToCheckedState, getCurrentWeekKey } from './pitched-data-service';
 
 function getTimeUntilReset() {
@@ -207,10 +207,10 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
     fetchPitchedItemsFromDatabase();
   }, []);
   
-  // Then sync those items with boss checks
+  // Import ensureDataSynchronization from pitched-data-service.js
   useEffect(() => {
-    // Only run once we have cloud pitched items and haven't synced yet
-    if (pitchedItemsSynced || cloudPitchedItems.length === 0) return;
+    // Run whenever cloud pitched items change, or when week changes
+    if (cloudPitchedItems.length === 0) return;
     
     const syncPitchedWithBossChecks = async () => {
       try {
@@ -225,6 +225,10 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
           // Create a new checked state based on pitched items
           const newChecked = {...checked};
           let updatedChecks = false;
+          
+          // Create a new pitchedChecked state based on database items
+          const newPitchedChecked = {...pitchedChecked};
+          let updatedPitched = false;
           
           // Process each pitched item from the database
           currentWeekItems.forEach(item => {
@@ -264,12 +268,26 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
               newChecked[charInfo][bossKey] = true;
               updatedChecks = true;
             }
+            
+            // Now, also update the pitched item UI state
+            const pitchedKey = getPitchedKey(item.character, charIdx, bossNameFromItem, item.item, weekKey);
+            if (!newPitchedChecked[pitchedKey]) {
+              console.log(`Setting pitched item UI toggle for ${item.item} from ${bossNameFromItem}`);
+              newPitchedChecked[pitchedKey] = true;
+              updatedPitched = true;
+            }
           });
           
           // Update checked state if changes were made
           if (updatedChecks) {
             console.log('Updating checked state based on pitched items');
             setChecked(newChecked);
+          }
+          
+          // Update pitched checked state if changes were made
+          if (updatedPitched) {
+            console.log('Updating pitched item UI state based on database');
+            setPitchedChecked(newPitchedChecked);
           }
         } else {
           console.log(`No pitched items found for week ${weekKey} in database`);          
@@ -282,7 +300,133 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
     };
     
     syncPitchedWithBossChecks();
-  }, [checked, cloudPitchedItems, weekKey, characters, setChecked, pitchedItemsSynced]);
+    
+    // Re-run this effect whenever the cloud pitched items or week changes
+  }, [cloudPitchedItems, weekKey, characters, checked, pitchedChecked]);
+  
+  // Background data synchronization (no longer using full sync to avoid unnecessary database calls)
+  // Use a ref to track the last sync time to prevent infinite loops
+  const lastSyncTimeRef = useRef(Date.now());
+  const isInitialSyncRef = useRef(true);
+  
+  useEffect(() => {
+    const userCode = localStorage.getItem('ms-user-code');
+    if (!userCode || !pitchedItemsSynced) return;
+    
+    // This version includes guards against infinite loops
+    const updateLocalStateFromDatabase = async () => {
+      // Guard #1: Don't sync if we just synced within the last 5 seconds (prevents rapid loops)
+      const now = Date.now();
+      const timeSinceLastSync = now - lastSyncTimeRef.current;
+      if (!isInitialSyncRef.current && timeSinceLastSync < 5000) {
+        console.log('Skipping sync - too soon after last sync');
+        return;
+      }
+      
+      // Update the last sync time
+      lastSyncTimeRef.current = now;
+      
+      // First run is the initial sync
+      if (isInitialSyncRef.current) {
+        isInitialSyncRef.current = false;
+      }
+      
+      try {
+        console.log('Performing background state synchronization...');
+        
+        // Just fetch the latest data to ensure we're in sync
+        const { supabase } = await import('./supabaseClient');
+        const { data, error } = await supabase
+          .from('user_data')
+          .select('data, pitched_items')
+          .eq('id', userCode)
+          .single();
+        
+        if (error) {
+          console.error('Error fetching latest data:', error);
+          return;
+        }
+        
+        if (!data) {
+          console.warn('No data found for user', userCode);
+          return;
+        }
+        
+        // Guard #2: Deep compare the data to see if it's actually different
+        // This prevents updates when nothing has changed
+        const dbCheckedState = data.data?.checked || {};
+        const currentCheckedState = checked || {};
+        
+        // Simple check if the states are different by comparing keys and values
+        let hasStateChanged = false;
+        
+        // Only do a detailed check if timestamps suggest newer data
+        const dbLastUpdate = data.data?.lastUpdated ? new Date(data.data.lastUpdated) : null;
+        const localLastUpdate = checked?.lastUpdated ? new Date(checked.lastUpdated) : new Date(0);
+        
+        if (dbLastUpdate && dbLastUpdate > localLastUpdate) {
+          console.log('Database has newer data, checking for changes...');
+          
+          // Quick check - if the number of characters with entries is different
+          const dbCharCount = Object.keys(dbCheckedState).length;
+          const localCharCount = Object.keys(currentCheckedState).length;
+          
+          if (dbCharCount !== localCharCount) {
+            hasStateChanged = true;
+          } else {
+            // More detailed comparison if needed
+            for (const charKey in dbCheckedState) {
+              if (!currentCheckedState[charKey]) {
+                hasStateChanged = true;
+                break;
+              }
+              
+              const dbBossCount = Object.keys(dbCheckedState[charKey]).length;
+              const localBossCount = Object.keys(currentCheckedState[charKey] || {}).length;
+              
+              if (dbBossCount !== localBossCount) {
+                hasStateChanged = true;
+                break;
+              }
+            }
+          }
+          
+          // Only update state if there are actual differences
+          if (hasStateChanged) {
+            console.log('Updating local state with newer database data');
+            if (data.data && data.data.checked) {
+              // Important: Use functional update to avoid dependency on current state
+              setChecked(prevChecked => data.data.checked);
+            }
+          } else {
+            console.log('No meaningful changes in checked state, skipping update');
+          }
+        } else {
+          console.log('Local data is newer or same as database, no update needed');
+        }
+        
+        // Guard #3: Only update pitched items if they've changed
+        const dbPitchedItems = data.pitched_items || [];
+        if (JSON.stringify(dbPitchedItems) !== JSON.stringify(cloudPitchedItems)) {
+          console.log('Updating cloud pitched items');
+          // Important: Use functional update to avoid dependency on current state
+          setCloudPitchedItems(prev => dbPitchedItems);
+        }
+        
+      } catch (error) {
+        console.error('Error in background synchronization:', error);
+        // Don't show errors to the user for background sync
+      }
+    };
+    
+    // Run sync when component mounts and after initial state is set
+    updateLocalStateFromDatabase();
+    
+    // Setup periodic sync (every 3 minutes)
+    const syncInterval = setInterval(updateLocalStateFromDatabase, 180000);
+    
+    return () => clearInterval(syncInterval);
+  }, [pitchedItemsSynced, weekKey]); // Removed checked and cloudPitchedItems from dependencies
 
   // Reset pitchedChecked if week changes
   useEffect(() => {
@@ -293,13 +437,33 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
     }
   }, [weekKey]);
 
-  // Handle checkbox changes
-  const handleCheck = (boss, checkedVal, event) => {
+  // Handle boss checkbox changes - handles both direct calls and checkbox event objects
+  const handleCheck = async (bossOrEvent, checkedValOrBoss, event = null) => {
     try {
-      if (checkedVal) {
+      // Determine if this is coming from a checkbox click or a direct call
+      let boss, checkedVal, e;
+      
+      if (bossOrEvent && bossOrEvent.name) {
+        // Direct call format: handleCheck(boss, checkedVal, event)
+        boss = bossOrEvent;
+        checkedVal = checkedValOrBoss;
+        e = event;
+      } else if (bossOrEvent && bossOrEvent.target) {
+        // Checkbox event format: handleCheck(event, boss)
+        e = bossOrEvent;
+        boss = checkedValOrBoss;
+        checkedVal = e.target.checked;
+      } else {
+        console.error('Invalid parameters to handleCheck');
+        return;
+      }
+      
+      // Handle animation if this is from a UI click
+      if (e && e.clientX && !crystalAnimation) {
+        // Calculate start position (checkbox)
         const startPosition = {
-          x: event.clientX,
-          y: event.clientY
+          x: e.clientX,
+          y: e.clientY
         };
 
         // Calculate end position (progress bar)
@@ -318,21 +482,81 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
         }
       }
 
-      const charKey = `${characters[selectedCharIdx]?.name || ''}-${selectedCharIdx}`;
+      const charName = characters[selectedCharIdx]?.name || '';
+      const charIdx = selectedCharIdx;
+      const charKey = `${charName}-${charIdx}`;
+      const bossName = boss.name;
+      const bossDifficulty = boss.difficulty;
+      const bossKey = `${bossName}-${bossDifficulty}`;
+      
+      // Update local state
       const newChecked = {
         ...checked,
         [charKey]: {
           ...(checked[charKey] || {}),
-          [boss.name + '-' + boss.difficulty]: checkedVal
+          [bossKey]: checkedVal
         }
       };
 
       setChecked(newChecked);
+      
+      // Save to database (independent of pitched items)
+      const userCode = localStorage.getItem('ms-user-code');
+      if (userCode) {
+        try {
+          // 1. First update the traditional checked state in the data object
+          const { supabase } = await import('./supabaseClient');
+          
+          const { data, error } = await supabase
+            .from('user_data')
+            .select('data')
+            .eq('id', userCode)
+            .single();
+            
+          if (error) throw error;
+          
+          // Update the checked state in the data object
+          const updatedData = {
+            ...data.data,
+            checked: newChecked,
+            weekKey: getCurrentWeekKey(),
+            lastUpdated: new Date().toISOString()
+          };
+          
+          // Save back to database
+          const { error: updateError } = await supabase
+            .from('user_data')
+            .update({ data: updatedData })
+            .eq('id', userCode);
+            
+          if (updateError) throw updateError;
+          
+          // 2. Now also save this as a boss run in the new format
+          const { saveBossRun } = await import('./pitched-data-service');
+          const bossRunData = {
+            character: charName,
+            characterIdx: charIdx,
+            bossName: bossName,
+            bossDifficulty: bossDifficulty,
+            isCleared: checkedVal,
+            date: new Date().toISOString()
+          };
+          
+          // Save to boss_runs array in database
+          const result = await saveBossRun(userCode, bossRunData);
+          if (!result.success) {
+            console.error('Error saving boss run:', result.error);
+          } else {
+            console.log(`Boss run saved to database: ${charName} - ${bossName} ${bossDifficulty}: ${checkedVal}`);
+          }
+        } catch (dbError) {
+          console.error('Error saving boss state to database:', dbError);
+          // Continue with local updates even if database sync fails
+        }
+      }
+      
       // If boss is being unticked, also untick all pitched items for this boss/character/week
       if (!checkedVal) {
-        const charName = characters[selectedCharIdx]?.name || '';
-        const charIdx = selectedCharIdx;
-        const bossName = boss.name;
         const weekKey = getCurrentWeekKey();
         const bossObj = bossData.find(bd => bd.name === bossName);
         if (bossObj && bossObj.pitchedItems) {
@@ -344,8 +568,25 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
             });
             return updated;
           });
+          
+          // Also remove pitched items from database if user is logged in
+          if (userCode) {
+            const itemsToRemove = bossObj.pitchedItems.map(item => ({
+              character: charName,
+              bossName: bossName,
+              itemName: item.name,
+              weekKey
+            }));
+            
+            if (itemsToRemove.length > 0) {
+              removeManyPitchedItems(userCode, itemsToRemove).catch(err => {
+                console.error('Error removing pitched items:', err);
+              });
+            }
+          }
         }
       }
+      
       startStatsTrackingIfNeeded();
     } catch (err) {
       console.error('Error in handleCheck:', err);
@@ -1267,8 +1508,79 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
           </div>
         </>
       )}
-      {/* Add View Stats button at top */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+      {/* Action buttons at top */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+        <button
+          style={{ background: '#e53e3e', color: '#fff', border: 'none', borderRadius: 8, padding: '0.4rem 1.1rem', fontWeight: 700, fontSize: '1em', cursor: 'pointer' }}
+          onClick={async () => {
+            if (window.confirm('Are you sure you want to reset all weekly data? This will clear all boss clears and pitched items for the current week.')) {
+              try {
+                // 1. Clear all local state for boss clears
+                setChecked({});
+                
+                // 2. Clear all local state for pitched items
+                setPitchedChecked({});
+                localStorage.setItem('ms-weekly-pitched', JSON.stringify({}));
+                
+                // 3. Clear database data if user is logged in
+                const userCode = localStorage.getItem('ms-user-code');
+                if (userCode) {
+                  // Get current data from database
+                  const { supabase } = await import('./supabaseClient');
+                  
+                  // For pitched items: filter out items from current week
+                  const { data, error } = await supabase
+                    .from('user_data')
+                    .select('pitched_items')
+                    .eq('id', userCode)
+                    .single();
+                  
+                  if (!error && data && data.pitched_items) {
+                    const currentWeekKey = getCurrentWeekKey();
+                    const filteredItems = data.pitched_items.filter(item => item.weekKey !== currentWeekKey);
+                    
+                    // Update pitched_items in database
+                    await supabase
+                      .from('user_data')
+                      .update({ pitched_items: filteredItems })
+                      .eq('id', userCode);
+                    
+                    // Update cloud pitched items in local state
+                    setCloudPitchedItems(filteredItems);
+                  }
+                  
+                  // For boss clears: clear current week data
+                  const { data: userData, error: userError } = await supabase
+                    .from('user_data')
+                    .select('data')
+                    .eq('id', userCode)
+                    .single();
+                  
+                  if (!userError && userData && userData.data) {
+                    const updatedData = {
+                      ...userData.data,
+                      checked: {},
+                      lastUpdated: new Date().toISOString()
+                    };
+                    
+                    // Update data in database
+                    await supabase
+                      .from('user_data')
+                      .update({ data: updatedData })
+                      .eq('id', userCode);
+                  }
+                }
+                
+                alert('Weekly tracking data has been reset successfully!');
+              } catch (error) {
+                console.error('Error resetting data:', error);
+                setError('Failed to reset data. Please try again.');
+              }
+            }
+          }}
+        >
+          Reset Data
+        </button>
         <button
           style={{ background: '#805ad5', color: '#fff', border: 'none', borderRadius: 8, padding: '0.4rem 1.1rem', fontWeight: 700, fontSize: '1em', cursor: 'pointer' }}
           onClick={() => setShowStats(true)}
