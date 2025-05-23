@@ -773,6 +773,7 @@ function App() {
       const result = await handleDeleteAccount();
       if (result.success) {
         setDeleteSuccess(true);
+        setShowDeleteConfirm(false); // Only close modal on success
         setTimeout(() => {
           setDeleteSuccess(false);
           setCharacters([]);
@@ -786,7 +787,7 @@ function App() {
       console.error('Delete error:', error);
     } finally {
       setShowDeleteLoading(false);
-      setShowDeleteConfirm(false);
+      // Removed auto-close - modal only closes on explicit success or cancel
     }
   };
 
@@ -2002,7 +2003,7 @@ function App() {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(40,32,74,0.92)',
+          background: 'rgba(40,32,74,0.96)',
           zIndex: 4000,
           display: 'flex',
           alignItems: 'center',
@@ -2010,32 +2011,73 @@ function App() {
         }}>
           <div className="modal-fade" style={{
             background: '#2d2540',
-            borderRadius: 12,
-            padding: '2.5rem 2rem',
-            maxWidth: 440,
+            borderRadius: 16,
+            padding: '3rem 2.5rem',
+            maxWidth: 480,
             color: '#e6e0ff',
-            boxShadow: '0 4px 24px #0006',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
             position: 'relative',
-            minWidth: 320,
-            textAlign: 'center'
+            minWidth: 360,
+            textAlign: 'center',
+            border: '2px solid #ff6b6b'
           }}>
-            <h2 style={{ color: '#ff6b6b', fontWeight: 700, marginBottom: 18 }}>Delete Account</h2>
-            <p style={{ marginBottom: 24, fontSize: '1.1rem' }}>
-              Are you sure you want to delete your account? This action cannot be undone.
-            </p>
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <div style={{ 
+              width: 80, 
+              height: 80, 
+              background: 'linear-gradient(135deg, #ff6b6b, #ff8e8e)', 
+              borderRadius: '50%', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              margin: '0 auto 24px',
+              boxShadow: '0 4px 20px rgba(255, 107, 107, 0.4)'
+            }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <h2 style={{ color: '#ff6b6b', fontWeight: 700, marginBottom: 20, fontSize: '1.5rem' }}>Delete Account</h2>
+            <div style={{ 
+              background: 'rgba(255, 107, 107, 0.1)', 
+              border: '1px solid rgba(255, 107, 107, 0.3)',
+              borderRadius: 12, 
+              padding: '20px', 
+              marginBottom: 28 
+            }}>
+              <p style={{ marginBottom: 0, fontSize: '1.1rem', lineHeight: '1.5', color: '#ffbaba' }}>
+                <strong>This will permanently delete your account and all associated data.</strong>
+                <br />
+                This action cannot be undone.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
               <button
                 onClick={() => setShowDeleteConfirm(false)}
+                disabled={showDeleteLoading}
                 style={{
-                  background: '#3a335a',
-                  color: '#e6e0ff',
-                  border: 'none',
-                  borderRadius: 8,
-                  padding: '0.7rem 1.5rem',
+                  background: showDeleteLoading ? '#2a2540' : '#3a335a',
+                  color: showDeleteLoading ? '#888' : '#e6e0ff',
+                  border: showDeleteLoading ? '1px solid #2a2540' : '2px solid #4a4370',
+                  borderRadius: 12,
+                  padding: '0.8rem 2rem',
                   fontWeight: 700,
                   fontSize: '1.1rem',
-                  cursor: 'pointer',
-                  minWidth: 120
+                  cursor: showDeleteLoading ? 'not-allowed' : 'pointer',
+                  minWidth: 140,
+                  transition: 'all 0.2s ease',
+                  opacity: showDeleteLoading ? 0.5 : 1
+                }}
+                onMouseOver={e => {
+                  if (!showDeleteLoading) {
+                    e.currentTarget.style.background = '#4a4370';
+                    e.currentTarget.style.borderColor = '#5a5380';
+                  }
+                }}
+                onMouseOut={e => {
+                  if (!showDeleteLoading) {
+                    e.currentTarget.style.background = '#3a335a';
+                    e.currentTarget.style.borderColor = '#4a4370';
+                  }
                 }}
               >
                 Cancel
@@ -2044,23 +2086,61 @@ function App() {
                 onClick={handleDeleteAccountWrapper}
                 disabled={showDeleteLoading}
                 style={{
-                  background: '#ff6b6b',
+                  background: showDeleteLoading ? '#cc5555' : 'linear-gradient(135deg, #ff6b6b, #ff4757)',
                   color: '#fff',
-                  border: 'none',
-                  borderRadius: 8,
-                  padding: '0.7rem 1.5rem',
+                  border: '2px solid #ff6b6b',
+                  borderRadius: 12,
+                  padding: '0.8rem 2rem',
                   fontWeight: 700,
                   fontSize: '1.1rem',
                   cursor: showDeleteLoading ? 'not-allowed' : 'pointer',
-                  opacity: showDeleteLoading ? 0.6 : 1,
-                  minWidth: 120
+                  opacity: showDeleteLoading ? 0.7 : 1,
+                  minWidth: 140,
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: showDeleteLoading ? 'none' : '0 4px 16px rgba(255, 107, 107, 0.3)'
+                }}
+                onMouseOver={e => {
+                  if (!showDeleteLoading) {
+                    e.currentTarget.style.background = 'linear-gradient(135deg, #ff8e8e, #ff6b6b)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(255, 107, 107, 0.4)';
+                  }
+                }}
+                onMouseOut={e => {
+                  if (!showDeleteLoading) {
+                    e.currentTarget.style.background = 'linear-gradient(135deg, #ff6b6b, #ff4757)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 16px rgba(255, 107, 107, 0.3)';
+                  }
                 }}
               >
-                {showDeleteLoading ? 'Deleting...' : 'Delete Account'}
+                {showDeleteLoading && (
+                  <div style={{
+                    width: 20,
+                    height: 20,
+                    border: '2px solid rgba(255, 255, 255, 0.3)',
+                    borderTopColor: '#fff',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }} />
+                )}
+                {showDeleteLoading ? 'Deleting...' : 'Delete Forever'}
               </button>
             </div>
             {deleteError && (
-              <div style={{ color: '#ff6b6b', marginTop: 16, fontWeight: 600 }}>
+              <div style={{ 
+                color: '#ff6b6b', 
+                marginTop: 20, 
+                fontWeight: 600,
+                background: 'rgba(255, 107, 107, 0.1)',
+                border: '1px solid rgba(255, 107, 107, 0.3)',
+                borderRadius: 8,
+                padding: '12px 16px'
+              }}>
                 {deleteError}
               </div>
             )}
