@@ -1,14 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { savePitchedItem, getYearlyPitchedStats } from './pitched-data-service';
-
-function getCurrentWeekKey() {
-  // Returns a string like '2024-23' for year-week, based on UTC
-  const now = new Date();
-  const utcNow = new Date(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  const onejan = new Date(utcNow.getUTCFullYear(), 0, 1);
-  const week = Math.ceil((((utcNow - onejan) / 86400000) + onejan.getUTCDay() + 1) / 7);
-  return `${utcNow.getUTCFullYear()}-${week}`;
-}
+import { savePitchedItem, getYearlyPitchedStats, removeManyPitchedItems, syncPitchedItemsToCheckedState, getCurrentWeekKey } from './pitched-data-service';
 
 function getTimeUntilReset() {
   const now = new Date();
@@ -129,7 +120,7 @@ function getCurrentYearKey() {
 // Helper for month short name
 const monthShort = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-function WeeklyTracker({ characters, bossData, onBack, checked, setChecked }) {
+function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, userCode }) {
   // Helper function to get boss price (now has access to bossData prop)
   function getBossPrice(bossName, difficulty) {
     const boss = bossData.find(b => b.name === bossName);
@@ -174,6 +165,125 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked }) {
   useEffect(() => {
     localStorage.setItem('ms-weekly-pitched', JSON.stringify(pitchedChecked));
   }, [pitchedChecked]);
+  // Add a dedicated effect for synchronizing pitched items with boss checks
+  const [pitchedItemsSynced, setPitchedItemsSynced] = useState(false);
+  const [cloudPitchedItems, setCloudPitchedItems] = useState([]);
+  
+  // First, fetch pitched items from database via user code in localStorage
+  useEffect(() => {
+    const fetchPitchedItemsFromDatabase = async () => {
+      try {
+        const userCode = localStorage.getItem('ms-user-code');
+        if (!userCode) {
+          console.log('No user code found in localStorage');
+          return;
+        }
+        
+        // Use supabase to get pitched_items
+        const { supabase } = await import('./supabaseClient');
+        const { data, error } = await supabase
+          .from('user_data')
+          .select('pitched_items')
+          .eq('id', userCode)
+          .single();
+          
+        if (error) {
+          console.error('Error fetching pitched items:', error);
+          return;
+        }
+        
+        if (data && data.pitched_items && Array.isArray(data.pitched_items)) {
+          console.log(`Fetched ${data.pitched_items.length} pitched items from database`);
+          // Store the fetched items
+          setCloudPitchedItems(data.pitched_items);
+        } else {
+          console.log('No pitched items found in database');
+        }
+      } catch (error) {
+        console.error('Error in fetchPitchedItemsFromDatabase:', error);
+      }
+    };
+    
+    fetchPitchedItemsFromDatabase();
+  }, []);
+  
+  // Then sync those items with boss checks
+  useEffect(() => {
+    // Only run once we have cloud pitched items and haven't synced yet
+    if (pitchedItemsSynced || cloudPitchedItems.length === 0) return;
+    
+    const syncPitchedWithBossChecks = async () => {
+      try {
+        console.log(`Syncing pitched items for week ${weekKey} with boss checks...`);
+        
+        // Filter items for the current week
+        const currentWeekItems = cloudPitchedItems.filter(item => item.weekKey === weekKey);
+        
+        if (currentWeekItems.length > 0) {
+          console.log(`Found ${currentWeekItems.length} pitched items for week ${weekKey} in database:`, currentWeekItems);          
+          
+          // Create a new checked state based on pitched items
+          const newChecked = {...checked};
+          let updatedChecks = false;
+          
+          // Process each pitched item from the database
+          currentWeekItems.forEach(item => {
+            // Find character in the characters array by name
+            const charIdx = characters.findIndex(c => c.name === item.character);
+            if (charIdx === -1) {
+              console.log(`Character ${item.character} not found in characters array`);
+              return;
+            }
+            
+            const charInfo = `${item.character}-${charIdx}`;
+            
+            // Initialize character in checked state if needed
+            if (!newChecked[charInfo]) {
+              newChecked[charInfo] = {};
+            }
+            
+            // Find the corresponding boss in the character's boss list
+            const char = characters[charIdx];
+            if (!char) return;
+            
+            // Get boss name from the item's boss field
+            const bossNameFromItem = item.boss;
+            
+            // Find matching boss in character's bosses
+            const boss = char.bosses.find(b => b.name === bossNameFromItem);
+            if (!boss) {
+              console.log(`Boss ${bossNameFromItem} not found in character's boss list`);
+              return;
+            }
+            
+            const bossKey = `${boss.name}-${boss.difficulty}`;
+            
+            // Mark boss as checked if it's not already
+            if (!newChecked[charInfo][bossKey]) {
+              console.log(`Auto-checking boss ${bossKey} for character ${charInfo} due to pitched item ${item.item}`);
+              newChecked[charInfo][bossKey] = true;
+              updatedChecks = true;
+            }
+          });
+          
+          // Update checked state if changes were made
+          if (updatedChecks) {
+            console.log('Updating checked state based on pitched items');
+            setChecked(newChecked);
+          }
+        } else {
+          console.log(`No pitched items found for week ${weekKey} in database`);          
+        }
+        
+        setPitchedItemsSynced(true);
+      } catch (error) {
+        console.error('Error synchronizing pitched items with boss checks:', error);
+      }
+    };
+    
+    syncPitchedWithBossChecks();
+  }, [checked, cloudPitchedItems, weekKey, characters, setChecked, pitchedItemsSynced]);
+
   // Reset pitchedChecked if week changes
   useEffect(() => {
     const savedWeekKey = localStorage.getItem('ms-weekly-pitched-week-key');
@@ -275,6 +385,8 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked }) {
       // If unticking all, also untick all pitched items for this character
       else {
         const newPitchedChecked = { ...pitchedChecked };
+        const userCode = localStorage.getItem('ms-user-code');
+        const itemsToRemove = [];
         charBosses.forEach(boss => {
           const bossObj = bossData.find(bd => bd.name === boss.name);
           if (bossObj?.pitchedItems) {
@@ -282,12 +394,23 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked }) {
               const key = getPitchedKey(characters[selectedCharIdx].name, selectedCharIdx, boss.name, item.name, weekKey);
               if (newPitchedChecked[key]) {
                 delete newPitchedChecked[key];
+                // Collect for batch removal
+                itemsToRemove.push({
+                  character: characters[selectedCharIdx].name,
+                  bossName: boss.name,
+                  itemName: item.name,
+                  weekKey,
+                });
               }
             });
           }
         });
         setPitchedChecked(newPitchedChecked);
         localStorage.setItem('ms-weekly-pitched', JSON.stringify(newPitchedChecked));
+        // Batch remove from cloud
+        if (userCode && itemsToRemove.length > 0) {
+          await removeManyPitchedItems(userCode, itemsToRemove);
+        }
       }
     } catch (err) {
       console.error('Error in handleTickAll:', err);
@@ -354,7 +477,7 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked }) {
   });
 
   // Calculate total meso value for a character
-  const charTotal = (char) => char.bosses.reduce((sum, b) => sum + (b.price / (b.partySize || 1)), 0);
+  const charTotal = (char) => char.bosses.reduce((sum, b) => sum + Math.ceil(b.price / (b.partySize || 1)), 0);
 
   // Calculate total meso value for all characters
   const overallTotal = characters.reduce((sum, c) => sum + charTotal(c), 0);
@@ -720,7 +843,7 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked }) {
     const cleared = bosses.filter(b => checked[charKey]?.[b.name + '-' + b.difficulty]).length;
     const total = bosses.length;
     const totalMeso = bosses.reduce((sum, b) => 
-      checked[charKey]?.[b.name + '-' + b.difficulty] ? sum + (getBossPrice(b.name, b.difficulty) / (b.partySize || 1)) : sum, 0
+      checked[charKey]?.[b.name + '-' + b.difficulty] ? sum + Math.ceil(getBossPrice(b.name, b.difficulty) / (b.partySize || 1)) : sum, 0
     );
     return {
       name: char.name,
@@ -767,12 +890,20 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked }) {
           onComplete={() => setCrystalAnimation(null)}
         />
       )}
-      <button onClick={onBack} style={{ marginBottom: 24 }}>← Back to Calculator</button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: 700, margin: '0 auto 1rem auto' }}>
+        <button onClick={onBack} style={{ marginBottom: 24 }}>← Back to Calculator</button>
+      </div>
       <h2 style={{ textAlign: 'center', fontWeight: 700, fontSize: '2rem', marginBottom: '0.5rem' }}>Weekly Boss Tracker</h2>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: '1rem' }}>
         <img src="/bosses/crystal.png" alt="Crystal" style={{ width: 32, height: 32 }} />
         <img src="/bosses/bluecrystal.png" alt="Blue Crystal" style={{ width: 32, height: 32 }} />
         <img src="/bosses/yellowcrystal.png" alt="Yellow Crystal" style={{ width: 32, height: 32 }} />
+      </div>
+
+      <div style={{ position: 'absolute', top: 18, left: 32, zIndex: 10 }}>
+        <span style={{ color: '#d6b4ff', fontSize: '1.08em', fontWeight: 700, letterSpacing: 1, background: 'rgba(128,90,213,0.08)', borderRadius: 8, padding: '0.3rem 1.1rem', boxShadow: '0 2px 8px #a259f722' }}>
+          ID: {userCode}
+        </span>
       </div>
       
       {/* Reset Timer */}
@@ -786,7 +917,15 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked }) {
         textAlign: 'center',
         border: '1.5px solid #2d2540'
       }}>
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 10 }}>Next Reset</h3>
+        <div style={{ 
+          fontSize: '0.95rem', 
+          marginBottom: 8,
+          color: '#a259f7',
+          fontWeight: 600
+        }}>
+          W. {weekKey.split('-')[1]}
+        </div>
+        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, marginBottom: 10 }}>Next Reset</h3>
         <div style={{ 
           fontSize: '1.5rem', 
           fontFamily: 'monospace', 
@@ -876,7 +1015,7 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked }) {
               onMouseOver={e => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(40, 20, 60, 0.25)';
-                e.currentTarget.style.background = '#2a2540';
+                e.currentTarget.style.background = selectedCharIdx === cs.idx ? '#3a335a' : '#23203a';
               }}
               onMouseOut={e => {
                 e.currentTarget.style.transform = 'translateY(0)';
@@ -1008,39 +1147,54 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked }) {
                                   }}
                                   onClick={async (e) => {
                                     e.stopPropagation();
+                                    console.log('Pitched item clicked:', { item, boss: b.name, character: char.name });
+                                    
                                     // If boss is not cleared, check it too
                                     const bossCleared = !!checked[charKey]?.[b.name + '-' + b.difficulty];
+                                    console.log('Boss cleared status:', bossCleared);
+                                    
                                     if (!bossCleared) {
                                       handleCheck(b, true, e);
                                     }
                                     
-                                    // Update local state
-                                    setPitchedChecked(prev => {
-                                      const newChecked = { ...prev, [key]: !got };
-                                      // Save to localStorage immediately
-                                      localStorage.setItem('ms-weekly-pitched', JSON.stringify(newChecked));
-                                      return newChecked;
-                                    });
+                                    // Update local state first
+                                    const newChecked = { ...pitchedChecked, [key]: !got };
+                                    setPitchedChecked(newChecked);
+                                    localStorage.setItem('ms-weekly-pitched', JSON.stringify(newChecked));
                                     
-                                    // Only sync to cloud if item is obtained (not when removing)
-                                    if (!got) {
-                                      try {
-                                        // Get userCode from localStorage or props
-                                        const userCode = localStorage.getItem('ms-user-code');
-                                        
-                                        if (userCode) {
-                                          // Save pitched item to Supabase
-                                          await savePitchedItem(userCode, {
-                                            character: char.name,
-                                            bossName: b.name,
-                                            itemName: item.name,
-                                            itemImage: item.image,
-                                            date: new Date().toISOString()
-                                          });
+                                    // Sync to cloud for both obtain and removal
+                                    try {
+                                      const userCode = localStorage.getItem('ms-user-code');
+                                      console.log('User code from localStorage:', userCode);
+                                      if (userCode) {
+                                        console.log('Attempting to save pitched item to cloud...');
+                                        // Save or remove pitched item in Supabase
+                                        const result = await savePitchedItem(userCode, {
+                                          character: char.name,
+                                          bossName: b.name,
+                                          itemName: item.name,
+                                          itemImage: item.image,
+                                          date: new Date().toISOString()
+                                        }, got); // got=true means remove, got=false means add
+                                        console.log('Save pitched item result:', result);
+                                        if (!result.success) {
+                                          console.error('Failed to save pitched item:', result.error);
+                                          setError('Failed to save pitched item to cloud. Please try again.');
+                                          // Revert local state if cloud save failed
+                                          setPitchedChecked(pitchedChecked);
+                                          localStorage.setItem('ms-weekly-pitched', JSON.stringify(pitchedChecked));
                                         }
-                                      } catch (error) {
-                                        console.error('Error saving pitched item to cloud:', error);
+                                      } else {
+                                        console.error('No user code found');
+                                        setError('Please log in to save pitched items to cloud.');
+                                        setPitchedChecked(pitchedChecked);
+                                        localStorage.setItem('ms-weekly-pitched', JSON.stringify(pitchedChecked));
                                       }
+                                    } catch (error) {
+                                      console.error('Error saving pitched item to cloud:', error);
+                                      setError('Failed to save pitched item to cloud. Please try again.');
+                                      setPitchedChecked(pitchedChecked);
+                                      localStorage.setItem('ms-weekly-pitched', JSON.stringify(pitchedChecked));
                                     }
                                     
                                     startStatsTrackingIfNeeded();

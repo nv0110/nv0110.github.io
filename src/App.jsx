@@ -2,6 +2,8 @@ import { useState, useRef, useMemo, useEffect } from 'react'
 import './App.css'
 import WeeklyTracker from './WeeklyTracker'
 import { supabase } from './supabaseClient'
+import { exportUserData, importUserData, syncPitchedItemsToCheckedState, getCurrentWeekKey } from './pitched-data-service'
+import DataBackup from './components/DataBackup'
 
 // Boss data, grouped by boss name with difficulties as array
 const bossData = [
@@ -313,6 +315,7 @@ function App() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
+  const [showBackupOptions, setShowBackupOptions] = useState(false);
   const [showImportExport, setShowImportExport] = useState(false);
   const [importError, setImportError] = useState('');
   const [importSuccess, setImportSuccess] = useState(false);
@@ -344,7 +347,7 @@ function App() {
   })();
 
   // Total meso value for a character (split by party size)
-  const charTotal = (char) => char.bosses.reduce((sum, b) => sum + (b.price / (b.partySize || 1)), 0);
+  const charTotal = (char) => char.bosses.reduce((sum, b) => sum + Math.ceil(b.price / (b.partySize || 1)), 0);
 
   // Total meso value for all characters
   const overallTotal = characters.reduce((sum, c) => sum + charTotal(c), 0);
@@ -693,26 +696,73 @@ function App() {
     const loadData = async () => {
       if (isLoggedIn && userCode) {
         try {
-          const { data, error } = await supabase.from('user_data').select('data').eq('id', userCode).single();
+          // Get both data and pitched_items to ensure proper synchronization
+          const { data, error } = await supabase
+            .from('user_data')
+            .select('data, pitched_items')
+            .eq('id', userCode)
+            .single();
+            
           if (!error && data) {
             // Load characters
-            if (data.data.characters) {
+            if (data.data?.characters) {
               setCharacters(data.data.characters);
             }
             
+            const pitchedItems = data.pitched_items || [];
+            
             // Handle checked state and weekKey
-            if (data.data.weekKey === weekKey && data.data.checked) {
-              setChecked(data.data.checked);
+            if (data.data?.weekKey === weekKey && data.data?.checked) {
+              // We're in the same week, but still need to ensure pitched items are reflected in checked state
+              console.log('Same week detected, syncing pitched items with checked state');
+              
+              // Import the syncPitchedItemsToCheckedState function
+              const { syncPitchedItemsToCheckedState } = await import('./pitched-data-service');
+              
+              // Synchronize pitched items with checked state
+              const syncedCheckedState = syncPitchedItemsToCheckedState(
+                pitchedItems,
+                data.data.checked,
+                weekKey
+              );
+              
+              setChecked(syncedCheckedState);
+              
+              // If the checked state was modified, update it in Supabase
+              const isStateModified = JSON.stringify(syncedCheckedState) !== JSON.stringify(data.data.checked);
+              
+              if (isStateModified) {
+                console.log('Checked state was modified by sync, updating in database');
+                await supabase.from('user_data').upsert([{ 
+                  id: userCode, 
+                  data: { 
+                    ...data.data, 
+                    checked: syncedCheckedState 
+                  } 
+                }]);
+              }
             } else {
-              // Reset checked state for new week
-              setChecked({});
-              // Update Supabase with new weekKey and cleared checked
+              // We're in a new week
+              console.log(`Week transition detected: ${data.data?.weekKey || 'none'} -> ${weekKey}`);
+              
+              // Instead of clearing checked state, sync it with pitched items for the new week
+              const { syncPitchedItemsToCheckedState } = await import('./pitched-data-service');
+              
+              const syncedCheckedState = syncPitchedItemsToCheckedState(
+                pitchedItems,
+                {}, // Start with empty checked state for the new week
+                weekKey
+              );
+              
+              setChecked(syncedCheckedState);
+              
+              // Update Supabase with new weekKey and synced checked state
               await supabase.from('user_data').upsert([{ 
                 id: userCode, 
                 data: { 
                   ...data.data, 
                   weekKey, 
-                  checked: {} 
+                  checked: syncedCheckedState 
                 } 
               }]);
             }
@@ -809,13 +859,24 @@ function App() {
     const code = Math.random().toString(36).slice(2, 10).toUpperCase();
     
     try {
+      // Create a more comprehensive initial data structure with properly initialized fields
+      const initialData = {
+        characters: [],
+        checked: {},
+        weekKey,
+        pitched_item_tracking: {
+          lastUpdated: new Date().toISOString(),
+          itemCount: 0,
+          weekKeys: [weekKey] // Track all week keys we've seen
+        },
+        weeklyHistory: [],
+        lastReset: new Date().toISOString()
+      };
+      
       const { error } = await supabase.from('user_data').upsert([{ 
         id: code, 
-        data: { 
-          characters: [], 
-          checked: {}, 
-          weekKey 
-        } 
+        data: initialData,
+        pitched_items: [] // Initialize empty pitched items array
       }]);
       
       if (!error) {
@@ -838,7 +899,13 @@ function App() {
   const handleLogin = async () => {
     setLoginError('');
     try {
-      const { data, error } = await supabase.from('user_data').select('data').eq('id', loginInput).single();
+      // Get both data and pitched_items from database
+      const { data, error } = await supabase
+        .from('user_data')
+        .select('data, pitched_items')
+        .eq('id', loginInput)
+        .single();
+        
       if (error || !data) {
         setLoginError('Invalid code.');
         return;
@@ -849,22 +916,68 @@ function App() {
       localStorage.setItem('ms-user-code', loginInput);
       
       // Load characters
-      if (data.data.characters) {
+      if (data.data?.characters) {
         setCharacters(data.data.characters);
       }
       
-      // Handle checked state and weekKey
-      if (data.data.weekKey === weekKey && data.data.checked) {
-        setChecked(data.data.checked);
+      const currentWeekKey = weekKey;
+      const storedWeekKey = data.data?.weekKey;
+      const pitchedItems = data.pitched_items || [];
+      
+      console.log(`Login: Pitched items found: ${pitchedItems.length}`);
+      
+      // Import the synchronization function
+      const { syncPitchedItemsToCheckedState } = await import('./pitched-data-service');
+      
+      // Handle checked state and weekKey transition
+      if (storedWeekKey === currentWeekKey && data.data?.checked) {
+        console.log('Same week - syncing pitched items with existing checked state');
+        
+        // Synchronize pitched items with existing checked state
+        const syncedCheckedState = syncPitchedItemsToCheckedState(
+          pitchedItems,
+          data.data.checked,
+          currentWeekKey
+        );
+        
+        setChecked(syncedCheckedState);
+        
+        // Update database if synced state differs from original
+        const isStateModified = JSON.stringify(syncedCheckedState) !== JSON.stringify(data.data.checked);
+        if (isStateModified) {
+          console.log('Checked state was modified during login sync, updating database');
+          await supabase.from('user_data').upsert([{ 
+            id: loginInput, 
+            data: { 
+              ...data.data, 
+              checked: syncedCheckedState
+            } 
+          }]);
+        }
       } else {
-        setChecked({});
-        // Update Supabase with new weekKey and cleared checked
+        console.log(`Week transition detected during login: ${storedWeekKey} -> ${currentWeekKey}`);
+        
+        // Generate fresh checked state from pitched items for the new week
+        const syncedCheckedState = syncPitchedItemsToCheckedState(
+          pitchedItems,
+          {}, // Start with empty checked state for the new week
+          currentWeekKey
+        );
+        
+        setChecked(syncedCheckedState);
+        
+        // Update Supabase with new weekKey and the synced checked state
         await supabase.from('user_data').upsert([{ 
           id: loginInput, 
           data: { 
             ...data.data, 
-            weekKey, 
-            checked: {} 
+            weekKey: currentWeekKey, 
+            checked: syncedCheckedState,
+            pitched_item_tracking: {
+              ...(data.data?.pitched_item_tracking || {}),
+              lastUpdated: new Date().toISOString(),
+              weekKeys: [...new Set([...(data.data?.pitched_item_tracking?.weekKeys || []), currentWeekKey])]
+            }
           } 
         }]);
       }
@@ -875,6 +988,7 @@ function App() {
         setPresets(JSON.parse(savedPresets));
       }
     } catch (error) {
+      console.error('Login error:', error);
       setLoginError('Failed to login. Try again.');
     }
   };
@@ -943,13 +1057,12 @@ function App() {
   }, [createCooldown]);
 
   // Export data function
-  const handleExport = () => {
+  const handleExport = async () => {
     try {
-      const exportData = {
-        characters: characters,
-        version: '1.0',
-        exportDate: new Date().toISOString()
-      };
+      if (!userCode) throw new Error('Not logged in');
+      const result = await exportUserData(userCode);
+      if (!result.success) throw result.error;
+      const exportData = result.export;
       const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -959,6 +1072,8 @@ function App() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      setImportSuccess(true);
+      setTimeout(() => setImportSuccess(false), 2000);
     } catch (error) {
       console.error('Error exporting data:', error);
       setImportError('Failed to export data. Please try again.');
@@ -966,43 +1081,76 @@ function App() {
   };
 
   // Import data function
-  const handleImport = (event) => {
+  const handleImport = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
-
+    setImportError(''); // Clear any previous errors
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
-        const data = JSON.parse(e.target.result);
+        const importedJson = JSON.parse(e.target.result);
+        if (!userCode) throw new Error('Not logged in');
+        // Validate import object
+        if (Array.isArray(importedJson)) {
+          throw new Error('This file only contains pitched items. Please use a full backup file exported from this app.');
+        }
+        if (!importedJson.data || !importedJson.pitched_items) {
+          throw new Error('Invalid import file: missing data or pitched_items');
+        }
         
-        // Validate data structure
-        if (!data.characters || !Array.isArray(data.characters)) {
-          throw new Error('Invalid data format');
+        // Save the backup week key before import
+        const backupWeekKey = importedJson.weekKey || importedJson.data?.weekKey;
+        const currentWeekKey = weekKey;
+        const isWeekKeyDifferent = backupWeekKey && backupWeekKey !== currentWeekKey;
+        
+        if (isWeekKeyDifferent) {
+          console.log(`Restoring from a different week: Backup week ${backupWeekKey}, Current week ${currentWeekKey}`);
         }
-
-        // Validate each character
-        data.characters.forEach(char => {
-          if (!char.name || !Array.isArray(char.bosses)) {
-            throw new Error('Invalid character data');
-          }
-          char.bosses.forEach(boss => {
-            if (!boss.name || !boss.difficulty || typeof boss.price !== 'number') {
-              throw new Error('Invalid boss data');
-            }
-          });
+        
+        // Import the data to database with the week key included
+        const result = await importUserData(userCode, {
+          ...importedJson,
+          weekKey: backupWeekKey // Pass the backup's week key for proper handling
         });
-
-        setCharacters(data.characters);
-        if (data.presets && Array.isArray(data.presets)) {
-          setPresets(data.presets);
-        } else {
-          setPresets([]);
+        
+        if (!result.success) throw result.error;
+        
+        // Update local state with the imported data
+        if (result.data && result.data.characters) {
+          setCharacters(result.data.characters);
+        } else if (importedJson.data && importedJson.data.characters) {
+          setCharacters(importedJson.data.characters);
         }
+        
+        // Handle checked state based on week key
+        if (result.data && result.data.checked) {
+          // Use the checked state returned from import function
+          setChecked(result.data.checked);
+          console.log('Using updated checked state from import result');
+        } else if (importedJson.data && importedJson.data.checked) {
+          // Fall back to the checked state from the backup
+          setChecked(importedJson.data.checked);
+          console.log('Using checked state from backup file');
+        }
+        
+        // Update the week key in local state to match current week
+        setProgressData(prev => ({
+          ...prev,
+          weeklyTotal: result.data?.weeklyTotal || prev.weeklyTotal,
+          lastReset: result.data?.lastReset || prev.lastReset,
+          history: result.data?.history || prev.history || []
+        }));
+        
+        // Show success message
         setImportSuccess(true);
-        setTimeout(() => setImportSuccess(false), 2000);
+        setTimeout(() => {
+          setImportSuccess(false);
+          // Force a full refresh to ensure everything is updated
+          window.location.reload();
+        }, 2000);
       } catch (error) {
         console.error('Error importing data:', error);
-        setImportError('Invalid data file. Please check the format and try again.');
+        setImportError(error.message || 'Invalid data file. Please check the format and try again.');
       }
     };
     reader.readAsText(file);
@@ -1022,7 +1170,13 @@ function App() {
   // Table view
   if (showTable) {
     return (
-      <div className="App dark" style={{ background: '#28204a', minHeight: '100vh', color: '#e6e0ff', padding: '2rem 0', border: '1.5px solid #2d2540' }}>
+      <div className="App dark" style={{ background: '#28204a', minHeight: '100vh', color: '#e6e0ff', padding: '2rem 0', border: '1.5px solid #2d2540', position: 'relative' }}>
+        <div style={{ position: 'absolute', top: 18, left: 32, zIndex: 10 }}>
+          <span style={{ color: '#d6b4ff', fontSize: '1.08em', fontWeight: 700, letterSpacing: 1, background: 'rgba(128,90,213,0.08)', borderRadius: 8, padding: '0.3rem 1.1rem', boxShadow: '0 2px 8px #a259f722' }}>
+            ID: {userCode}
+          </span>
+        </div>
+        
         <button onClick={() => setShowTable(false)} style={{ background: '#805ad5', color: '#fff', border: 'none', borderRadius: '6px', padding: '0.5rem 1.2rem', fontWeight: 'bold', marginBottom: '1.5rem', cursor: 'pointer' }}>← Back to Calculator</button>
         <div style={{ background: '#28204a', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(40, 20, 60, 0.18)', maxWidth: 900, margin: '0 auto', border: '1.5px solid #2d2540' }}>
           <h2 style={{ color: '#a259f7', marginBottom: '1rem', textAlign: 'center', fontWeight: 700 }}>Boss Crystal Price Table</h2>
@@ -1073,7 +1227,7 @@ function App() {
   }
 
   if (showWeekly) {
-    return <WeeklyTracker characters={characters} bossData={bossData} onBack={() => setShowWeekly(false)} checked={checked} setChecked={setChecked} />;
+    return <WeeklyTracker characters={characters} bossData={bossData} onBack={() => setShowWeekly(false)} checked={checked} setChecked={setChecked} userCode={userCode} />;
   }
 
   // Main calculator view
@@ -1287,7 +1441,7 @@ function App() {
     <div className="App dark" style={{ background: '#28204a', minHeight: '100vh', color: '#e6e0ff', padding: '2rem 0', border: '1.5px solid #2d2540' }}>
       <div style={{ position: 'absolute', top: 18, left: 32, zIndex: 10 }}>
         <span style={{ color: '#d6b4ff', fontSize: '1.08em', fontWeight: 700, letterSpacing: 1, background: 'rgba(128,90,213,0.08)', borderRadius: 8, padding: '0.3rem 1.1rem', boxShadow: '0 2px 8px #a259f722' }}>
-          Code: {userCode}
+          ID: {userCode}
         </span>
       </div>
       <div style={{ position: 'absolute', top: 18, right: 32, zIndex: 10, display: 'flex', gap: 8 }}>
@@ -1359,59 +1513,101 @@ function App() {
         <img src="/bosses/yellowcrystal.png" alt="Yellow Crystal" style={{ width: 32, height: 32 }} />
       </div>
       <h1 style={{ textAlign: 'center', fontWeight: 700, fontSize: '2.2rem', marginBottom: '0.5rem' }}>Maplestory Boss Crystal Calculator</h1>
-      <p style={{ color: '#6a11cb', textAlign: 'center', marginBottom: '2rem', fontSize: '1.1rem' }}>Create characters, select bosses, and calculate your total crystal value!</p>
+      <p style={{ color: '#6a11cb', textAlign: 'center', marginBottom: '1rem', fontSize: '1.1rem' }}>Create characters, select bosses, and calculate your total crystal value!</p>
       
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginBottom: '2rem' }}>
-        <button onClick={() => setShowTable(true)} style={{ background: '#805ad5', color: '#fff', border: 'none', borderRadius: '6px', padding: '0.5rem 1.2rem', fontWeight: 'bold', cursor: 'pointer' }}>
-          View Boss Price Table
-        </button>
-        <button onClick={() => setShowWeekly(true)} style={{ background: '#a259f7', color: '#fff', border: 'none', borderRadius: '6px', padding: '0.5rem 1.2rem', fontWeight: 'bold', cursor: 'pointer' }}>
-          Weekly Tracker
-        </button>
-        <Tooltip text="Export all character data as a file"><button 
-          onClick={handleExport} 
-          style={{ 
-            background: '#805ad5', 
-            color: '#fff', 
-            border: 'none', 
-            borderRadius: '6px', 
-            padding: '0.5rem 1.2rem', 
-            fontWeight: 'bold', 
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-          Export Data
-        </button></Tooltip>
-        <Tooltip text="Import character data from a file"><button 
-          onClick={() => fileInputRef.current?.click()} 
-          style={{ 
-            background: '#a259f7', 
-            color: '#fff', 
-            border: 'none', 
-            borderRadius: '6px', 
-            padding: '0.5rem 1.2rem', 
-            fontWeight: 'bold', 
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-          Import Data
-        </button></Tooltip>
+      {/* User ID is shown at the top left corner */}
+      
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '2rem', flexWrap: 'wrap' }}>
+        <Tooltip text="View the weekly boss tracker">
+          <button 
+            onClick={() => setShowWeekly(true)} 
+            style={{ 
+              background: '#805ad5', 
+              color: '#fff', 
+              border: 'none', 
+              borderRadius: '6px', 
+              padding: '0.5rem 1.2rem', 
+              fontWeight: 'bold', 
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            Weekly Tracker
+          </button>
+        </Tooltip>
+        
+        <Tooltip text="View the boss crystal price table">
+          <button 
+            onClick={() => setShowTable(true)} 
+            style={{ 
+              background: '#a259f7', 
+              color: '#fff', 
+              border: 'none', 
+              borderRadius: '6px', 
+              padding: '0.5rem 1.2rem', 
+              fontWeight: 'bold', 
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            Boss Price Table
+          </button>
+        </Tooltip>
+        
+        <Tooltip text="Export all character data as a backup file">
+          <button 
+            onClick={handleExport} 
+            style={{ 
+              background: '#805ad5', 
+              color: '#fff', 
+              border: 'none', 
+              borderRadius: '6px', 
+              padding: '0.5rem 1.2rem', 
+              fontWeight: 'bold', 
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Backup Data
+          </button>
+        </Tooltip>
+        
+        <Tooltip text="Import character data from a backup file">
+          <button 
+            onClick={() => fileInputRef.current?.click()} 
+            style={{ 
+              background: '#a259f7', 
+              color: '#fff', 
+              border: 'none', 
+              borderRadius: '6px', 
+              padding: '0.5rem 1.2rem', 
+              fontWeight: 'bold', 
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Restore Backup
+          </button>
+        </Tooltip>
+        
         <input
           type="file"
           ref={fileInputRef}
@@ -1419,6 +1615,19 @@ function App() {
           accept=".json"
           style={{ display: 'none' }}
         />
+        
+        {importError && (
+          <div style={{ color: '#ff8383', marginBottom: '1rem', textAlign: 'center', padding: '10px', background: '#3a335a', borderRadius: '6px', maxWidth: '600px', margin: '0 auto 20px auto' }}>
+            {importError}
+          </div>
+        )}
+        
+        {importSuccess && (
+          <div style={{ color: '#83ff9b', marginBottom: '1rem', textAlign: 'center', padding: '10px', background: '#3a335a', borderRadius: '6px', maxWidth: '600px', margin: '0 auto 20px auto' }}>
+            Data backup operation successful!
+          </div>
+        )}
+
       </div>
 
       <div className="table-container" style={{ background: '#2d2540', borderRadius: 8, boxShadow: '0 2px 8px rgba(40, 20, 60, 0.18)', padding: '1rem', border: '1.5px solid #2d2540', maxWidth: 800, margin: '0 auto' }}>
@@ -1553,10 +1762,26 @@ function App() {
             {/* Boss Selection Table */}
             {selectedCharIdx !== null && characters[selectedCharIdx] ? (
               <div style={{ marginTop: '1rem' }}>
-                {/* Total Crystals Counter */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8, fontWeight: 700, fontSize: '1.08em', color: '#a259f7' }}>
-                  <img src="/bosses/crystal.png" alt="Crystal" style={{ width: 24, height: 24, marginRight: 4 }} />
-                  {characters.reduce((sum, char) => sum + (char.bosses ? char.bosses.length : 0), 0)} / 180
+                {/* Total Crystals Counter - Simplified Design */}
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  marginBottom: 16,
+                  background: '#352d58',
+                  borderRadius: 12,
+                  padding: '10px 16px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                  maxWidth: '200px',
+                  margin: '0 auto 16px auto',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontWeight: 700, fontSize: '1.2em', color: '#d4c1ff' }}>
+                    <span style={{ color: '#a259f7' }}>{characters.reduce((sum, char) => sum + (char.bosses ? char.bosses.length : 0), 0)}</span>
+                    <span style={{ opacity: 0.8 }}> / 180</span>
+                  </div>
+                  <div style={{ fontSize: '0.8em', color: '#9d8bbc', marginTop: 4 }}>Total Crystals</div>
                 </div>
                 {/* Restored: Original Boss Table with all features and styling */}
                 <div className="table-scroll">
@@ -1862,6 +2087,7 @@ function App() {
             >
               Save Preset
             </button>
+
           </div>
         </div>
       )}
