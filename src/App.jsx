@@ -9,6 +9,8 @@ import { useLocalStorage, useLocalStorageString } from './hooks/useLocalStorage'
 import { useBossCalculations } from './hooks/useBossCalculations'
 import { useAuth } from './hooks/useAuth'
 import { Tooltip } from './components/Tooltip'
+import { getCurrentWeekBossClearStatus, updateWeeklyBossClearStatus, needsMigration, migrateUserDataStructure, cleanupDeletedCharacterData, cleanupOrphanedCharacterData, cleanupRedundantLocalStorage } from './utils/dataStructureMigration'
+import { createNewWeekEntry } from './types/dataStructure'
 
 // Lazy load DataBackup component
 const DataBackup = lazy(() => import('./components/DataBackup'));
@@ -37,10 +39,11 @@ function App() {
   const [lastDifficulties, setLastDifficulties] = useState({});
   const [lastPartySizes, setLastPartySizes] = useState({});
   const [newCharName, setNewCharName] = useState('');
-  const [showTable, setShowTable] = useLocalStorage('ms-show-table', false);
+  const [activePage, setActivePage] = useLocalStorageString(STORAGE_KEYS.ACTIVE_PAGE, PAGES.CALCULATOR);
   const [selectedCharIdx, setSelectedCharIdx] = useState(null);
   const [lastPreset, setLastPreset] = useState(null);
   const [error, setError] = useState('');
+  const [showTable, setShowTable] = useLocalStorage('ms-show-table', false);
   const [showWeekly, setShowWeekly] = useLocalStorage('ms-show-weekly', false);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -53,7 +56,13 @@ function App() {
 
   // UI state
   const [loginInputFocused, setLoginInputFocused] = useState(false);
+  
+  // UPDATED: Boss clear status - now works with both old and new data structures
   const [checked, setChecked] = useState({});
+  
+  // NEW: Full user data with new structure
+  const [fullUserData, setFullUserData] = useState(null);
+  
   const [showDeleteLoading, setShowDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [showCloudSync, setShowCloudSync] = useState(false);
@@ -283,7 +292,10 @@ function App() {
   };
 
   // Remove a character
-  const removeCharacter = (idx) => {
+  const removeCharacter = async (idx) => {
+    const characterToDelete = characters[idx];
+    if (!characterToDelete) return;
+    
     setCharacters(prevChars => {
       const removed = prevChars[idx];
       const newChars = prevChars.filter((_, i) => i !== idx);
@@ -291,6 +303,7 @@ function App() {
       setShowUndo(true);
       if (undoTimeout.current) clearTimeout(undoTimeout.current);
       undoTimeout.current = setTimeout(() => setShowUndo(false), ANIMATION_DURATIONS.UNDO_TIMEOUT);
+      
       // Determine new selection
       if (newChars.length === 0) {
         setSelectedCharIdx(null);
@@ -299,8 +312,50 @@ function App() {
       } else {
         setSelectedCharIdx(newChars.length - 1); // Select the new last character
       }
+      
       return newChars;
     });
+    
+    // Clean up character data from database if logged in
+    if (isLoggedIn && userCode && fullUserData) {
+      try {
+        // Get current pitched items from database
+        const { data, error } = await supabase
+          .from('user_data')
+          .select('pitched_items')
+          .eq('id', userCode)
+          .single();
+          
+        if (!error && data) {
+          const currentPitchedItems = data.pitched_items || [];
+          
+          // Clean up orphaned data
+          const cleanupResult = cleanupDeletedCharacterData(
+            fullUserData,
+            currentPitchedItems,
+            characterToDelete.name,
+            idx
+          );
+          
+          console.log('🧹 Character cleanup stats:', cleanupResult.cleanupStats);
+          
+          // Update database with cleaned data
+          await supabase.from('user_data').upsert([{
+            id: userCode,
+            data: cleanupResult.userData,
+            pitched_items: cleanupResult.pitchedItems
+          }]);
+          
+          // Update local state
+          setFullUserData(cleanupResult.userData);
+          
+          console.log('✅ Character data cleanup completed and saved to database');
+        }
+      } catch (error) {
+        console.error('Error cleaning up character data:', error);
+        // Don't show error to user since character deletion itself succeeded
+      }
+    }
   };
 
   // Undo character deletion
@@ -402,7 +457,7 @@ function App() {
     setCharacters(chars => chars.map((c, i) => i === idx ? { ...c, name: newName } : c));
   };
 
-  // Initialize checked state from localStorage or Supabase
+  // Initialize checked state from localStorage or Supabase with NEW DATA STRUCTURE
   useEffect(() => {
     const loadData = async () => {
       if (isLoggedIn && userCode) {
@@ -415,67 +470,142 @@ function App() {
             .single();
             
           if (!error && data) {
+            let userData = data.data;
+            console.log('📥 Loading user data:', userData);
+            
+            // 🔄 MIGRATION: Handle old data structure
+            if (needsMigration(userData)) {
+              console.log('🔄 User data needs migration, migrating...');
+              userData = migrateUserDataStructure(userData);
+              
+              // Save migrated data back to database
+              try {
+                await supabase.from('user_data').upsert([{ 
+                  id: userCode, 
+                  data: userData
+                }]);
+                console.log('✅ Migration completed and saved during data load');
+              } catch (migrationError) {
+                console.error('⚠️ Failed to save migrated data during load:', migrationError);
+              }
+            }
+            
+            // Store full user data with new structure
+            setFullUserData(userData);
+            
             // Load characters
-            if (data.data?.characters) {
-              setCharacters(data.data.characters);
+            if (userData?.characters) {
+              setCharacters(userData.characters);
             }
             
             const pitchedItems = data.pitched_items || [];
             
-            // Handle checked state and weekKey
-            if (data.data?.weekKey === weekKey && data.data?.checked) {
-              // We're in the same week, but still need to ensure pitched items are reflected in checked state
-              console.log('Same week detected, syncing pitched items with checked state');
+            // Get current week's boss clear status from the new structure
+            let currentWeekBossClearStatus = getCurrentWeekBossClearStatus(userData, weekKey);
+            console.log('🔍 LOADING: Raw boss clear status from database:', JSON.stringify(currentWeekBossClearStatus, null, 2));
+            
+            // Ensure current week exists in the structure
+            if (!userData.weeklyBossClearHistory[weekKey]) {
+              userData.weeklyBossClearHistory[weekKey] = createNewWeekEntry(weekKey);
+              currentWeekBossClearStatus = {};
+            }
+            
+            // Sync pitched items with current week's boss clear status
+            console.log('🔄 Syncing pitched items with boss clear status for current week');
+            console.log('📊 Current week boss clear status before sync:', currentWeekBossClearStatus);
+            console.log('📦 Pitched items to sync:', pitchedItems.filter(item => item.weekKey === weekKey));
+            
+            // IMPORTANT: The sync should be ADDITIVE - preserve existing boss clears and add new ones
+            const syncedCheckedState = syncPitchedItemsToCheckedState(
+              pitchedItems,
+              currentWeekBossClearStatus,
+              weekKey
+            );
+            
+            console.log('📊 Boss clear status after sync:', syncedCheckedState);
+            console.log('🔍 COMPARISON: Keys in original vs synced:');
+            console.log('   Original keys:', Object.keys(currentWeekBossClearStatus));
+            console.log('   Synced keys:', Object.keys(syncedCheckedState));
+            
+            // Verify that ALL boss clears are preserved
+            Object.keys(currentWeekBossClearStatus).forEach(charKey => {
+              Object.keys(currentWeekBossClearStatus[charKey] || {}).forEach(bossKey => {
+                if (currentWeekBossClearStatus[charKey][bossKey] && 
+                    (!syncedCheckedState[charKey] || !syncedCheckedState[charKey][bossKey])) {
+                  console.warn(`⚠️ LOST BOSS CLEAR: ${charKey} - ${bossKey} was lost during sync!`);
+                }
+              });
+            });
+            
+            // SAFETY MECHANISM: Ensure no boss clears were lost during sync
+            let finalCheckedState = syncedCheckedState;
+            let hadToRestore = false;
+            
+            Object.keys(currentWeekBossClearStatus).forEach(charKey => {
+              Object.keys(currentWeekBossClearStatus[charKey] || {}).forEach(bossKey => {
+                if (currentWeekBossClearStatus[charKey][bossKey] === true) {
+                  // Ensure this boss clear exists in the final state
+                  if (!finalCheckedState[charKey]) {
+                    finalCheckedState[charKey] = {};
+                  }
+                  if (!finalCheckedState[charKey][bossKey]) {
+                    console.log(`🔧 RESTORING lost boss clear: ${charKey} - ${bossKey}`);
+                    finalCheckedState[charKey][bossKey] = true;
+                    hadToRestore = true;
+                  }
+                }
+              });
+            });
+            
+            if (hadToRestore) {
+              console.log('🛠️ Had to restore some boss clears that were lost during sync');
+            }
+            
+            // Update the current week's data in the structure
+            const wasModified = JSON.stringify(finalCheckedState) !== JSON.stringify(currentWeekBossClearStatus);
+            if (wasModified) {
+              console.log('📝 Boss clear state was modified by sync, updating...');
+              userData.weeklyBossClearHistory[weekKey].bossClearStatus = finalCheckedState;
+              userData.weeklyBossClearHistory[weekKey].lastUpdated = new Date().toISOString();
+              userData.currentWeekKey = weekKey;
+              userData.lastActiveDate = new Date().toISOString();
               
-              // Import the syncPitchedItemsToCheckedState function
-              const { syncPitchedItemsToCheckedState } = await import('./pitched-data-service');
-              
-              // Synchronize pitched items with checked state
-              const syncedCheckedState = syncPitchedItemsToCheckedState(
-                pitchedItems,
-                data.data.checked,
-                weekKey
-              );
-              
-              setChecked(syncedCheckedState);
-              
-              // If the checked state was modified, update it in Supabase
-              const isStateModified = JSON.stringify(syncedCheckedState) !== JSON.stringify(data.data.checked);
-              
-              if (isStateModified) {
-                console.log('Checked state was modified by sync, updating in database');
-                await supabase.from('user_data').upsert([{ 
-                  id: userCode, 
-                  data: { 
-                    ...data.data, 
-                    checked: syncedCheckedState 
-                  } 
-                }]);
-              }
-            } else {
-              // We're in a new week
-              console.log(`Week transition detected: ${data.data?.weekKey || 'none'} -> ${weekKey}`);
-              
-              // Instead of clearing checked state, sync it with pitched items for the new week
-              const { syncPitchedItemsToCheckedState } = await import('./pitched-data-service');
-              
-              const syncedCheckedState = syncPitchedItemsToCheckedState(
-                pitchedItems,
-                {}, // Start with empty checked state for the new week
-                weekKey
-              );
-              
-              setChecked(syncedCheckedState);
-              
-              // Update Supabase with new weekKey and synced checked state
+              // Save updated data to database
               await supabase.from('user_data').upsert([{ 
                 id: userCode, 
-                data: { 
-                  ...data.data, 
-                  weekKey, 
-                  checked: syncedCheckedState 
-                } 
+                data: userData
               }]);
+              
+              // Update local state
+              setFullUserData(userData);
+            } else {
+              console.log('✅ Boss clear state unchanged after sync');
+            }
+            
+            // Set the current week's boss clear status for backward compatibility
+            setChecked(finalCheckedState);
+            
+            // 🧹 CLEANUP: Remove orphaned character data that no longer has corresponding characters
+            console.log('🔍 Checking for orphaned character data...');
+            const cleanupResult = cleanupOrphanedCharacterData(userData, pitchedItems);
+            
+            if (cleanupResult.cleanupStats.weeksWithBossClearData > 0 || cleanupResult.cleanupStats.pitchedItemsRemoved > 0) {
+              console.log('🧹 Found orphaned data, cleaning up and saving to database...');
+              
+              // Save cleaned data to database
+              try {
+                await supabase.from('user_data').upsert([{
+                  id: userCode,
+                  data: cleanupResult.userData,
+                  pitched_items: cleanupResult.pitchedItems
+                }]);
+                
+                // Update local state with cleaned data
+                setFullUserData(cleanupResult.userData);
+                console.log('✅ Orphaned data cleanup completed and saved');
+              } catch (cleanupError) {
+                console.error('⚠️ Failed to save cleaned data:', cleanupError);
+              }
             }
 
             // Load presets from localStorage
@@ -492,25 +622,52 @@ function App() {
     loadData();
   }, [isLoggedIn, userCode, weekKey]);
 
-  // Sync to Supabase on data change
+  // Sync to Supabase on data change with NEW DATA STRUCTURE
   useEffect(() => {
     if (isLoggedIn && userCode) {
       const syncData = async () => {
         try {
+          // NEW: Update user data with current week's boss clear status
+          let updatedUserData = fullUserData ? { ...fullUserData } : {
+            characters,
+            weeklyBossClearHistory: {},
+            currentWeekKey: weekKey,
+            weeklyProgressHistory: [],
+            accountCreatedDate: new Date().toISOString(),
+            lastActiveDate: new Date().toISOString(),
+            lastUpdated: new Date().toISOString()
+          };
+          
+          // Update characters
+          updatedUserData.characters = characters;
+          
+          // Update current week's boss clear status
+          if (!updatedUserData.weeklyBossClearHistory) {
+            updatedUserData.weeklyBossClearHistory = {};
+          }
+          if (!updatedUserData.weeklyBossClearHistory[weekKey]) {
+            updatedUserData.weeklyBossClearHistory[weekKey] = createNewWeekEntry(weekKey);
+          }
+          
+          updatedUserData.weeklyBossClearHistory[weekKey].bossClearStatus = checked;
+          updatedUserData.weeklyBossClearHistory[weekKey].lastUpdated = new Date().toISOString();
+          updatedUserData.currentWeekKey = weekKey;
+          updatedUserData.lastActiveDate = new Date().toISOString();
+          updatedUserData.lastUpdated = new Date().toISOString();
+          
           const { error } = await supabase.from('user_data').upsert([{ 
             id: userCode, 
-            data: { 
-              characters, 
-              checked, 
-              weekKey,
-              lastUpdated: new Date().toISOString()
-            } 
+            data: updatedUserData
           }]);
+          
           if (error) {
             console.error('Error syncing data:', error);
           } else {
             setShowCloudSync(true);
             setTimeout(() => setShowCloudSync(false), 1500);
+            
+            // Update local full user data
+            setFullUserData(updatedUserData);
           }
         } catch (error) {
           console.error('Error syncing data:', error);
@@ -521,21 +678,39 @@ function App() {
       const timeoutId = setTimeout(syncData, 1000);
       return () => clearTimeout(timeoutId);
     }
-  }, [characters, checked, userCode, isLoggedIn, weekKey]);
+  }, [characters, checked, userCode, isLoggedIn, weekKey, fullUserData]);
 
-  // Handle window unload to ensure data is saved
+  // Handle window unload to ensure data is saved with NEW DATA STRUCTURE
   useEffect(() => {
     const handleBeforeUnload = async () => {
       if (isLoggedIn && userCode) {
         try {
+          let userData = fullUserData || {
+            characters,
+            weeklyBossClearHistory: {},
+            currentWeekKey: weekKey,
+            lastActiveDate: new Date().toISOString(),
+            lastUpdated: new Date().toISOString()
+          };
+          
+          // Ensure current week's data is updated
+          if (!userData.weeklyBossClearHistory) {
+            userData.weeklyBossClearHistory = {};
+          }
+          if (!userData.weeklyBossClearHistory[weekKey]) {
+            userData.weeklyBossClearHistory[weekKey] = createNewWeekEntry(weekKey);
+          }
+          
+          userData.characters = characters;
+          userData.weeklyBossClearHistory[weekKey].bossClearStatus = checked;
+          userData.weeklyBossClearHistory[weekKey].lastUpdated = new Date().toISOString();
+          userData.currentWeekKey = weekKey;
+          userData.lastActiveDate = new Date().toISOString();
+          userData.lastUpdated = new Date().toISOString();
+          
           await supabase.from('user_data').upsert([{ 
             id: userCode, 
-            data: { 
-              characters, 
-              checked, 
-              weekKey,
-              lastUpdated: new Date().toISOString()
-            } 
+            data: userData
           }]);
         } catch (error) {
           console.error('Error saving data before unload:', error);
@@ -545,7 +720,7 @@ function App() {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [characters, checked, userCode, isLoggedIn, weekKey]);
+  }, [characters, checked, userCode, isLoggedIn, weekKey, fullUserData]);
 
   useEffect(() => {
     let timer;
@@ -615,14 +790,29 @@ function App() {
     }
   };
 
-  // Export data function
+  // Export data function - UPDATED for new data structure
   const handleExport = async () => {
     try {
       if (!userCode) throw new Error('Not logged in');
+      
       const result = await exportUserData(userCode);
       if (!result.success) throw result.error;
+      
       const exportData = result.export;
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      
+      // NEW: Enhanced export with better metadata
+      const enhancedExportData = {
+        ...exportData,
+        exportMetadata: {
+          exportDate: new Date().toISOString(),
+          exportVersion: "2.0.0",
+          userCode: userCode,
+          currentWeekKey: weekKey,
+          totalWeeksTracked: fullUserData?.weeklyBossClearHistory ? Object.keys(fullUserData.weeklyBossClearHistory).length : 1
+        }
+      };
+      
+      const blob = new Blob([JSON.stringify(enhancedExportData, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -639,7 +829,7 @@ function App() {
     }
   };
 
-  // Import data function
+  // Import data function - UPDATED for new data structure
   const handleImport = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -657,16 +847,20 @@ function App() {
           throw new Error('Invalid import file: missing data or pitched_items');
         }
         
-        // Save the backup week key before import
-        const backupWeekKey = importedJson.weekKey || importedJson.data?.weekKey;
+        // NEW: Handle import metadata and version checking
+        const importVersion = importedJson.exportMetadata?.exportVersion || "1.0.0";
+        console.log(`📦 Importing backup version ${importVersion}`);
+        
+        // Handle week key differences
+        const backupWeekKey = importedJson.weekKey || importedJson.data?.weekKey || importedJson.data?.currentWeekKey;
         const currentWeekKey = weekKey;
         const isWeekKeyDifferent = backupWeekKey && backupWeekKey !== currentWeekKey;
         
         if (isWeekKeyDifferent) {
-          console.log(`Restoring from a different week: Backup week ${backupWeekKey}, Current week ${currentWeekKey}`);
+          console.log(`📅 Restoring from a different week: Backup week ${backupWeekKey}, Current week ${currentWeekKey}`);
         }
         
-        // Import the data to database with the week key included
+        // Import the data to database with proper handling
         const result = await importUserData(userCode, {
           ...importedJson,
           weekKey: backupWeekKey // Pass the backup's week key for proper handling
@@ -674,31 +868,42 @@ function App() {
         
         if (!result.success) throw result.error;
         
-        // Update local state with the imported data
-        if (result.data && result.data.characters) {
-          setCharacters(result.data.characters);
-        } else if (importedJson.data && importedJson.data.characters) {
+        // NEW: Update local state with imported data
+        const importedUserData = result.data;
+        
+        // Set the full user data with new structure
+        setFullUserData(importedUserData);
+        
+        // Update characters
+        if (importedUserData?.characters) {
+          setCharacters(importedUserData.characters);
+        } else if (importedJson.data?.characters) {
           setCharacters(importedJson.data.characters);
         }
         
-        // Handle checked state based on week key
-        if (result.data && result.data.checked) {
-          // Use the checked state returned from import function
-          setChecked(result.data.checked);
-          console.log('Using updated checked state from import result');
-        } else if (importedJson.data && importedJson.data.checked) {
-          // Fall back to the checked state from the backup
-          setChecked(importedJson.data.checked);
-          console.log('Using checked state from backup file');
+        // NEW: Handle weekly boss clear status with historical data
+        let currentWeekBossClearStatus = {};
+        if (importedUserData?.weeklyBossClearHistory) {
+          // Use the new structure
+          currentWeekBossClearStatus = getCurrentWeekBossClearStatus(importedUserData, currentWeekKey);
+          console.log('📊 Using weekly boss clear history from imported data');
+        } else if (importedJson.data?.checked) {
+          // Fallback to old structure
+          currentWeekBossClearStatus = importedJson.data.checked;
+          console.log('📊 Using legacy checked state from imported data');
         }
         
-        // Update the week key in local state to match current week
-        setProgressData(prev => ({
-          ...prev,
-          weeklyTotal: result.data?.weeklyTotal || prev.weeklyTotal,
-          lastReset: result.data?.lastReset || prev.lastReset,
-          history: result.data?.history || prev.history || []
-        }));
+        setChecked(currentWeekBossClearStatus);
+        
+        // Update progress data if available
+        if (importedUserData?.weeklyProgressHistory) {
+          setProgressData(prev => ({
+            ...prev,
+            weeklyTotal: importedUserData.weeklyProgressHistory[0]?.totalMesos || prev.weeklyTotal,
+            lastReset: importedUserData.lastActiveDate || prev.lastReset,
+            history: importedUserData.weeklyProgressHistory || prev.history
+          }));
+        }
         
         // Show success message
         setImportSuccess(true);
@@ -786,7 +991,16 @@ function App() {
   }
 
   if (showWeekly) {
-    return <WeeklyTracker characters={characters} bossData={bossData} onBack={() => setShowWeekly(false)} checked={checked} setChecked={setChecked} userCode={userCode} />;
+    return <WeeklyTracker 
+      characters={characters} 
+      bossData={bossData} 
+      onBack={() => setShowWeekly(false)} 
+      checked={checked} 
+      setChecked={setChecked} 
+      userCode={userCode}
+      fullUserData={fullUserData}
+      weekKey={weekKey}
+    />;
   }
 
   // Main calculator view

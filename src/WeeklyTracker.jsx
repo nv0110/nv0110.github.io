@@ -328,136 +328,12 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
     // IMPORTANT: Do NOT include checked/pitchedChecked in dependencies to avoid race conditions
   }, [cloudPitchedItems, weekKey, characters]);
   
-  // Background data synchronization (no longer using full sync to avoid unnecessary database calls)
-  // Use a ref to track the last sync time to prevent infinite loops
-  const lastSyncTimeRef = useRef(Date.now());
-  const isInitialSyncRef = useRef(true);
-  
-  useEffect(() => {
-    const userCode = localStorage.getItem('ms-user-code');
-    if (!userCode || !pitchedItemsSynced) return;
-    
-    // This version includes guards against infinite loops
-    const updateLocalStateFromDatabase = async () => {
-      // Guard #1: Don't sync if we just synced within the last 5 seconds (prevents rapid loops)
-      const now = Date.now();
-      const timeSinceLastSync = now - lastSyncTimeRef.current;
-      if (!isInitialSyncRef.current && timeSinceLastSync < 5000) {
-        console.log('Skipping sync - too soon after last sync');
-        return;
-      }
-      
-      // Update the last sync time
-      lastSyncTimeRef.current = now;
-      
-      // First run is the initial sync
-      if (isInitialSyncRef.current) {
-        isInitialSyncRef.current = false;
-      }
-      
-      try {
-        console.log('Performing background state synchronization...');
-        
-        // Just fetch the latest data to ensure we're in sync
-        const { supabase } = await import('./supabaseClient');
-        const { data, error } = await supabase
-          .from('user_data')
-          .select('data, pitched_items')
-          .eq('id', userCode)
-          .single();
-        
-        if (error) {
-          console.error('Error fetching latest data:', error);
-          return;
-        }
-        
-        if (!data) {
-          console.warn('No data found for user', userCode);
-          return;
-        }
-        
-        // Guard #2: Deep compare the data to see if it's actually different
-        // This prevents updates when nothing has changed
-        const dbCheckedState = data.data?.checked || {};
-        const currentCheckedState = checked || {};
-        
-        // Simple check if the states are different by comparing keys and values
-        let hasStateChanged = false;
-        
-        // Only do a detailed check if timestamps suggest newer data
-        const dbLastUpdate = data.data?.lastUpdated ? new Date(data.data.lastUpdated) : null;
-        const localLastUpdate = checked?.lastUpdated ? new Date(checked.lastUpdated) : new Date(0);
-        
-        if (dbLastUpdate && dbLastUpdate > localLastUpdate) {
-          console.log('Database has newer data, checking for changes...');
-          
-          // Quick check - if the number of characters with entries is different
-          const dbCharCount = Object.keys(dbCheckedState).length;
-          const localCharCount = Object.keys(currentCheckedState).length;
-          
-          if (dbCharCount !== localCharCount) {
-            hasStateChanged = true;
-          } else {
-            // More detailed comparison if needed
-            for (const charKey in dbCheckedState) {
-              if (!currentCheckedState[charKey]) {
-                hasStateChanged = true;
-                break;
-              }
-              
-              const dbBossCount = Object.keys(dbCheckedState[charKey]).length;
-              const localBossCount = Object.keys(currentCheckedState[charKey] || {}).length;
-              
-              if (dbBossCount !== localBossCount) {
-                hasStateChanged = true;
-                break;
-              }
-            }
-          }
-          
-          // Only update state if there are actual differences
-          if (hasStateChanged) {
-            console.log('Updating local state with newer database data');
-            if (data.data && data.data.checked) {
-              // Important: Use functional update to avoid dependency on current state
-              setChecked(prevChecked => data.data.checked);
-            }
-          } else {
-            console.log('No meaningful changes in checked state, skipping update');
-          }
-        } else {
-          console.log('Local data is newer or same as database, no update needed');
-        }
-        
-        // Guard #3: Only update pitched items if they've changed
-        const dbPitchedItems = data.pitched_items || [];
-        if (JSON.stringify(dbPitchedItems) !== JSON.stringify(cloudPitchedItems)) {
-          console.log('Updating cloud pitched items');
-          // Important: Use functional update to avoid dependency on current state
-          setCloudPitchedItems(prev => dbPitchedItems);
-        }
-        
-      } catch (error) {
-        console.error('Error in background synchronization:', error);
-        // Don't show errors to the user for background sync
-      }
-    };
-    
-    // Run sync when component mounts and after initial state is set
-    updateLocalStateFromDatabase();
-    
-    // Setup periodic sync (every 3 minutes)
-    const syncInterval = setInterval(updateLocalStateFromDatabase, 180000);
-    
-    return () => clearInterval(syncInterval);
-  }, [pitchedItemsSynced, weekKey]); // Removed checked and cloudPitchedItems from dependencies
-
   // Reset pitchedChecked if week changes
   useEffect(() => {
     const savedWeekKey = localStorage.getItem('ms-weekly-pitched-week-key');
     if (savedWeekKey !== weekKey) {
       setPitchedChecked({});
-      localStorage.setItem('ms-weekly-pitched-week-key', weekKey);
+      // REMOVED: localStorage.setItem('ms-weekly-pitched-week-key', weekKey); // Now handled by cloud storage
     }
   }, [weekKey]);
 
@@ -671,7 +547,7 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
           }
         });
         setPitchedChecked(newPitchedChecked);
-        localStorage.setItem('ms-weekly-pitched', JSON.stringify(newPitchedChecked));
+        // REMOVED: localStorage.setItem('ms-weekly-pitched', JSON.stringify(newPitchedChecked)); // Now handled by cloud storage
         // Batch remove from cloud
         if (userCode && itemsToRemove.length > 0) {
           await removeManyPitchedItems(userCode, itemsToRemove);
@@ -688,8 +564,8 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
     try {
       const savedWeekKey = localStorage.getItem('ms-weekly-week-key');
       if (savedWeekKey !== weekKey) {
-        setChecked({});
-        localStorage.setItem('ms-weekly-week-key', weekKey);
+        // REMOVED: setChecked({}); // This was wiping out boss clears - now handled by App.jsx
+        // REMOVED: localStorage.setItem('ms-weekly-week-key', weekKey); // Now handled by cloud storage
       }
     } catch (err) {
       console.error('Error checking week change:', err);
@@ -700,7 +576,7 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
   // Save checked state to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem('ms-weekly-clears', JSON.stringify({ weekKey, checked }));
+      // REMOVED: localStorage.setItem('ms-weekly-clears', JSON.stringify({ weekKey, checked })); // Now handled by cloud storage
     } catch (err) {
       console.error('Error saving to localStorage:', err);
       setError('Failed to save progress. Please try again.');
@@ -753,7 +629,7 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
       ...prev,
       weeklyTotal: overallTotal
     }));
-    localStorage.setItem('ms-progress', JSON.stringify(progressData));
+    // REMOVED: localStorage.setItem('ms-progress', JSON.stringify(progressData)); // Now handled by cloud storage
   }, [overallTotal]);
 
   // Update progress tracking
@@ -810,7 +686,7 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
   });
   // Save statsPanel to localStorage
   useEffect(() => {
-    localStorage.setItem('ms-stats-panel', JSON.stringify(statsPanel));
+    // REMOVED: localStorage.setItem('ms-stats-panel', JSON.stringify(statsPanel)); // Now handled by cloud storage
   }, [statsPanel]);
   // --- Stats tracking flag ---
   const [statsTrackingStarted, setStatsTrackingStarted] = useState(() => {
@@ -820,7 +696,7 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
   function startStatsTrackingIfNeeded() {
     if (!statsTrackingStarted) {
       setStatsTrackingStarted(true);
-      localStorage.setItem('ms-stats-tracking-started', 'true');
+      // REMOVED: localStorage.setItem('ms-stats-tracking-started', 'true'); // Now handled by cloud storage
     }
   }
   // --- Update stats panel on pitched/clears change, only if tracking started ---
@@ -884,7 +760,7 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
       };
 
       // Save to localStorage immediately
-      localStorage.setItem('ms-stats-panel', JSON.stringify(newStats));
+      // REMOVED: localStorage.setItem('ms-stats-panel', JSON.stringify(newStats)); // Now handled by cloud storage
       
       return newStats;
     });
@@ -897,11 +773,11 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
   const resetAllStatsData = () => {
     // Clear stats panel
     setStatsPanel({ monthly: [], yearly: [] });
-    localStorage.setItem('ms-stats-panel', JSON.stringify({ monthly: [], yearly: [] }));
+    // REMOVED: localStorage.setItem('ms-stats-panel', JSON.stringify({ monthly: [], yearly: [] })); // Now handled by cloud storage
     
     // Clear pitched items
     setPitchedChecked({});
-    localStorage.setItem('ms-weekly-pitched', JSON.stringify({}));
+    // REMOVED: localStorage.setItem('ms-weekly-pitched', JSON.stringify({})); // Now handled by cloud storage
     
     // Reset selectors
     setSelectedYear(getCurrentYearKey());
@@ -1808,9 +1684,9 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
                       onClick={() => {
                         // Clear stats data
                         setStatsPanel({ monthly: [], yearly: [] });
-                        localStorage.setItem('ms-stats-panel', JSON.stringify({ monthly: [], yearly: [] }));
+                        // REMOVED: localStorage.setItem('ms-stats-panel', JSON.stringify({ monthly: [], yearly: [] })); // Now handled by cloud storage
                         setPitchedChecked({});
-                        localStorage.setItem('ms-weekly-pitched', JSON.stringify({}));
+                        // REMOVED: localStorage.setItem('ms-weekly-pitched', JSON.stringify({})); // Now handled by cloud storage
                         
                         // Close confirmation dialog
                         setShowStatsResetConfirm(false);

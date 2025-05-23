@@ -18,13 +18,6 @@ export const STORAGE_KEYS = {
   PRESETS: 'ms-presets',
   ACTIVE_PAGE: 'ms-active-page',
   WEEKLY_HIDE_COMPLETED: 'ms-weekly-hide-completed',
-  WEEKLY_PITCHED_WEEK_KEY: 'ms-weekly-pitched-week-key',
-  WEEKLY_WEEK_KEY: 'ms-weekly-week-key',
-  WEEKLY_CLEARS: 'ms-weekly-clears',
-  WEEKLY_PITCHED: 'ms-weekly-pitched',
-  PROGRESS: 'ms-progress',
-  STATS_PANEL: 'ms-stats-panel',
-  STATS_TRACKING_STARTED: 'ms-stats-tracking-started',
 };
 
 export const PAGES = {

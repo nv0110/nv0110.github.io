@@ -618,16 +618,20 @@ export async function exportUserData(userCode) {
 // Enhanced utility function to synchronize pitched items with checked state
 export function syncPitchedItemsToCheckedState(pitchedItems, checkedState = {}, weekKey = getCurrentWeekKey()) {
   if (!pitchedItems || !Array.isArray(pitchedItems) || pitchedItems.length === 0) {
+    console.log('📦 No pitched items to sync, returning existing checked state unchanged');
     return checkedState;
   }
   
-  // Create a fresh copy of the checked state to avoid mutation
-  const updatedCheckedState = { ...checkedState };
+  // Create a deep copy of the checked state to avoid mutation
+  const updatedCheckedState = JSON.parse(JSON.stringify(checkedState));
   
   // Filter pitched items to current week if needed
   const relevantItems = pitchedItems.filter(item => item.weekKey === weekKey);
   
-  console.log(`Syncing ${relevantItems.length} pitched items from week ${weekKey} to checked state`);
+  console.log(`📦 Syncing ${relevantItems.length} pitched items from week ${weekKey} to checked state (ADDITIVE ONLY)`);
+  console.log('📊 Existing checked state before sync:', updatedCheckedState);
+  
+  let addedCompletions = 0;
   
   relevantItems.forEach(item => {
     const { character, boss } = item;
@@ -639,31 +643,36 @@ export function syncPitchedItemsToCheckedState(pitchedItems, checkedState = {}, 
       possibleCharKeys.push(`${character}-${i}`);
     }
     
-    // Find the character key that exists in checked state, or use the raw name
-    const charKey = possibleCharKeys.find(key => checkedState[key]) || character;
+    // Find the character key that exists in checked state, or use the most likely one
+    let charKey = possibleCharKeys.find(key => updatedCheckedState[key]);
+    
+    // If no existing character key found, try to find the right index by looking at the character name
+    if (!charKey) {
+      // Use the character name format that's most likely correct
+      charKey = `${character}-0`; // Default to index 0
+    }
     
     // Initialize character object if it doesn't exist
     if (!updatedCheckedState[charKey]) {
       updatedCheckedState[charKey] = {};
+      console.log(`🆕 Created new character entry for ${charKey}`);
     }
     
     // Generate boss keys for all difficulties (we don't know which one the user has selected)
     const bossKeys = generateBossKeysForAllDifficulties(boss);
     
-    // Set at least one difficulty to checked
-    let setAnyDifficulty = false;
-    
-    // First try to find existing boss entries and mark them checked
+    // Check if ANY difficulty for this boss is already completed
+    let anyDifficultyAlreadyCompleted = false;
     for (const key of Object.keys(updatedCheckedState[charKey] || {})) {
-      if (key.startsWith(`${boss}-`)) {
-        updatedCheckedState[charKey][key] = true;
-        console.log(`Marked existing boss key ${key} as checked for character ${charKey}`);
-        setAnyDifficulty = true;
+      if (key.startsWith(`${boss}-`) && updatedCheckedState[charKey][key]) {
+        anyDifficultyAlreadyCompleted = true;
+        console.log(`✅ Boss ${boss} already completed for ${charKey} (${key}), skipping sync`);
+        break;
       }
     }
     
-    // If no existing entry was found, use the highest difficulty
-    if (!setAnyDifficulty && bossKeys.length > 0) {
+    // Only add completion if no difficulty of this boss is already completed
+    if (!anyDifficultyAlreadyCompleted && bossKeys.length > 0) {
       // Sort by probable difficulty - typically hardest is more valuable
       const sortedKeys = bossKeys.sort((a, b) => {
         const difficultyOrder = {
@@ -678,9 +687,29 @@ export function syncPitchedItemsToCheckedState(pitchedItems, checkedState = {}, 
       // Use the highest difficulty (first after sorting)
       const highestDifficultyKey = sortedKeys[0];
       updatedCheckedState[charKey][highestDifficultyKey] = true;
-      console.log(`No existing boss entry found, marking ${highestDifficultyKey} as checked for ${charKey}`);
+      addedCompletions++;
+      console.log(`➕ Added boss completion: ${highestDifficultyKey} for ${charKey} (based on pitched item)`);
     }
   });
+  
+  // CRITICAL: Ensure NO existing boss clears were lost during sync
+  Object.keys(checkedState).forEach(charKey => {
+    Object.keys(checkedState[charKey] || {}).forEach(bossKey => {
+      if (checkedState[charKey][bossKey] === true) {
+        // Ensure this boss clear is preserved in the updated state
+        if (!updatedCheckedState[charKey]) {
+          updatedCheckedState[charKey] = {};
+        }
+        if (!updatedCheckedState[charKey][bossKey]) {
+          updatedCheckedState[charKey][bossKey] = true;
+          console.log(`🔒 PRESERVED: ${charKey} - ${bossKey} (was not lost during sync)`);
+        }
+      }
+    });
+  });
+  
+  console.log(`✅ Sync completed: Added ${addedCompletions} new boss completions based on pitched items`);
+  console.log('📊 Final checked state after sync:', updatedCheckedState);
   
   return updatedCheckedState;
 }
