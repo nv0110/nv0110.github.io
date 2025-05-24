@@ -37,8 +37,8 @@ function BossTable({
     }}>
       <table style={{ 
         borderCollapse: 'collapse', 
-        minWidth: isHistoricalWeek ? 500 : 700,
-        maxWidth: isHistoricalWeek ? 600 : 800,
+        minWidth: 700,
+        maxWidth: 800,
         width: '100%',
         border: '1px solid #e0e0ef', 
         borderRadius: 12, 
