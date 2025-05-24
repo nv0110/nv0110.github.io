@@ -320,7 +320,9 @@ function LoginPage() {
           alignItems: 'center',
           justifyContent: 'center',
           animation: 'modalFadeIn 0.3s ease-out'
-        }}>
+        }}
+        onClick={handleSuccessModalClose}
+        >
           <div style={{
             background: '#2d2540',
             borderRadius: 16,
@@ -333,7 +335,9 @@ function LoginPage() {
             textAlign: 'center',
             border: '2px solid #a259f7',
             animation: 'modalSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
-          }}>
+          }}
+          onClick={e => e.stopPropagation()}
+          >
             <div style={{ 
               width: 80, 
               height: 80, 

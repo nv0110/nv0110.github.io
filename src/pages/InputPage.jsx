@@ -1269,7 +1269,9 @@ function InputPage() {  const navigate = useNavigate();  const { userCode, isLog
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center'
-        }}>
+        }}
+        onClick={() => setShowDeleteConfirm(false)}
+        >
           <div className="modal-fade" style={{
             background: '#2d2540',
             borderRadius: 16,
@@ -1281,7 +1283,9 @@ function InputPage() {  const navigate = useNavigate();  const { userCode, isLog
             minWidth: 360,
             textAlign: 'center',
             border: '2px solid #ff6b6b'
-          }}>
+          }}
+          onClick={e => e.stopPropagation()}
+          >
             <div style={{ 
               width: 80, 
               height: 80, 
@@ -1397,7 +1401,15 @@ function InputPage() {  const navigate = useNavigate();  const { userCode, isLog
           alignItems: 'center',
           justifyContent: 'center',
           backdropFilter: 'blur(8px)'
-        }}>
+        }}
+        onClick={() => {
+          setShowPresetModal(false);
+          setNewPresetName('');
+          setPresetError('');
+          setPresetCreationMode(false);
+          setPresetBosses({});
+        }}
+        >
           <div className="modal-fade" style={{
             background: 'linear-gradient(145deg, #1a1730, #2d2540)',
             borderRadius: 16,
@@ -1954,7 +1966,13 @@ function InputPage() {  const navigate = useNavigate();  const { userCode, isLog
           alignItems: 'center',
           justifyContent: 'center',
           backdropFilter: 'blur(8px)'
-        }}>
+        }}
+        onClick={() => {
+          setShowQuickSelectModal(false);
+          setQuickSelectBosses({});
+          setQuickSelectError('');
+        }}
+        >
           <div className="modal-fade" style={{
             background: 'linear-gradient(145deg, #1a1730, #2d2540)',
             borderRadius: 16,

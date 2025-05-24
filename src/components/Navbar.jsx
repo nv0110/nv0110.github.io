@@ -53,7 +53,7 @@ function Navbar({ currentPage, onShowHelp, onShowDeleteConfirm }) {
           {timeUntilReset && (
             <div className="navbar-timer">
               <div style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: '#b39ddb', marginRight: '0.6rem' }}>
-                 Reset: 
+                 Reset:  
               </div>
               <div style={{ 
                 fontSize: '1.1rem', 

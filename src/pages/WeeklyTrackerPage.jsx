@@ -180,7 +180,9 @@ function WeeklyTrackerPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center'
-        }}>
+        }}
+        onClick={() => setShowDeleteConfirm(false)}
+        >
           <div className="modal-fade" style={{
             background: '#2d2540',
             borderRadius: 16,
@@ -192,7 +194,9 @@ function WeeklyTrackerPage() {
             minWidth: 360,
             textAlign: 'center',
             border: '2px solid #ff6b6b'
-          }}>
+          }}
+          onClick={e => e.stopPropagation()}
+          >
             <div style={{ 
               width: 80, 
               height: 80, 
