@@ -55,41 +55,7 @@ function CharacterSidebar({
 
   return (
     <>
-      {/* Custom scrollbar styles */}
-      <style jsx>{`
-        .sidebar-scroll {
-          scrollbar-width: thin;
-          scrollbar-color: rgba(162, 89, 247, 0.3) transparent;
-        }
-        
-        .sidebar-scroll::-webkit-scrollbar {
-          width: 6px;
-        }
-        
-        .sidebar-scroll::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        
-        .sidebar-scroll::-webkit-scrollbar-thumb {
-          background: rgba(162, 89, 247, 0.2);
-          border-radius: 10px;
-          transition: all 0.3s ease;
-        }
-        
-        .sidebar-scroll::-webkit-scrollbar-thumb:hover {
-          background: rgba(162, 89, 247, 0.5);
-        }
-        
-        .sidebar-scroll:hover::-webkit-scrollbar-thumb {
-          background: rgba(162, 89, 247, 0.4);
-        }
-        
-        .sidebar-scroll::-webkit-scrollbar-corner {
-          background: transparent;
-        }
-      `}</style>
-      
-      <div 
+      <div
         className="sidebar-scroll"
         style={{ 
           width: sidebarVisible ? 280 : 0,

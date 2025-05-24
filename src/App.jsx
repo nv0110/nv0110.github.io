@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
+import useScrollbarVisibility from './hooks/useScrollbarVisibility';
 import LoginPage from './pages/LoginPage';
 import InputPage from './pages/InputPage';
 import BossTablePage from './pages/BossTablePage';
@@ -30,7 +31,6 @@ class ErrorBoundary extends Component {
           background: '#28204a', 
           minHeight: '100vh', 
                 color: '#e6e0ff', 
-          padding: '2rem', 
           display: 'flex',
           flexDirection: 'column',
             alignItems: 'center', 
@@ -99,6 +99,9 @@ function ProtectedRoute({ children }) {
 // Main App Component
 function App() {
   const { isLoggedIn } = useAuth();
+  
+  // Enable global scroll-triggered scrollbar visibility
+  useScrollbarVisibility();
 
   return (
     <ErrorBoundary>

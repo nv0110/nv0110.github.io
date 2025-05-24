@@ -12,12 +12,10 @@ function WeekNavigator({
   selectedWeekKey,
   onWeekChange,
   availableWeeks = [],
-  isLoading = false,
   isReadOnlyMode = false,
   isHistoricalWeek = false
 }) {
   const currentWeekKey = getCurrentWeekKey();
-  const [isAnimating, setIsAnimating] = useState(false);
 
   // Calculate navigation boundaries
   const navigationLimits = useMemo(() => {
@@ -44,13 +42,8 @@ function WeekNavigator({
   
   // Navigation functions
   const goToWeek = (weekKey) => {
-    if (isAnimating || weekKey === selectedWeekKey) return;
-    
-    setIsAnimating(true);
+    if (weekKey === selectedWeekKey) return;
     onWeekChange(weekKey);
-    
-    // Animation duration
-    setTimeout(() => setIsAnimating(false), 300);
   };
 
   const goToPreviousWeek = () => {
@@ -100,7 +93,7 @@ function WeekNavigator({
   }, [selectedWeekKey, isCurrentWeek, selectedOffset]);
 
   return (
-    <div style={{
+    <div className="week-navigator-container" style={{
       background: 'linear-gradient(135deg, #3a2a5d, #28204a)',
       borderRadius: 12,
       padding: '1.5rem',
@@ -111,31 +104,6 @@ function WeekNavigator({
       position: 'relative',
       overflow: 'hidden'
     }}>
-      {/* Loading overlay */}
-      {(isLoading || isAnimating) && (
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(40, 32, 74, 0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10,
-          borderRadius: 12
-        }}>
-          <div style={{
-            width: 32,
-            height: 32,
-            border: '3px solid rgba(162, 89, 247, 0.2)',
-            borderTopColor: '#a259f7',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite'
-          }} />
-        </div>
-      )}
 
       {/* Week display */}
       <div style={{
@@ -146,12 +114,26 @@ function WeekNavigator({
           fontSize: '1.3rem',
           fontWeight: 700,
           color: isCurrentWeek ? '#a259f7' : '#e6e0ff',
-          marginBottom: isCurrentWeek ? '1rem' : '0.5rem', // More space for current week
+          marginBottom: '0.5rem',
           textShadow: isCurrentWeek ? '0 0 10px rgba(162, 89, 247, 0.5)' : 'none',
           transition: 'all 0.3s ease'
         }}>
-          {weekInfo.label}
+          {weekInfo.label.replace(/\s*\(Current\)/i, '')}
         </div>
+        
+        {/* Current week indicator */}
+        {isCurrentWeek && (
+          <div style={{
+            fontSize: '0.9rem',
+            color: '#a259f7',
+            fontWeight: 600,
+            marginBottom: '0.5rem',
+            textShadow: '0 0 8px rgba(162, 89, 247, 0.4)',
+            opacity: 0.9
+          }}>
+            (Current)
+          </div>
+        )}
         
         {/* Date range for non-current weeks only */}
         {weekInfo.dateRange && !isCurrentWeek && (
@@ -185,10 +167,10 @@ function WeekNavigator({
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
-            onClick={canGoPrevious && !isAnimating ? goToPreviousWeek : undefined}
+            onClick={canGoPrevious ? goToPreviousWeek : undefined}
             className="nav-arrow-icon nav-arrow-left"
             style={{
-              cursor: canGoPrevious && !isAnimating ? 'pointer' : 'not-allowed',
+              cursor: canGoPrevious ? 'pointer' : 'not-allowed',
               opacity: canGoPrevious ? 1 : 0.3,
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               color: canGoPrevious ? '#a259f7' : '#64748b',
@@ -242,7 +224,6 @@ function WeekNavigator({
               {!isCurrentWeek && (
                 <button
                   onClick={goToCurrentWeek}
-                  disabled={isAnimating}
                   style={{
                     background: 'linear-gradient(135deg, #a259f7, #805ad5)',
                     color: '#fff',
@@ -266,7 +247,6 @@ function WeekNavigator({
               {hasOlderData && (
                 <button
                   onClick={goToOldestWeek}
-                  disabled={isAnimating}
                   style={{
                     background: '#3a335a',
                     color: '#e6e0ff',
@@ -308,10 +288,10 @@ function WeekNavigator({
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
-            onClick={canGoNext && !isAnimating ? goToNextWeek : undefined}
+            onClick={canGoNext ? goToNextWeek : undefined}
             className="nav-arrow-icon nav-arrow-right"
             style={{
-              cursor: canGoNext && !isAnimating ? 'pointer' : 'not-allowed',
+              cursor: canGoNext ? 'pointer' : 'not-allowed',
               opacity: canGoNext ? 1 : 0.3,
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               color: canGoNext ? '#a259f7' : '#64748b',
@@ -364,9 +344,42 @@ function WeekNavigator({
 
       {/* CSS for animations */}
       <style jsx>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
+        .week-navigator-container::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: linear-gradient(45deg, 
+            rgba(162, 89, 247, 0.08) 0%,
+            rgba(128, 90, 213, 0.05) 25%,
+            rgba(162, 89, 247, 0.03) 50%,
+            rgba(128, 90, 213, 0.08) 100%
+          );
+          border-radius: 12px;
+          opacity: 0.5;
+          animation: smoothBreathe 6s ease-in-out infinite;
+          pointer-events: none;
+          z-index: 1;
+        }
+        
+        .week-navigator-container > * {
+          position: relative;
+          z-index: 2;
+        }
+        
+        @keyframes smoothBreathe {
+          0%, 100% {
+            opacity: 0.3;
+            background-position: 0% 0%;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.7;
+            background-position: 100% 100%;
+            transform: scale(1.02);
+          }
         }
         
         .nav-arrow-icon {

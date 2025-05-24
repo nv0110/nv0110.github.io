@@ -168,10 +168,7 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
 
   return (
     <div className="App dark" style={{ 
-      width: '100%', 
-      minHeight: '100vh', 
-      color: '#e6e0ff', 
-      background: '#28204a' 
+
     }}>
       {crystalAnimation && (
         <CrystalAnimation
@@ -212,15 +209,14 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
         />
 
         {/* Main Content */}
-        <div style={{ 
-          paddingLeft: 180,
-          minHeight: '100vh',
+        <div className="weekly-tracker-main" style={{
+          margin: '0 auto'
         }}>
           <div style={{
             maxWidth: 900,
             margin: '0 auto',
             padding: '2rem',
-            width: '100%'
+            width: '100%',
           }}>
             <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
               <h2 style={{ fontWeight: 700, fontSize: '2rem', marginBottom: '0.5rem' }}>
@@ -233,7 +229,6 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
                 selectedWeekKey={weekNavigation.selectedWeekKey}
                 onWeekChange={handleWeekChangeWithData}
                 availableWeeks={weekNavigation.availableWeeks}
-                isLoading={weekNavigation.isLoadingWeekData}
                 isReadOnlyMode={weekNavigation.isReadOnlyMode}
                 isHistoricalWeek={weekNavigation.isHistoricalWeek}
               />
@@ -294,8 +289,6 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
                   savePitchedItem={savePitchedItem}
                   removeManyPitchedItems={removeManyPitchedItems}
                   setPitchedChecked={pitchedItems.setPitchedChecked}
-                  setLoadingPitchedItems={pitchedItems.setLoadingPitchedItems}
-                  loadingPitchedItems={pitchedItems.loadingPitchedItems}
                   setError={setError}
                   startStatsTrackingIfNeeded={statsManagement.startStatsTrackingIfNeeded}
                   setHistoricalPitchedData={statsManagement.setHistoricalPitchedData}

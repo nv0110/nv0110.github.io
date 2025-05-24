@@ -21,8 +21,6 @@ function BossTable({
   savePitchedItem,
   removeManyPitchedItems,
   setPitchedChecked,
-  setLoadingPitchedItems,
-  loadingPitchedItems,
   setError,
   startStatsTrackingIfNeeded,
   setHistoricalPitchedData,
@@ -299,7 +297,7 @@ function BossTable({
                                 
                                 // For historical weeks in read-only mode, block interaction
                                 if (isReadOnlyMode) {
-                                  console.log('Pitched item click blocked - read-only mode');
+                                  console.log('Historical pitched item click blocked - read-only mode');
                                   return;
                                 }
 
@@ -307,9 +305,9 @@ function BossTable({
                                 if (isHistoricalWeek && readOnlyOverride) {
                                   console.log('Opening historical pitched item modal for:', item.name);
                                   setHistoricalPitchedData({
-                                    character: characters[selectedCharIdx].name,
-                                    characterIdx: selectedCharIdx,
-                                    bossName: b.name,
+                                    character: '', // Will be selected in modal
+                                    characterIdx: -1,
+                                    bossName: bossObj.name,
                                     itemName: item.name,
                                     itemImage: item.image,
                                     weekKey: weekKey
@@ -317,71 +315,65 @@ function BossTable({
                                   setShowHistoricalPitchedModal(true);
                                   return;
                                 }
-                                
-                                // Set user interaction flag to prevent sync conflicts
-                                userInteractionRef.current = true;
-                                console.log('🖱️ USER: Pitched item clicked:', { item, boss: b.name, character: characters[selectedCharIdx].name, currentState: got });
-                                
-                                // If boss is not cleared, check it too
-                                const bossCleared = !!checked[charKey]?.[b.name + '-' + b.difficulty];
-                                if (!bossCleared) {
-                                  console.log('🖱️ USER: Auto-checking boss since it was not cleared');
-                                  handleCheck(b, true, e);
-                                }
-                                
-                                // Set loading state
-                                setLoadingPitchedItems(prev => ({ ...prev, [key]: true }));
-                                
-                                try {
-                                  if (!userCode) {
-                                    setError('Please log in to save pitched items to cloud.');
-                                    return;
-                                  }
 
-                                  // Determine the new state (toggle current state)
-                                  const newGotState = !got;
-                                  console.log(`🖱️ USER: Toggling pitched item from ${got} to ${newGotState}`);
-                                  
-                                  // 1. Update local state optimistically
-                                  setPitchedChecked(prev => {
-                                    const newState = { ...prev };
-                                    if (newGotState) {
-                                      newState[key] = true;
-                                    } else {
-                                      delete newState[key];
+                                // For current week operations
+                                const charKey = `${characters[selectedCharIdx].name}-${selectedCharIdx}`;
+                                const key = getPitchedKey(characters[selectedCharIdx].name, selectedCharIdx, bossObj.name, item.name, weekKey);
+                                const got = !!pitchedChecked[key];
+                                
+                                // Check across all characters for this item
+                                let itemOwnedByOtherChar = false;
+                                let ownerCharName = '';
+                                characters.forEach((char, charIdx) => {
+                                  if (charIdx !== selectedCharIdx) {
+                                    const otherKey = getPitchedKey(char.name, charIdx, bossObj.name, item.name, weekKey);
+                                    if (pitchedChecked[otherKey]) {
+                                      itemOwnedByOtherChar = true;
+                                      ownerCharName = char.name;
                                     }
-                                    console.log('🖱️ USER: Updated local pitched state:', newGotState ? 'added' : 'removed');
-                                    return newState;
+                                  }
+                                });
+
+                                if (itemOwnedByOtherChar && !got) {
+                                  alert(`${item.name} is already obtained by ${ownerCharName}. Only one character can have each item per week.`);
+                                  return;
+                                }
+
+                                try {
+                                  // Set user interaction flag to prevent sync conflicts
+                                  userInteractionRef.current = true;
+                                  console.log('🖱️ USER: Pitched item clicked:', { item, boss: bossObj.name, character: characters[selectedCharIdx].name, currentState: got });
+                                  
+                                  // If boss is not cleared, check it too
+                                  const bossCleared = !!checked[charKey]?.[bossObj.name + '-' + bossObj.difficulty];
+                                  if (!bossCleared) {
+                                    console.log('🖱️ USER: Auto-checking boss since it was not cleared');
+                                    handleCheck(bossObj, true, e);
+                                  }
+                                  
+                                  // Optimistically update UI immediately
+                                  setPitchedChecked(prev => {
+                                    const updated = { ...prev };
+                                    if (got) {
+                                      delete updated[key];
+                                    } else {
+                                      updated[key] = true;
+                                    }
+                                    return updated;
                                   });
                                   
-                                  // 2. Save to cloud
-                                  console.log('🖱️ USER: Saving to cloud...');
-                                  const result = await savePitchedItem(userCode, {
+                                  // Save to database
+                                  const pitchedData = {
                                     character: characters[selectedCharIdx].name,
-                                    bossName: b.name,
+                                    characterIdx: selectedCharIdx,
+                                    bossName: bossObj.name,
                                     itemName: item.name,
                                     itemImage: item.image,
                                     date: new Date().toISOString()
-                                  }, got, weekKey); // got=true means remove, got=false means add, pass current weekKey
+                                  };
                                   
-                                  if (!result.success) {
-                                    console.error('🖱️ USER: Cloud save failed:', result.error);
-                                    setError('Failed to save to cloud. Reverting changes.');
-                                    // Revert optimistic update
-                                    setPitchedChecked(prev => {
-                                      const revertState = { ...prev };
-                                      if (got) {
-                                        revertState[key] = true; // restore original state
-                                      } else {
-                                        delete revertState[key]; // restore original state
-                                      }
-                                      return revertState;
-                                    });
-                                  } else {
-                                    console.log('🖱️ USER: Cloud save successful');
-                                    // Note: We removed refreshPitchedItems to prevent sync conflicts!
-                                    // The periodic background sync will handle consistency
-                                  }
+                                  await savePitchedItem(userCode, pitchedData, got, weekKey);
+                                  console.log('🖱️ USER: Successfully saved pitched item state');
                                   
                                 } catch (error) {
                                   console.error('🖱️ USER: Error in pitched item click handler:', error);
@@ -397,13 +389,6 @@ function BossTable({
                                     return revertState;
                                   });
                                 } finally {
-                                  // Clear loading state
-                                  setLoadingPitchedItems(prev => {
-                                    const newState = { ...prev };
-                                    delete newState[key];
-                                    return newState;
-                                  });
-                                  
                                   // Clear user interaction flag after a delay to allow UI to settle
                                   setTimeout(() => {
                                     userInteractionRef.current = false;
@@ -414,40 +399,19 @@ function BossTable({
                                 startStatsTrackingIfNeeded();
                               }}
                             >
-                              {loadingPitchedItems[key] ? (
-                                <div style={{
+                              <img
+                                src={item.image}
+                                alt={item.name}
+                                style={{
                                   width: 28,
                                   height: 28,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  position: 'relative'
-                                }}>
-                                  <div style={{
-                                    width: 22,
-                                    height: 22,
-                                    borderRadius: '50%',
-                                    border: '3px solid rgba(162, 89, 247, 0.2)',
-                                    borderTopColor: '#a259f7',
-                                    animation: 'pitched-spinner 1s linear infinite',
-                                    position: 'absolute'
-                                  }} />
-                                </div>
-                              ) : (
-                                <img
-                                  src={item.image}
-                                  alt={item.name}
-                                  style={{
-                                    width: 28,
-                                    height: 28,
-                                    objectFit: 'contain',
-                                    borderRadius: 4,
-                                    opacity: got ? 1 : 0.7,
-                                    filter: got ? 'drop-shadow(0 0 6px #a259f7)' : 'none',
-                                    transition: 'opacity 0.2s, filter 0.2s'
-                                  }}
-                                />
-                              )}
+                                  objectFit: 'contain',
+                                  borderRadius: 4,
+                                  opacity: got ? 1 : 0.7,
+                                  filter: got ? 'drop-shadow(0 0 6px #a259f7)' : 'none',
+                                  transition: 'opacity 0.2s, filter 0.2s'
+                                }}
+                              />
                               {got && (
                                 <span style={{
                                   position: 'absolute',

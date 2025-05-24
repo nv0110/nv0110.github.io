@@ -472,6 +472,35 @@ export function useAppData() {
     saveData().catch(console.error);
   };
 
+  // Batch boss management - replaces all bosses for a character at once
+  const batchSetBosses = (charIdx, newBosses) => {
+    const newCharacters = characters.map((char, idx) => {
+      if (idx !== charIdx) return char;
+      
+      // Process new bosses to ensure they have proper data structure
+      const processedBosses = newBosses.map(boss => ({
+        name: boss.name,
+        difficulty: boss.difficulty,
+        price: getBossPrice(bossData.find(bd => bd.name === boss.name), boss.difficulty),
+        partySize: boss.partySize || getAvailablePartySizes(boss.name, boss.difficulty)[0] || 1
+      }));
+      
+      return {
+        ...char,
+        bosses: processedBosses
+      };
+    });
+
+    setCharacters(newCharacters);
+    
+    // Save to cloud asynchronously without blocking UI
+    const saveData = async () => {
+      const updatedData = { characters: newCharacters };
+      await saveToCloud(updatedData);
+    };
+    saveData().catch(console.error);
+  };
+
   const updatePartySize = async (charIdx, bossName, difficulty, newSize) => {
     const newCharacters = characters.map((char, idx) => {
       if (idx !== charIdx) return char;
@@ -542,5 +571,6 @@ export function useAppData() {
     toggleBoss,
     updateCharacterName,
     updatePartySize,
+    batchSetBosses,
   };
 } 

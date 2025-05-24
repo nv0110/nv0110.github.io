@@ -6,7 +6,6 @@ export function useWeekNavigation(userCode) {
   const currentWeekKey = getCurrentWeekKey();
   const [selectedWeekKey, setSelectedWeekKey] = useState(currentWeekKey);
   const [availableWeeks, setAvailableWeeks] = useState([]);
-  const [isLoadingWeekData, setIsLoadingWeekData] = useState(false);
   const [weekDataCache, setWeekDataCache] = useState({});
   const [readOnlyOverride, setReadOnlyOverride] = useState(false);
 
@@ -57,14 +56,12 @@ export function useWeekNavigation(userCode) {
   return {
     selectedWeekKey,
     availableWeeks,
-    isLoadingWeekData,
     weekDataCache,
     setWeekDataCache,
     isHistoricalWeek,
     isReadOnlyMode,
     readOnlyOverride,
     setReadOnlyOverride,
-    handleWeekChange,
-    setIsLoadingWeekData
+    handleWeekChange
   };
 } 

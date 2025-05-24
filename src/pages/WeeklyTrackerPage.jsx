@@ -62,7 +62,7 @@ function WeeklyTrackerPage() {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'flex-start',
-        padding: '80px 20px 20px 20px', // Top padding to account for fixed navbar
+        padding: '80px 0px 0px ', // Top padding to account for fixed navbar
         width: '100%',
         boxSizing: 'border-box'
       }}>

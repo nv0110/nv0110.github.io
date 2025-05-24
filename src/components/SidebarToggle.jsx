@@ -6,7 +6,7 @@ function SidebarToggle({ sidebarVisible, setSidebarVisible }) {
       onClick={() => setSidebarVisible(!sidebarVisible)}
       style={{
         position: 'fixed',
-        left: sidebarVisible ? 245 : 10,
+        left: sidebarVisible ? 220 : 10,
         top: '110px',
         zIndex: 200,
         transition: 'all 0.3s ease',
