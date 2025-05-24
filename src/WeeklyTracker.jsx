@@ -197,7 +197,6 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
         margin: '0 auto',
         width: '100%',
         minHeight: '100vh',
-        paddingTop: '100px',
         boxSizing: 'border-box'
       }}>
         {/* Sidebar */}
@@ -224,10 +223,8 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
 
         {/* Main Content */}
         <div style={{ 
-          paddingLeft: sidebarVisible ? 280 : 0,
-          paddingTop: '100px',
+          paddingLeft: 180,
           minHeight: '100vh',
-          transition: 'padding-left 0.3s ease'
         }}>
           <div style={{
             maxWidth: 900,
