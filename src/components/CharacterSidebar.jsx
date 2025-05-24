@@ -33,7 +33,6 @@ function CharacterSidebar({
       paddingTop: sidebarVisible ? '100px' : '0', // Account for navbar height
       boxShadow: sidebarVisible ? '2px 0 24px rgba(162, 89, 247, 0.08), 2px 0 8px rgba(0, 0, 0, 0.1)' : 'none',
       transition: 'all 0.3s ease',
-      overflow: 'hidden'
     }}>
       {sidebarVisible && (
         <>
