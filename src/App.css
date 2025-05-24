@@ -1,3 +1,42 @@
+/* Global Custom Scrollbar Styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(162, 89, 247, 0.3) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(162, 89, 247, 0.2);
+  border-radius: 10px;
+  transition: all 0.3s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(162, 89, 247, 0.5);
+}
+
+*:hover::-webkit-scrollbar-thumb {
+  background: rgba(162, 89, 247, 0.4);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Hide scrollbars when not needed */
+html, body {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
 #root {
   position: relative;
   max-width: 1280px;
@@ -892,7 +931,7 @@ body.dark th, body.dark thead th {
 }
 
 .navbar-content {
-  max-width: 1200px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 0 2rem;
   display: flex;
@@ -901,25 +940,6 @@ body.dark th, body.dark thead th {
   position: relative;
 }
 
-/* User Code Display (Left) */
-.navbar-usercode {
-  color: #e6e0ff;
-  font-size: 1.08em;
-  font-weight: 700;
-  letter-spacing: 1px;
-  background: linear-gradient(135deg, 
-    rgba(162, 89, 247, 0.15) 0%,
-    rgba(128, 90, 213, 0.12) 100%
-  );
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-radius: 12px;
-  padding: 0.4rem 1.2rem;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 
-    0 1px 0 0 rgba(255, 255, 255, 0.1) inset,
-    0 4px 12px 0 rgba(162, 89, 247, 0.15);
-}
 
 /* Page Navigation Container (Center) */
 .navbar-navigation {
@@ -948,56 +968,164 @@ body.dark th, body.dark thead th {
 .navbar-actions {
   display: flex;
   gap: 8px;
+  align-items: center;
+}
+
+/* Left Section: Timer and User Code */
+.navbar-left {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* User Code Display (Left) */
+.navbar-usercode {
+  color: #e6e0ff;
+  font-size: 1.1em;
+  font-weight: 700;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, 
+    rgba(162, 89, 247, 0.15) 0%,
+    rgba(128, 90, 213, 0.12) 100%
+  );
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 12px;
+  padding: 0.4rem 1.2rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 
+    0 1px 0 0 rgba(255, 255, 255, 0.1) inset,
+    0 4px 12px 0 rgba(162, 89, 247, 0.15);
+    height: 22px;
+    line-height: 1;    
+}
+
+/* Timer in Navbar */
+.navbar-timer {
+  display: flex;
+  align-items: baseline;
+  padding: 0.4rem 1.2rem;
+  background: linear-gradient(135deg, 
+    rgba(162, 89, 247, 0.15) 0%,
+    rgba(128, 90, 213, 0.12) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 
+    0 1px 0 0 rgba(255, 255, 255, 0.1) inset,
+    0 4px 12px 0 rgba(162, 89, 247, 0.15);
+    height: 22px;
+    line-height: 1;   
 }
 
 /* Base Navigation Button Styling */
 .navbar-btn {
   border: none;
-  border-radius: 20px;
-  padding: 0.4rem 1.2rem;
-  font-weight: 700;
-  font-size: 1rem;
-  box-shadow: 0 2px 8px #0002;
+  border-radius: 18px;
+  padding: 0.5rem 1.4rem;
+  font-weight: 600;
+  font-size: 0.95rem;
   cursor: pointer;
-  transition: all 0.18s cubic-bezier(.4,2,.6,1), box-shadow 0.18s;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   margin-right: 0;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.15),
+    0 1px 0 rgba(255, 255, 255, 0.1) inset;
 }
 
-/* Logout Button */
+.navbar-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.navbar-btn:hover::before {
+  opacity: 1;
+}
+
+/* Logout Button - Neutral Blue */
 .navbar-btn.logout {
-  background: #a259f7;
-  color: #fff;
+  background: linear-gradient(135deg, #4c82f7, #3b72e8);
+  color: #ffffff;
+  border-color: rgba(76, 130, 247, 0.3);
 }
 
 .navbar-btn.logout:hover {
-  background: #b47aff;
-  box-shadow: 0 4px 16px #a259f799;
+  background: linear-gradient(135deg, #5c92ff, #4b82f7);
+  border-color: rgba(92, 146, 255, 0.5);
+  box-shadow: 
+    0 4px 20px rgba(76, 130, 247, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.2) inset;
+  transform: translateY(-1px);
 }
 
-/* Delete Account Button */
+.navbar-btn.logout:active {
+  transform: translateY(0);
+  box-shadow: 
+    0 2px 10px rgba(76, 130, 247, 0.3),
+    0 1px 0 rgba(255, 255, 255, 0.1) inset;
+}
+
+/* Delete Account Button - Elegant Red */
 .navbar-btn.delete {
-  background: #ff6b6b;
-  color: #fff;
+  background: linear-gradient(135deg, #ff4757, #ff3742);
+  color: #ffffff;
+  border-color: rgba(255, 71, 87, 0.3);
 }
 
 .navbar-btn.delete:hover {
-  background: #ff8b8b;
-  box-shadow: 0 4px 16px #ff6b6b99;
+  background: linear-gradient(135deg, #ff6b7a, #ff4757);
+  border-color: rgba(255, 107, 122, 0.5);
+  box-shadow: 
+    0 4px 20px rgba(255, 71, 87, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.2) inset;
+  transform: translateY(-1px);
 }
 
-/* Help Button */
+.navbar-btn.delete:active {
+  transform: translateY(0);
+  box-shadow: 
+    0 2px 10px rgba(255, 71, 87, 0.3),
+    0 1px 0 rgba(255, 255, 255, 0.1) inset;
+}
+
+/* Help Button - Premium Purple */
 .navbar-btn.help {
-  background: #805ad5;
-  color: #fff;
+  background: linear-gradient(135deg, #a259f7, #8b46e8);
+  color: #ffffff;
+  border-color: rgba(162, 89, 247, 0.3);
 }
 
 .navbar-btn.help:hover {
-  background: #a259f7;
-  box-shadow: 0 4px 16px #805ad599;
+  background: linear-gradient(135deg, #b470ff, #a259f7);
+  border-color: rgba(180, 112, 255, 0.5);
+  box-shadow: 
+    0 4px 20px rgba(162, 89, 247, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.2) inset;
+  transform: translateY(-1px);
+}
+
+.navbar-btn.help:active {
+  transform: translateY(0);
+  box-shadow: 
+    0 2px 10px rgba(162, 89, 247, 0.3),
+    0 1px 0 rgba(255, 255, 255, 0.1) inset;
 }
 
 /* Page Navigation Button Styling */
@@ -1049,8 +1177,13 @@ body.dark th, body.dark thead th {
     padding: 0 1rem;
   }
   
-  .navbar-usercode {
+  .navbar-left {
     order: 1;
+    justify-content: center;
+  }
+  
+  .navbar-usercode {
+    order: 2;
   }
   
   .navbar-navigation {
@@ -1064,6 +1197,12 @@ body.dark th, body.dark thead th {
     order: 3;
     justify-content: center;
     flex-wrap: wrap;
+  }
+  
+  .navbar-timer {
+    margin-right: 8px;
+    padding: 0.3rem 0.8rem;
+    font-size: 0.85rem;
   }
   
   .navbar-btn {

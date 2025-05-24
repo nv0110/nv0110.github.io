@@ -1,13 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { savePitchedItem, removeManyPitchedItems } from './pitched-data-service';
-import { getTimeUntilReset, getCurrentWeekKey } from './utils/weekUtils';
+import { getCurrentWeekKey } from './utils/weekUtils';
 import { STORAGE_KEYS } from './constants';
 import WeekNavigator from './components/WeekNavigator';
 import HistoricalPitchedModal from './components/HistoricalPitchedModal';
 import CrystalAnimation from './components/CrystalAnimation';
 import CharacterSidebar from './components/CharacterSidebar';
 import SidebarToggle from './components/SidebarToggle';
-import ResetTimer from './components/ResetTimer';
 import ReadOnlyModeIndicator from './components/ReadOnlyModeIndicator';
 import BossTable from './components/BossTable';
 import StatsModal from './components/StatsModal';
@@ -35,7 +34,6 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
 
   // Basic UI state
   const [sidebarVisible, setSidebarVisible] = useState(true);
-  const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilReset());
   const [crystalAnimation, setCrystalAnimation] = useState(null);
   const [selectedCharIdx, setSelectedCharIdx] = useState(0);
   const [error, setError] = useState(null);
@@ -54,14 +52,6 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.WEEKLY_HIDE_COMPLETED, JSON.stringify(hideCompleted));
   }, [hideCompleted]);
-
-  // Update countdown timer
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeUntilReset(getTimeUntilReset());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   // Custom hooks for complex logic
   const weekNavigation = useWeekNavigation(userCode);
@@ -248,15 +238,6 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
                 isHistoricalWeek={weekNavigation.isHistoricalWeek}
               />
             </div>
-
-            <ResetTimer
-              selectedWeekKey={weekNavigation.selectedWeekKey}
-              currentWeekKey={getCurrentWeekKey()}
-              timeUntilReset={timeUntilReset}
-              setTimeUntilReset={setTimeUntilReset}
-              isHistoricalWeek={weekNavigation.isHistoricalWeek}
-              readOnlyOverride={weekNavigation.readOnlyOverride}
-            />
 
             <ReadOnlyModeIndicator
               isHistoricalWeek={weekNavigation.isHistoricalWeek}

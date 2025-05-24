@@ -1,10 +1,24 @@
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { getTimeUntilReset, getCurrentWeekKey } from '../utils/weekUtils';
 
 function Navbar({ currentPage, onShowHelp, onShowDeleteConfirm }) {
   const { userCode, handleLogout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Timer state managed within navbar
+  const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilReset());
+  const currentWeekKey = getCurrentWeekKey();
+
+  // Update countdown timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeUntilReset(getTimeUntilReset());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleLogoutClick = async () => {
     await handleLogout();
@@ -34,9 +48,33 @@ function Navbar({ currentPage, onShowHelp, onShowDeleteConfirm }) {
   return (
     <div className="navbar-container">
       <div className="navbar-content">
-        {/* User Code Display (Left) */}
-        <div className="navbar-usercode">
-          ID: {userCode}
+        {/* Left Section: Timer and User Code */}
+        <div className="navbar-left">
+          {timeUntilReset && (
+            <div className="navbar-timer">
+              <div style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: '#b39ddb', marginRight: '0.6rem' }}>
+                 Reset: 
+              </div>
+              <div style={{ 
+                fontSize: '1.1rem', 
+                fontFamily: 'monospace', 
+                fontWeight: 700, 
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '0.3rem',
+                color: '#e6e0ff'
+                
+              }}>
+                <span>{timeUntilReset.days}D</span>
+                <span>{timeUntilReset.hours}H</span>
+                <span>{timeUntilReset.minutes}M</span>
+              </div>
+            </div>
+          )}
+          
+          <div className="navbar-usercode">
+            ID: {userCode}
+          </div>
         </div>
 
         {/* Page Navigation (Center) */}
