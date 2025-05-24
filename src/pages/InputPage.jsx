@@ -1,4 +1,12 @@
-import { useState, Suspense, lazy } from 'react';import { useNavigate } from 'react-router-dom';import { useAuth } from '../hooks/useAuth';import { useAppData } from '../hooks/useAppData';import { bossData, getBossPrice } from '../data/bossData';import { LIMITS } from '../constants';import { Tooltip } from '../components/Tooltip';import Navbar from '../components/Navbar';
+import { useState, Suspense, lazy } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import { useAppData } from '../hooks/useAppData';
+import { bossData, getBossPrice } from '../data/bossData';
+import { LIMITS } from '../constants';
+import { Tooltip } from '../components/Tooltip';
+import Navbar from '../components/Navbar';
+import CustomCheckbox from '../components/CustomCheckbox';
 
 // Lazy load DataBackup component
 const DataBackup = lazy(() => import('../components/DataBackup'));
@@ -669,31 +677,21 @@ function InputPage() {  const navigate = useNavigate();  const { userCode, isLog
                             }}>
                               {selectedCharIdx !== null && (
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 6 }}>
-                                  <div className="checkbox-wrapper" style={{ marginRight: 4, transform: 'scale(0.8)' }}>
-                                    <input
-                                      type="checkbox"
-                                      checked={!!selected}
-                                      onClick={e => e.stopPropagation()}
-                                      onChange={() => {
-                                        if (selected) {
-                                          toggleBoss(selectedCharIdx, boss.name, '');
-                                        } else {
-                                          toggleBoss(selectedCharIdx, boss.name, difficulties[0]);
-                                        }
-                                      }}
-                                    />
-                                    <svg viewBox="0 0 35.6 35.6">
-                                      <circle className="background" cx="17.8" cy="17.8" r="17.8"></circle>
-                                      <circle className="stroke" cx="17.8" cy="17.8" r="14.37"></circle>
-                                      <polyline className="check" points="11.78 18.12 15.55 22.23 25.17 12.87"></polyline>
-                                    </svg>
-                                  </div>
+                                  <CustomCheckbox
+                                    checked={!!selected}
+                                    onChange={() => {
+                                      if (selected) {
+                                        toggleBoss(selectedCharIdx, boss.name, '');
+                                      } else {
+                                        toggleBoss(selectedCharIdx, boss.name, difficulties[0]);
+                                      }
+                                    }}
+                                  />
                                   {selected && (
                                     <>
                                       <select
                                         className="boss-table-difficulty"
                                         value={selected.difficulty}
-                                        onClick={e => e.stopPropagation()}
                                         onChange={e => {
                                           toggleBoss(selectedCharIdx, boss.name, e.target.value);
                                         }}
@@ -723,7 +721,6 @@ function InputPage() {  const navigate = useNavigate();  const { userCode, isLog
                                       <select
                                         className="party-size-dropdown boss-table-party-size"
                                         value={selected.partySize || 1}
-                                        onClick={e => e.stopPropagation()}
                                         onChange={e => {
                                           updatePartySize(selectedCharIdx, boss.name, selected.difficulty, parseInt(e.target.value));
                                         }}
