@@ -845,3 +845,357 @@ export async function importUserData(userCode, importObj) {
     return { success: false, error };
   }
 }
+
+/**
+ * Enhanced reset functionality: Purge pitched records for a specific character
+ * @param {string} userCode - User code
+ * @param {string} characterName - Name of the character to purge records for
+ * @param {number} characterIdx - Index of the character (default: 0)
+ * @returns {Object} - Result with success status and audit information
+ */
+export async function purgePitchedRecords(userCode, characterName, characterIdx = 0) {
+  try {
+    console.log(`🗑️ Starting pitched records purge for character: ${characterName} (idx: ${characterIdx})`);
+    
+    if (!userCode || !characterName) {
+      console.error('Missing required fields:', { userCode, characterName });
+      return { success: false, error: 'Missing required fields' };
+    }
+
+    // 1. Fetch current user data
+    const { data: userData, error: fetchError } = await supabase
+      .from('user_data')
+      .select('data, pitched_items')
+      .eq('id', userCode)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching user data:', fetchError);
+      throw fetchError;
+    }
+
+    const currentData = userData.data || {};
+    const currentPitchedItems = userData.pitched_items || [];
+    const currentBossRuns = currentData.boss_runs || [];
+
+    // 2. Filter out pitched items for the target character
+    const filteredPitchedItems = currentPitchedItems.filter(item => {
+      const matches = item.character === characterName && 
+                     (item.characterIdx === characterIdx || item.characterIndex === characterIdx);
+      if (matches) {
+        console.log(`🗑️ Removing pitched item: ${item.item} from ${item.boss} for ${characterName}`);
+      }
+      return !matches;
+    });
+
+    // 3. Filter boss runs - remove only those with isPitched flag or hasPitchedItem flag
+    const filteredBossRuns = currentBossRuns.filter(run => {
+      const characterMatches = run.character === characterName && 
+                              (run.characterIdx === characterIdx || run.characterIndex === characterIdx);
+      
+      // Only remove if it's a pitched-related run
+      const isPitchedRun = run.isPitched === true || run.hasPitchedItem === true;
+      
+      if (characterMatches && isPitchedRun) {
+        console.log(`🗑️ Removing pitched boss run: ${run.boss} ${run.difficulty} for ${characterName}`);
+        return false;
+      }
+      
+      // Preserve all other boss runs (non-pitched)
+      return true;
+    });
+
+    // 4. Create audit entry
+    const auditTimestamp = new Date().toISOString();
+    const auditEntry = {
+      timestamp: auditTimestamp,
+      action: 'purge_pitched_records',
+      character: characterName,
+      characterIdx: characterIdx,
+      itemsRemoved: currentPitchedItems.length - filteredPitchedItems.length,
+      bossRunsRemoved: currentBossRuns.length - filteredBossRuns.length,
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Server'
+    };
+
+    // 5. Update data object with audit tracking
+    const updatedData = {
+      ...currentData,
+      boss_runs: filteredBossRuns,
+      lastUpdated: auditTimestamp,
+      // Add audit tracking
+      pitched_reset_history: [
+        ...(currentData.pitched_reset_history || []),
+        auditEntry
+      ].slice(-50) // Keep only last 50 audit entries
+    };
+
+    // 6. Update database with cleaned data and audit trail
+    const { error: updateError } = await supabase
+      .from('user_data')
+      .update({ 
+        pitched_items: filteredPitchedItems,
+        data: updatedData
+      })
+      .eq('id', userCode);
+
+    if (updateError) {
+      console.error('Database update error:', updateError);
+      throw updateError;
+    }
+
+    console.log(`✅ Pitched records purged successfully for ${characterName}`);
+    console.log(`📊 Removed ${auditEntry.itemsRemoved} pitched items and ${auditEntry.bossRunsRemoved} boss runs`);
+    console.log(`📊 Preserved ${filteredBossRuns.length} non-pitched boss runs`);
+
+    return { 
+      success: true, 
+      audit: auditEntry,
+      itemsRemoved: auditEntry.itemsRemoved,
+      bossRunsRemoved: auditEntry.bossRunsRemoved,
+      bossRunsPreserved: filteredBossRuns.length
+    };
+
+  } catch (error) {
+    console.error('Error purging pitched records:', error);
+    return { success: false, error: error.message || 'Unknown error occurred' };
+  }
+}
+
+/**
+ * Get pitched reset audit history for a user
+ * @param {string} userCode - User code
+ * @returns {Object} - Result with audit history
+ */
+export async function getPitchedResetAuditHistory(userCode) {
+  try {
+    if (!userCode) {
+      return { success: false, error: 'User code is required' };
+    }
+
+    const { data: userData, error: fetchError } = await supabase
+      .from('user_data')
+      .select('data')
+      .eq('id', userCode)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching audit history:', fetchError);
+      throw fetchError;
+    }
+
+    const auditHistory = userData.data?.pitched_reset_history || [];
+    
+    // Sort by timestamp (most recent first)
+    const sortedHistory = auditHistory.sort((a, b) => 
+      new Date(b.timestamp) - new Date(a.timestamp)
+    );
+
+    return { 
+      success: true, 
+      history: sortedHistory,
+      totalResets: sortedHistory.length
+    };
+
+  } catch (error) {
+    console.error('Error getting pitched reset audit history:', error);
+    return { success: false, error: error.message || 'Unknown error occurred' };
+  }
+}
+
+/**
+ * Clear UI pitched item checkmarks for a specific character
+ * @param {Object} pitchedChecked - Current pitched checked state
+ * @param {string} characterName - Character name to clear
+ * @param {number} characterIdx - Character index
+ * @param {string} weekKey - Current week key
+ * @returns {Object} - Updated pitched checked state
+ */
+export function clearCharacterPitchedUI(pitchedChecked, characterName, characterIdx, weekKey) {
+  const updatedPitchedChecked = { ...pitchedChecked };
+  
+  // Remove all pitched checkmarks for this character
+  Object.keys(updatedPitchedChecked).forEach(key => {
+    // Key format: "CharacterName-idx__BossName__ItemName__WeekKey"
+    if (key.startsWith(`${characterName}-${characterIdx}__`) && key.endsWith(`__${weekKey}`)) {
+      console.log(`🗑️ Clearing UI checkmark: ${key}`);
+      delete updatedPitchedChecked[key];
+    }
+  });
+  
+  return updatedPitchedChecked;
+}
+
+/**
+ * Admin utility: Get comprehensive reset statistics for all users
+ * @param {string} adminUserCode - Admin user code (for authorization)
+ * @returns {Object} - Aggregated reset statistics
+ */
+export async function getGlobalResetStatistics(adminUserCode) {
+  try {
+    // Basic authorization check (you might want to enhance this)
+    if (!adminUserCode || !adminUserCode.startsWith('ADMIN_')) {
+      return { success: false, error: 'Unauthorized access' };
+    }
+
+    // This would require admin privileges - implement based on your auth system
+    console.log('📊 Fetching global reset statistics...');
+    
+    // For now, return a placeholder - you'd need to implement proper admin queries
+    return {
+      success: true,
+      message: 'Admin feature - implement based on your authorization system',
+      note: 'This requires database-level aggregation queries with proper admin authentication'
+    };
+
+  } catch (error) {
+    console.error('Error getting global reset statistics:', error);
+    return { success: false, error: error.message || 'Unknown error occurred' };
+  }
+}
+
+// Get all available weeks for a user (for navigation)
+export async function getAvailableWeeks(userCode) {
+  try {
+    if (!userCode) {
+      console.log('No user code provided for getAvailableWeeks');
+      return { success: false, error: 'No user code provided' };
+    }
+
+    // Get all unique week keys from pitched_items, boss_runs, and main data
+    const { data: userData, error } = await supabase
+      .from('user_data')
+      .select('data, pitched_items, boss_runs')
+      .eq('id', userCode)
+      .single();
+
+    if (error) {
+      console.error('Error fetching user data for available weeks:', error);
+      return { success: false, error: error.message };
+    }
+
+    const weekSet = new Set();
+    const currentWeek = getCurrentWeekKey();
+    
+    // Always include current week
+    weekSet.add(currentWeek);
+
+    // Add weeks from pitched items
+    if (userData.pitched_items && Array.isArray(userData.pitched_items)) {
+      userData.pitched_items.forEach(item => {
+        if (item.weekKey) {
+          weekSet.add(item.weekKey);
+        }
+      });
+    }
+
+    // Add weeks from boss runs
+    if (userData.boss_runs && Array.isArray(userData.boss_runs)) {
+      userData.boss_runs.forEach(run => {
+        if (run.weekKey) {
+          weekSet.add(run.weekKey);
+        }
+      });
+    }
+
+    // Add week from main data if it exists
+    if (userData.data && userData.data.weekKey) {
+      weekSet.add(userData.data.weekKey);
+    }
+
+    // Convert to sorted array (oldest to newest)
+    const weeks = Array.from(weekSet).sort((a, b) => {
+      const [yearA, weekA] = a.split('-').map(Number);
+      const [yearB, weekB] = b.split('-').map(Number);
+      
+      if (yearA !== yearB) return yearA - yearB;
+      return weekA - weekB;
+    });
+
+    console.log(`Found ${weeks.length} weeks with data:`, weeks);
+
+    return {
+      success: true,
+      weeks,
+      currentWeek,
+      oldestWeek: weeks.length > 0 ? weeks[0] : currentWeek,
+      newestWeek: weeks.length > 0 ? weeks[weeks.length - 1] : currentWeek
+    };
+
+  } catch (error) {
+    console.error('Error in getAvailableWeeks:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Get data for a specific week
+export async function getWeekData(userCode, weekKey) {
+  try {
+    if (!userCode || !weekKey) {
+      return { success: false, error: 'Missing userCode or weekKey' };
+    }
+
+    console.log(`Fetching data for week: ${weekKey}`);
+
+    // Get user data
+    const { data: userData, error } = await supabase
+      .from('user_data')
+      .select('data, pitched_items, boss_runs')
+      .eq('id', userCode)
+      .single();
+
+    if (error) {
+      console.error('Error fetching week data:', error);
+      return { success: false, error: error.message };
+    }
+
+    // Filter pitched items for this week
+    const pitchedItems = userData.pitched_items 
+      ? userData.pitched_items.filter(item => item.weekKey === weekKey)
+      : [];
+
+    // Filter boss runs for this week
+    const bossRuns = userData.boss_runs
+      ? userData.boss_runs.filter(run => run.weekKey === weekKey)
+      : [];
+
+    // Get checked state - either from specific week data or reconstruct from boss runs
+    let checkedState = {};
+    
+    // If main data is for this week, use it
+    if (userData.data && userData.data.weekKey === weekKey) {
+      checkedState = userData.data.checked || {};
+    } else {
+      // Reconstruct checked state from boss runs
+      bossRuns.forEach(run => {
+        if (run.cleared) {
+          const charKey = `${run.character}-${run.characterIdx || 0}`;
+          const bossKey = `${run.boss}-${run.difficulty}`;
+          
+          if (!checkedState[charKey]) {
+            checkedState[charKey] = {};
+          }
+          checkedState[charKey][bossKey] = true;
+        }
+      });
+    }
+
+    console.log(`Week ${weekKey} data:`, {
+      pitchedItems: pitchedItems.length,
+      bossRuns: bossRuns.length,
+      checkedStates: Object.keys(checkedState).length
+    });
+
+    return {
+      success: true,
+      weekKey,
+      pitchedItems,
+      bossRuns,
+      checkedState,
+      hasData: pitchedItems.length > 0 || bossRuns.length > 0 || Object.keys(checkedState).length > 0
+    };
+
+  } catch (error) {
+    console.error('Error in getWeekData:', error);
+    return { success: false, error: error.message };
+  }
+}

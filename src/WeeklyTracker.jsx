@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { savePitchedItem, getYearlyPitchedStats, removeManyPitchedItems } from './pitched-data-service';
+import { savePitchedItem, getYearlyPitchedStats, removeManyPitchedItems, purgePitchedRecords, clearCharacterPitchedUI, getPitchedResetAuditHistory, getAvailableWeeks, getWeekData } from './pitched-data-service';
 import { getTimeUntilReset, getCurrentWeekKey, getCurrentMonthKey, getCurrentYearKey } from './utils/weekUtils';
 import { STORAGE_KEYS, MONTH_NAMES, BOSS_DIFFICULTIES, COOLDOWNS } from './constants';
+import WeekNavigator from './components/WeekNavigator';
 
 function ProgressFace({ progress, darkMode }) {
   let emoji = '😐';
@@ -95,7 +96,15 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
     return d ? d.price : 0;
   }
 
-  const weekKey = getCurrentWeekKey();
+  // Week navigation state
+  const currentWeekKey = getCurrentWeekKey();
+  const [selectedWeekKey, setSelectedWeekKey] = useState(currentWeekKey);
+  const [availableWeeks, setAvailableWeeks] = useState([]);
+  const [isLoadingWeekData, setIsLoadingWeekData] = useState(false);
+  const [weekDataCache, setWeekDataCache] = useState({});
+  
+  // Use selected week instead of current week
+  const weekKey = selectedWeekKey;
   const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilReset());
   const [crystalAnimation, setCrystalAnimation] = useState(null);
   const [selectedCharIdx, setSelectedCharIdx] = useState(0);
@@ -103,6 +112,34 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
   
   // Track user interactions to prevent sync conflicts
   const userInteractionRef = useRef(false);
+  
+  // Week navigation handler
+  const handleWeekChange = async (newWeekKey) => {
+    if (newWeekKey === selectedWeekKey) return;
+    
+    console.log(`Navigating from week ${selectedWeekKey} to ${newWeekKey}`);
+    
+    // Cache current week data before switching
+    if (selectedWeekKey && !weekDataCache[selectedWeekKey]) {
+      setWeekDataCache(prev => ({
+        ...prev,
+        [selectedWeekKey]: {
+          checkedState: checked,
+          pitchedItems: cloudPitchedItems,
+          hasData: Object.keys(checked).length > 0 || cloudPitchedItems.length > 0
+        }
+      }));
+    }
+    
+    // Reset read-only override when changing weeks
+    setReadOnlyOverride(false);
+    
+    // Clear UI state first for smooth transition
+    setPitchedChecked({});
+    
+    // Update selected week
+    setSelectedWeekKey(newWeekKey);
+  };
   
   // Hide completed characters toggle
   const [hideCompleted, setHideCompleted] = useState(() => {
@@ -132,7 +169,7 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
     
     try {
       setIsRefreshingPitchedItems(true);
-      const codeToUse = userCodeValue || userCode || localStorage.getItem('ms-user-code');
+      const codeToUse = userCodeValue || userCode;
       
       if (!codeToUse) {
         console.log('No user code available to refresh pitched items');
@@ -166,24 +203,106 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
     }
   };
   
-  // Fetch pitched items on component mount
+  // Fetch available weeks on component mount and when userCode changes
   useEffect(() => {
-    if (userCode) {
+    const fetchAvailableWeeks = async () => {
+      if (!userCode) return;
+      
+      try {
+        const result = await getAvailableWeeks(userCode);
+        if (result.success) {
+          setAvailableWeeks(result.weeks);
+          console.log('Available weeks:', result.weeks);
+        } else {
+          console.error('Failed to fetch available weeks:', result.error);
+        }
+      } catch (error) {
+        console.error('Error fetching available weeks:', error);
+      }
+    };
+    
+    fetchAvailableWeeks();
+  }, [userCode]);
+
+  // Fetch data for selected week
+  useEffect(() => {
+    const fetchWeekData = async () => {
+      if (!userCode || !selectedWeekKey) return;
+      
+      // Check cache first
+      if (weekDataCache[selectedWeekKey]) {
+        console.log(`Using cached data for week ${selectedWeekKey}`);
+        const cachedData = weekDataCache[selectedWeekKey];
+        
+        // Apply cached data
+        if (cachedData.checkedState) {
+          setChecked(cachedData.checkedState);
+        }
+        if (cachedData.pitchedItems) {
+          setCloudPitchedItems(cachedData.pitchedItems);
+        }
+        return;
+      }
+      
+      setIsLoadingWeekData(true);
+      
+      try {
+        console.log(`Fetching data for week: ${selectedWeekKey}`);
+        const result = await getWeekData(userCode, selectedWeekKey);
+        
+        if (result.success) {
+          // Cache the data
+          setWeekDataCache(prev => ({
+            ...prev,
+            [selectedWeekKey]: {
+              checkedState: result.checkedState,
+              pitchedItems: result.pitchedItems,
+              hasData: result.hasData
+            }
+          }));
+          
+          // Apply the data
+          setChecked(result.checkedState || {});
+          setCloudPitchedItems(result.pitchedItems || []);
+          
+          console.log(`Week ${selectedWeekKey} data loaded:`, {
+            checkedStates: Object.keys(result.checkedState || {}).length,
+            pitchedItems: result.pitchedItems?.length || 0
+          });
+        } else {
+          console.error('Failed to fetch week data:', result.error);
+          // Clear data for weeks with no data
+          setChecked({});
+          setCloudPitchedItems([]);
+        }
+      } catch (error) {
+        console.error('Error fetching week data:', error);
+        setError('Failed to load week data. Please try again.');
+      } finally {
+        setIsLoadingWeekData(false);
+      }
+    };
+    
+    fetchWeekData();
+  }, [userCode, selectedWeekKey]);
+
+  // Fetch pitched items on component mount (only for current week compatibility)
+  useEffect(() => {
+    if (userCode && selectedWeekKey === currentWeekKey) {
       refreshPitchedItems(userCode);
     }
-  }, [userCode]);
+  }, [userCode, selectedWeekKey, currentWeekKey]);
   
   // Add a dedicated effect for synchronizing pitched items with boss checks
   const [pitchedItemsSynced, setPitchedItemsSynced] = useState(false);
   const [cloudPitchedItems, setCloudPitchedItems] = useState([]);
   
-  // First, fetch pitched items from database via user code in localStorage
+  // Fetch pitched items from database via user code parameter
   useEffect(() => {
     const fetchPitchedItemsFromDatabase = async () => {
       try {
-        const userCode = localStorage.getItem('ms-user-code');
         if (!userCode) {
-          console.log('No user code found in localStorage');
+          console.log('No user code provided');
           return;
         }
         
@@ -213,7 +332,7 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
     };
     
     fetchPitchedItemsFromDatabase();
-  }, []);
+  }, [userCode]);
   
   // Import ensureDataSynchronization from pitched-data-service.js
   useEffect(() => {
@@ -224,9 +343,9 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
       try {
         console.log(`🔄 SYNC: Syncing pitched items for week ${weekKey} with boss checks...`);
         
-        // Skip sync if user is actively interacting
+        // Skip sync if user is actively interacting (e.g., during purge)
         if (userInteractionRef.current) {
-          console.log(`⏸️ SYNC: Skipping sync - user interaction in progress`);
+          console.log(`⏸️ SYNC: Skipping sync - user interaction in progress (purge/click)`);
           return;
         }
         
@@ -328,18 +447,22 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
     // IMPORTANT: Do NOT include checked/pitchedChecked in dependencies to avoid race conditions
   }, [cloudPitchedItems, weekKey, characters]);
   
-  // Reset pitchedChecked if week changes
+  // Reset pitchedChecked if week changes (no longer using localStorage)
   useEffect(() => {
-    const savedWeekKey = localStorage.getItem('ms-weekly-pitched-week-key');
-    if (savedWeekKey !== weekKey) {
-      setPitchedChecked({});
-      // REMOVED: localStorage.setItem('ms-weekly-pitched-week-key', weekKey); // Now handled by cloud storage
-    }
+    // Week change now handled entirely by cloud data sync
+    // Clear UI state when week changes
+    setPitchedChecked({});
   }, [weekKey]);
 
   // Handle boss checkbox changes - handles both direct calls and checkbox event objects
   const handleCheck = async (bossOrEvent, checkedValOrBoss, event = null) => {
     try {
+      // Show warning when editing historical data
+      if (isHistoricalWeek && !readOnlyOverride) {
+        console.log('Boss check blocked - read-only mode active for historical week');
+        return;
+      }
+      
       // Determine if this is coming from a checkbox click or a direct call
       let boss, checkedVal, e;
       
@@ -401,7 +524,6 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
       setChecked(newChecked);
       
       // Save to database (independent of pitched items)
-      const userCode = localStorage.getItem('ms-user-code');
       if (userCode) {
         try {
           // 1. First update the traditional checked state in the data object
@@ -431,23 +553,27 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
             
           if (updateError) throw updateError;
           
-          // 2. Now also save this as a boss run in the new format
-          const { saveBossRun } = await import('./pitched-data-service');
-          const bossRunData = {
-            character: charName,
-            characterIdx: charIdx,
-            bossName: bossName,
-            bossDifficulty: bossDifficulty,
-            isCleared: checkedVal,
-            date: new Date().toISOString()
-          };
-          
-          // Save to boss_runs array in database
-          const result = await saveBossRun(userCode, bossRunData);
-          if (!result.success) {
-            console.error('Error saving boss run:', result.error);
+          // 2. Only save boss run for current week (read-only for historical weeks)
+          if (selectedWeekKey === currentWeekKey) {
+            const { saveBossRun } = await import('./pitched-data-service');
+            const bossRunData = {
+              character: charName,
+              characterIdx: charIdx,
+              bossName: bossName,
+              bossDifficulty: bossDifficulty,
+              isCleared: checkedVal,
+              date: new Date().toISOString()
+            };
+            
+            // Save to boss_runs array in database
+            const result = await saveBossRun(userCode, bossRunData);
+            if (!result.success) {
+              console.error('Error saving boss run:', result.error);
+            } else {
+              console.log(`Boss run saved to database: ${charName} - ${bossName} ${bossDifficulty}: ${checkedVal}`);
+            }
           } else {
-            console.log(`Boss run saved to database: ${charName} - ${bossName} ${bossDifficulty}: ${checkedVal}`);
+            console.log(`Skipping boss run save for historical week: ${selectedWeekKey}`);
           }
         } catch (dbError) {
           console.error('Error saving boss state to database:', dbError);
@@ -456,8 +582,8 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
       }
       
       // If boss is being unticked, also untick all pitched items for this boss/character/week
-      if (!checkedVal) {
-        const weekKey = getCurrentWeekKey();
+      // But only for current week (historical weeks are read-only)
+      if (!checkedVal && selectedWeekKey === currentWeekKey) {
         const bossObj = bossData.find(bd => bd.name === bossName);
         if (bossObj && bossObj.pitchedItems) {
           setPitchedChecked(prev => {
@@ -470,19 +596,17 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
           });
           
           // Also remove pitched items from database if user is logged in
-          if (userCode) {
-            const itemsToRemove = bossObj.pitchedItems.map(item => ({
-              character: charName,
-              bossName: bossName,
-              itemName: item.name,
-              weekKey
-            }));
-            
-            if (itemsToRemove.length > 0) {
-              removeManyPitchedItems(userCode, itemsToRemove).catch(err => {
-                console.error('Error removing pitched items:', err);
-              });
-            }
+          const itemsToRemove = bossObj.pitchedItems.map(item => ({
+            character: charName,
+            bossName: bossName,
+            itemName: item.name,
+            weekKey
+          }));
+          
+          if (itemsToRemove.length > 0 && userCode) {
+            removeManyPitchedItems(userCode, itemsToRemove).catch(err => {
+              console.error('Error removing pitched items:', err);
+            });
           }
         }
       }
@@ -494,40 +618,36 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
     }
   };
 
-  // Update handleTickAll to handle pitched items
+  // Fixed handleTickAll to instantly update UI then handle database operations in background
   const handleTickAll = async () => {
     try {
+      // Prevent tick all for read-only historical weeks
+      if (isHistoricalWeek && !readOnlyOverride) {
+        console.log('Tick All blocked - read-only mode active for historical week');
+        return;
+      }
+      
       const charKey = `${characters[selectedCharIdx]?.name || ''}-${selectedCharIdx}`;
       const currentState = checked[charKey] || {};
       const allChecked = charBosses.every(b => currentState[b.name + '-' + b.difficulty]);
+      const targetState = !allChecked; // Will check all if not all checked, uncheck all if all checked
       
+      console.log(`🔄 TICK ALL: ${targetState ? 'Checking' : 'Unchecking'} all ${charBosses.length} bosses instantly for ${characters[selectedCharIdx]?.name}`);
+      
+      // Set user interaction flag to prevent sync conflicts during batch operation
+      userInteractionRef.current = true;
+      
+      // 1. INSTANTLY update UI state for all bosses at once
       const newChecked = {
         ...checked,
-        [charKey]: Object.fromEntries(charBosses.map(b => [b.name + '-' + b.difficulty, !allChecked]))
+        [charKey]: Object.fromEntries(charBosses.map(b => [b.name + '-' + b.difficulty, targetState]))
       };
-
       setChecked(newChecked);
-
-      // If checking all bosses and not unticking
-      if (!allChecked) {
-        // Get userCode for cloud syncing
-        const userCode = localStorage.getItem('ms-user-code');
-        
-        if (userCode) {
-          // For each boss that has pitched items, mark them in the UI
-          // but don't automatically mark them as obtained in the cloud
-          // Users still need to click each item individually to track it
-          charBosses.forEach(boss => {
-            const bossObj = bossData.find(bd => bd.name === boss.name);
-            // No need to save pitched items to cloud here, user will click on them individually
-          });
-        }
-      } 
-      // If unticking all, also untick all pitched items for this character
-      else {
+      
+      // 2. Handle pitched items UI state based on target state
+      if (!targetState) {
+        // If unticking all, remove all pitched items for this character
         const newPitchedChecked = { ...pitchedChecked };
-        const userCode = localStorage.getItem('ms-user-code');
-        const itemsToRemove = [];
         charBosses.forEach(boss => {
           const bossObj = bossData.find(bd => bd.name === boss.name);
           if (bossObj?.pitchedItems) {
@@ -535,53 +655,119 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
               const key = getPitchedKey(characters[selectedCharIdx].name, selectedCharIdx, boss.name, item.name, weekKey);
               if (newPitchedChecked[key]) {
                 delete newPitchedChecked[key];
-                // Collect for batch removal
-                itemsToRemove.push({
-                  character: characters[selectedCharIdx].name,
-                  bossName: boss.name,
-                  itemName: item.name,
-                  weekKey,
-                });
               }
             });
           }
         });
         setPitchedChecked(newPitchedChecked);
-        // REMOVED: localStorage.setItem('ms-weekly-pitched', JSON.stringify(newPitchedChecked)); // Now handled by cloud storage
-        // Batch remove from cloud
-        if (userCode && itemsToRemove.length > 0) {
-          await removeManyPitchedItems(userCode, itemsToRemove);
-        }
       }
+      
+      // 3. Process database operations in background for all bosses that changed
+      console.log(`🔄 TICK ALL: Processing database operations for ${charBosses.length} bosses...`);
+      
+      if (userCode) {
+        // Process each boss for database operations (but UI is already updated)
+        const databasePromises = charBosses.map(async (boss, index) => {
+          const bossKey = `${boss.name}-${boss.difficulty}`;
+          const wasChecked = currentState[bossKey] || false;
+          
+          // Only process if state actually changed
+          if (wasChecked !== targetState) {
+            try {
+              // Add small staggered delay to prevent overwhelming database
+              await new Promise(resolve => setTimeout(resolve, index * 25));
+              
+              // Save boss run to database using the same logic as handleCheck
+              const { supabase } = await import('./supabaseClient');
+              const { data, error } = await supabase
+                .from('user_data')
+                .select('data')
+                .eq('id', userCode)
+                .single();
+                
+              if (error) throw error;
+              
+              const updatedData = {
+                ...data.data,
+                checked: newChecked,
+                weekKey: getCurrentWeekKey(),
+                lastUpdated: new Date().toISOString()
+              };
+              
+              const { error: updateError } = await supabase
+                .from('user_data')
+                .update({ data: updatedData })
+                .eq('id', userCode);
+                
+              if (updateError) throw updateError;
+              
+              // Also save boss run in new format
+              const { saveBossRun } = await import('./pitched-data-service');
+              const bossRunData = {
+                character: characters[selectedCharIdx].name,
+                characterIdx: selectedCharIdx,
+                bossName: boss.name,
+                bossDifficulty: boss.difficulty,
+                isCleared: targetState,
+                date: new Date().toISOString()
+              };
+              
+              await saveBossRun(userCode, bossRunData);
+              
+              console.log(`✅ TICK ALL: Database updated for ${boss.name} ${boss.difficulty}: ${targetState}`);
+              
+            } catch (error) {
+              console.error(`❌ TICK ALL: Database error for ${boss.name}:`, error);
+            }
+          }
+        });
+        
+        // Handle pitched items removal if unticking
+        if (!targetState) {
+          const itemsToRemove = [];
+          charBosses.forEach(boss => {
+            const bossObj = bossData.find(bd => bd.name === boss.name);
+            if (bossObj?.pitchedItems) {
+              bossObj.pitchedItems.forEach(item => {
+                const key = getPitchedKey(characters[selectedCharIdx].name, selectedCharIdx, boss.name, item.name, weekKey);
+                if (pitchedChecked[key]) {
+                  itemsToRemove.push({
+                    character: characters[selectedCharIdx].name,
+                    bossName: boss.name,
+                    itemName: item.name,
+                    weekKey,
+                  });
+                }
+              });
+            }
+          });
+          
+          if (itemsToRemove.length > 0) {
+            databasePromises.push(removeManyPitchedItems(userCode, itemsToRemove));
+          }
+        }
+        
+        // Wait for all database operations to complete
+        await Promise.allSettled(databasePromises);
+      }
+      
+      console.log(`✅ TICK ALL: Completed batch ${targetState ? 'check' : 'uncheck'} operation with instant UI update`);
+      
     } catch (err) {
       console.error('Error in handleTickAll:', err);
       setError('Failed to update all bosses. Please try again.');
+    } finally {
+      // Clear user interaction flag after all operations complete
+      setTimeout(() => {
+        userInteractionRef.current = false;
+        console.log('🔄 TICK ALL: Interaction flag cleared, sync can resume');
+      }, 1000);
     }
   };
 
-  // Check if week has changed
-  useEffect(() => {
-    try {
-      const savedWeekKey = localStorage.getItem('ms-weekly-week-key');
-      if (savedWeekKey !== weekKey) {
-        // REMOVED: setChecked({}); // This was wiping out boss clears - now handled by App.jsx
-        // REMOVED: localStorage.setItem('ms-weekly-week-key', weekKey); // Now handled by cloud storage
-      }
-    } catch (err) {
-      console.error('Error checking week change:', err);
-      setError('Failed to check week change. Please refresh the page.');
-    }
-  }, [weekKey, setChecked]);
+  // Week change handling now fully managed by cloud data sync (no localStorage needed)
 
-  // Save checked state to localStorage
-  useEffect(() => {
-    try {
-      // REMOVED: localStorage.setItem('ms-weekly-clears', JSON.stringify({ weekKey, checked })); // Now handled by cloud storage
-    } catch (err) {
-      console.error('Error saving to localStorage:', err);
-      setError('Failed to save progress. Please try again.');
-    }
-  }, [checked, weekKey]);
+  // Checked state saving now fully handled by cloud storage (no localStorage needed)
 
   // Reset selectedCharIdx if it's out of bounds
   useEffect(() => {
@@ -607,14 +793,11 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
     }
   });
 
-  // Only load from localStorage on first mount
-  const [progressData, setProgressData] = useState(() => {
-    const saved = localStorage.getItem('ms-progress');
-    return saved ? JSON.parse(saved) : {
-      weeklyTotal: 0,
-      lastReset: new Date().toISOString(),
-      history: []
-    };
+  // Progress data now tracked in memory only (no localStorage)
+  const [progressData, setProgressData] = useState({
+    weeklyTotal: 0,
+    lastReset: new Date().toISOString(),
+    history: []
   });
 
   // Calculate total meso value for a character
@@ -623,179 +806,156 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
   // Calculate total meso value for all characters
   const overallTotal = characters.reduce((sum, c) => sum + charTotal(c), 0);
 
-  // Update progress when total changes
+  // Update progress when total changes (memory only, no localStorage)
   useEffect(() => {
     setProgressData(prev => ({
       ...prev,
       weeklyTotal: overallTotal
     }));
-    // REMOVED: localStorage.setItem('ms-progress', JSON.stringify(progressData)); // Now handled by cloud storage
   }, [overallTotal]);
 
-  // Update progress tracking
-  useEffect(() => {
-    const now = new Date();
-    const lastReset = new Date(progressData.lastReset);
-    const daysSinceReset = Math.floor((now - lastReset) / (1000 * 60 * 60 * 24));
-
-    // Reset weekly total if it's been 7 days
-    if (daysSinceReset >= 7) {
-      setProgressData(prev => ({
-        weeklyTotal: 0,
-        lastReset: now.toISOString(),
-        history: [...prev.history, { date: prev.lastReset, total: prev.weeklyTotal }]
-      }));
-    }
-  }, [progressData.lastReset]);
-
-  // Update window size for confetti
-  useEffect(() => {
-    const handleResize = () => {
-      setWindowSize({
-        width: window.innerWidth,
-        height: window.innerHeight
-      });
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  // Update progress tracking  useEffect(() => {    const now = new Date();    const lastReset = new Date(progressData.lastReset);    const daysSinceReset = Math.floor((now - lastReset) / (1000 * 60 * 60 * 24));    // Reset weekly total if it's been 7 days    if (daysSinceReset >= 7) {      setProgressData(prev => ({        weeklyTotal: 0,        lastReset: now.toISOString(),        history: [...prev.history, { date: prev.lastReset, total: prev.weeklyTotal }]      }));    }  }, [progressData.lastReset]);  // Window size state for confetti  const [windowSize, setWindowSize] = useState({    width: window.innerWidth,    height: window.innerHeight  });  // Update window size for confetti  useEffect(() => {    const handleResize = () => {      setWindowSize({        width: window.innerWidth,        height: window.innerHeight      });    };    window.addEventListener('resize', handleResize);    return () => window.removeEventListener('resize', handleResize);  }, []);
 
   // Check if any character has at least one selected boss
   const anyBossesSelected = characters.some(char => (char.bosses || []).length > 0);
+  
+  // Read-only mode for historical weeks with toggle
+  const isHistoricalWeek = selectedWeekKey !== currentWeekKey;
+  const [readOnlyOverride, setReadOnlyOverride] = useState(false);
+  const isReadOnlyMode = isHistoricalWeek && !readOnlyOverride;
 
   // Stats modal state
   const [showStats, setShowStats] = useState(false);
   const [showStatsResetConfirm, setShowStatsResetConfirm] = useState(false);
-  // Persistent stats (never reset unless user requests)
-  const [statsPanel, setStatsPanel] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ms-stats-panel');
-      if (!saved) return { monthly: [], yearly: [] };
-      
-      const parsed = JSON.parse(saved);
-      // Ensure the structure is correct
-      return {
-        monthly: Array.isArray(parsed.monthly) ? parsed.monthly : [],
-        yearly: Array.isArray(parsed.yearly) ? parsed.yearly : []
-      };
-    } catch (error) {
-      console.error('Error parsing stats panel from localStorage:', error);
-      return { monthly: [], yearly: [] };
-    }
-  });
-  // Save statsPanel to localStorage
-  useEffect(() => {
-    // REMOVED: localStorage.setItem('ms-stats-panel', JSON.stringify(statsPanel)); // Now handled by cloud storage
-  }, [statsPanel]);
-  // --- Stats tracking flag ---
-  const [statsTrackingStarted, setStatsTrackingStarted] = useState(() => {
-    return localStorage.getItem('ms-stats-tracking-started') === 'true';
-  });
-  // Set flag on first input
+  
+  // Stats are now completely cloud-based - no local storage
+  const [statsPanel] = useState({ monthly: [], yearly: [] }); // Empty placeholder
+  
+  // No more local stats tracking - everything is cloud-based
   function startStatsTrackingIfNeeded() {
-    if (!statsTrackingStarted) {
-      setStatsTrackingStarted(true);
-      // REMOVED: localStorage.setItem('ms-stats-tracking-started', 'true'); // Now handled by cloud storage
-    }
+    // Stats tracking now handled by cloud pitched items
+    console.log('Stats tracking is now cloud-based - no action needed');
   }
-  // --- Update stats panel on pitched/clears change, only if tracking started ---
-  useEffect(() => {
-    if (!statsTrackingStarted) return;
-    if (showStats) return;
+
+    // Stats panel updates are no longer needed - everything is cloud-based
+
+    // --- Brand new confirmation state management ---
+    const [resetSuccessVisible, setResetSuccessVisible] = useState(false);
     
-    const weekKey = getCurrentWeekKey();
-    const monthKey = getCurrentMonthKey();
-    const yearKey = getCurrentYearKey();
-
-    // Gather monthly data
-    const monthlyData = [];
-    characters.forEach((char, charIdx) => {
-      (char.bosses || []).forEach(boss => {
-        const bossObj = bossData.find(bd => bd.name === boss.name);
-        if (!bossObj) return;
-        const cleared = checked[`${char.name}-${charIdx}`]?.[boss.name + '-' + boss.difficulty];
-        const pitched = (bossObj.pitchedItems || []).map(item => {
-          const key = getPitchedKey(char.name, charIdx, boss.name, item.name, weekKey);
-          return { name: item.name, image: item.image, obtained: !!pitchedChecked[key] };
-        });
-        monthlyData.push({
-          char: char.name,
-          boss: boss.name,
-          difficulty: boss.difficulty,
-          cleared,
-          mesos: cleared ? getBossPrice(boss.name, boss.difficulty) / (boss.partySize || 1) : 0,
-          pitched: pitched.filter(p => p.obtained),
-          weekKey
-        });
-      });
-    });
-
-    // Update monthly stats
-    setStatsPanel(prev => {
-      const newMonthly = prev.monthly.filter(m => m.monthKey !== monthKey);
-      const monthData = newMonthly.find(m => m.monthKey === monthKey) || { monthKey, data: [] };
-      
-      // Remove the current week's data if it exists
-      monthData.data = monthData.data.filter(d => d.weekKey !== weekKey);
-      // Add the new data
-      monthData.data.push({ weekKey, monthlyData });
-      
-      newMonthly.push(monthData);
-      
-      // Update yearly stats
-      const newYearly = prev.yearly.filter(y => y.yearKey !== yearKey);
-      const yearData = newYearly.find(y => y.yearKey === yearKey) || { yearKey, data: [] };
-      
-      // Remove the current week's data if it exists
-      yearData.data = yearData.data.filter(d => d.weekKey !== weekKey);
-      // Add the new data
-      yearData.data.push({ weekKey, monthlyData });
-      
-      newYearly.push(yearData);
-
-      const newStats = {
-        monthly: newMonthly,
-        yearly: newYearly
-      };
-
-      // Save to localStorage immediately
-      // REMOVED: localStorage.setItem('ms-stats-panel', JSON.stringify(newStats)); // Now handled by cloud storage
-      
-      return newStats;
-    });
-  }, [characters, checked, pitchedChecked, showStats, statsTrackingStarted]);
-
-  // --- Brand new confirmation state management ---
-  const [resetSuccessVisible, setResetSuccessVisible] = useState(false);
+    // --- Character-specific purge state management ---
+    const [showCharacterPurgeConfirm, setShowCharacterPurgeConfirm] = useState(false);
+    const [purgeTargetCharacter, setPurgeTargetCharacter] = useState(null);
+    const [purgeInProgress, setPurgeInProgress] = useState(false);
+    const [purgeSuccess, setPurgeSuccess] = useState(false);
+    const [auditHistory, setAuditHistory] = useState([]);
   
-  // --- Separate function to handle the actual data reset ---
-  const resetAllStatsData = () => {
-    // Clear stats panel
-    setStatsPanel({ monthly: [], yearly: [] });
-    // REMOVED: localStorage.setItem('ms-stats-panel', JSON.stringify({ monthly: [], yearly: [] })); // Now handled by cloud storage
+    // --- Separate function to handle the actual data reset ---
+    const resetAllStatsData = () => {
+      // Clear pitched items UI only (cloud data cleared separately)
+      setPitchedChecked({});
+      
+      // Reset selectors
+      setSelectedYear(getCurrentYearKey());
+    };
     
-    // Clear pitched items
-    setPitchedChecked({});
-    // REMOVED: localStorage.setItem('ms-weekly-pitched', JSON.stringify({})); // Now handled by cloud storage
+    // --- Reset handler (just closes confirm dialog and shows success message) ---
+    const handleStatsReset = () => {
+      resetAllStatsData();
+      setShowStatsResetConfirm(false);
+      setResetSuccessVisible(true);
+    };
     
-    // Reset selectors
-    setSelectedYear(getCurrentYearKey());
-    setSelectedChar('');
-  };
-  
-  // --- Reset handler (just closes confirm dialog and shows success message) ---
-  const handleStatsReset = () => {
-    resetAllStatsData();
-    setShowStatsResetConfirm(false);
-    setResetSuccessVisible(true);
-  };
-  
-  // --- Close success message handler ---
-  const closeResetSuccess = () => {
-    setResetSuccessVisible(false);
-    setShowStats(false);
-  };
+    // --- Close success message handler ---
+    const closeResetSuccess = () => {
+      setResetSuccessVisible(false);
+      setShowStats(false);
+    };
+
+    // --- Character-specific purge handler ---
+    const handleCharacterPurge = async () => {
+      if (!purgeTargetCharacter) return;
+      
+      try {
+        setPurgeInProgress(true);
+        const { name, idx } = purgeTargetCharacter;
+        
+        console.log(`🗑️ Starting purge for character: ${name} (index: ${idx})`);
+        
+        // Prevent background sync conflicts during purge
+        userInteractionRef.current = true;
+        
+        // 1. Clear any old localStorage data that might interfere
+        console.log('🔄 PURGE: Clearing old localStorage pitched data...');
+        localStorage.removeItem('ms-weekly-pitched');
+        localStorage.removeItem('ms-weekly-pitched-week-key');
+        localStorage.removeItem('ms-stats-panel');
+        
+        // 2. Clear UI checkmarks first
+        const updatedPitchedChecked = clearCharacterPitchedUI(pitchedChecked, name, idx, weekKey);
+        setPitchedChecked(updatedPitchedChecked);
+        
+        // 2. Purge from database
+        const result = await purgePitchedRecords(userCode, name, idx);
+        
+        if (result.success) {
+          console.log(`✅ Successfully purged ${result.itemsRemoved} items and ${result.bossRunsRemoved} boss runs for ${name}`);
+          
+          // 3. IMMEDIATE: Clear the cloud data states to force fresh reload
+          console.log('🔄 PURGE: Clearing stale cloud data from state...');
+          setCloudPitchedItems([]);
+          setCloudPitchedStats({});
+          
+          // 4. Force refresh cloud pitched items (used by sync logic)
+          console.log('🔄 PURGE: Refreshing cloud pitched items from database...');
+          await refreshPitchedItems(userCode);
+          
+          // 4.5. Log the refreshed data for debugging
+          console.log('🔄 PURGE: Current cloudPitchedItems after refresh:', cloudPitchedItems.length);
+          
+          // 5. Wait a moment for database to update then refresh cloud stats
+          console.log('🔄 PURGE: Waiting for database consistency...');
+          await new Promise(resolve => setTimeout(resolve, 500)); // Brief delay for consistency
+          
+          console.log('🔄 PURGE: Refreshing cloud stats from database...');
+          const statsResult = await getYearlyPitchedStats(userCode);
+          if (statsResult.success) {
+            console.log('🔄 PURGE: Cloud stats refreshed successfully, items found:', Object.keys(statsResult.data).length);
+            setCloudPitchedStats(statsResult.data);
+          } else {
+            console.error('🔄 PURGE: Failed to refresh cloud stats:', statsResult.error);
+          }
+          
+          // 6. Show success
+          setPurgeSuccess(true);
+          setShowCharacterPurgeConfirm(false);
+          
+          // 7. Update audit history
+          const auditResult = await getPitchedResetAuditHistory(userCode);
+          if (auditResult.success) {
+            setAuditHistory(auditResult.history);
+          }
+          
+          // Auto-hide success message after 3 seconds
+          setTimeout(() => {
+            setPurgeSuccess(false);
+          }, 3000);
+          
+        } else {
+          console.error('Purge failed:', result.error);
+          setError('Failed to purge character data. Please try again.');
+        }
+        
+      } catch (error) {
+        console.error('Error in handleCharacterPurge:', error);
+        setError('Failed to purge character data. Please try again.');
+      } finally {
+        setPurgeInProgress(false);
+        // Clear user interaction flag
+        setTimeout(() => {
+          userInteractionRef.current = false;
+        }, 1000);
+      }
+    };
 
   // Cloud-based pitched items stats
   const [cloudPitchedStats, setCloudPitchedStats] = useState({});
@@ -803,17 +963,13 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
   
   // Fetch cloud-based pitched items stats when viewing stats
   useEffect(() => {
-    if (showStats) {
+    if (showStats && userCode) {
       const fetchCloudStats = async () => {
         try {
           setIsLoadingCloudStats(true);
-          const userCode = localStorage.getItem('ms-user-code');
-          
-          if (userCode) {
-            const result = await getYearlyPitchedStats(userCode);
-            if (result.success) {
-              setCloudPitchedStats(result.data);
-            }
+          const result = await getYearlyPitchedStats(userCode);
+          if (result.success) {
+            setCloudPitchedStats(result.data);
           }
         } catch (error) {
           console.error('Error fetching cloud pitched stats:', error);
@@ -824,26 +980,34 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
       
       fetchCloudStats();
     }
-  }, [showStats]);
+  }, [showStats, userCode]);
   
   // State for selected year in stats modal
   const allYears = useMemo(() => {
-    if (!statsPanel || !statsPanel.yearly || !Array.isArray(statsPanel.yearly)) return [];
-    // Combine years from stats panel and cloud pitched stats
-    const statsYears = statsPanel.yearly.map(y => y.yearKey);
-    const cloudYears = Object.keys(cloudPitchedStats);
+    // Always start with current year as fallback
+    const currentYear = getCurrentYearKey();
+    const yearsSet = new Set([currentYear]);
     
-    // Combine and deduplicate years
-    const allYearsSet = new Set([...statsYears, ...cloudYears]);
-    return Array.from(allYearsSet).sort((a, b) => b.localeCompare(a));
+    // Add years from stats panel (if any)
+    if (statsPanel && statsPanel.yearly && Array.isArray(statsPanel.yearly)) {
+      statsPanel.yearly.forEach(y => yearsSet.add(y.yearKey));
+    }
+    
+    // Add years from cloud pitched stats (if any)
+    const cloudYears = Object.keys(cloudPitchedStats);
+    cloudYears.forEach(year => yearsSet.add(year));
+    
+    // Convert to array and sort (most recent first)
+    return Array.from(yearsSet).sort((a, b) => b.localeCompare(a));
   }, [statsPanel.yearly, cloudPitchedStats]);
   
-  const [selectedYear, setSelectedYear] = useState(() => {
-    return allYears && allYears.length > 0 ? allYears[0] : getCurrentYearKey();
-  });
+  const [selectedYear, setSelectedYear] = useState(() => getCurrentYearKey());
+  
   useEffect(() => {
+    // Always ensure selected year is in the available years list
     if (allYears && Array.isArray(allYears) && allYears.length > 0) {
       if (!allYears.includes(selectedYear)) {
+        // If current selection isn't available, default to first year (which will be most recent)
         setSelectedYear(allYears[0]);
       }
     }
@@ -852,36 +1016,8 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
 
   // --- Combined local and cloud pitched items summary ---
   const yearlyPitchedSummary = useMemo(() => {
-    // Start with an empty map to store all pitched items
+    // Only use cloud data for pitched summary
     const pitchedMap = new Map();
-    
-    // Process local data from statsPanel
-    if (statsPanel?.yearly && Array.isArray(statsPanel.yearly)) {
-      const yearData = statsPanel.yearly.find(y => y.yearKey === selectedYear);
-      if (yearData?.data) {
-        yearData.data.forEach(w => {
-          if (!w || !w.monthlyData) return;
-          w.monthlyData.forEach(d => {
-            if (!d || !d.pitched || !Array.isArray(d.pitched)) return;
-            d.pitched.forEach(p => {
-              if (!p || !p.name || !p.image) return;
-              const key = p.name + '|' + p.image;
-              if (!pitchedMap.has(key)) pitchedMap.set(key, { ...p, count: 0, history: [], source: 'local' });
-              pitchedMap.get(key).count += 1;
-              const [year, weekNum] = d.weekKey.split('-');
-              const jan1 = new Date(Date.UTC(parseInt(year), 0, 1));
-              const weekOffset = (parseInt(weekNum) - 1) * 7;
-              const weekDate = new Date(jan1.getTime() + weekOffset * 24 * 60 * 60 * 1000);
-              const monthNum = weekDate.getUTCMonth();
-              const day = weekDate.getUTCDate();
-              pitchedMap.get(key).history.push({ char: d.char, date: `${MONTH_NAMES[monthNum]} ${day}`, local: true });
-            });
-          });
-        });
-      }
-    }
-    
-    // Process cloud data from cloudPitchedStats
     const cloudData = cloudPitchedStats[selectedYear];
     if (cloudData && cloudData.items && Array.isArray(cloudData.items)) {
       cloudData.items.forEach(item => {
@@ -897,25 +1033,20 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
           });
         }
         pitchedMap.get(key).count += 1;
-        
         // Format the date for display
         const date = new Date(item.date);
         const monthNum = date.getUTCMonth();
         const day = date.getUTCDate();
-        
         pitchedMap.get(key).history.push({ 
           char: item.character, 
           date: `${MONTH_NAMES[monthNum]} ${day}`,
           cloud: true,
-          fullDate: item.date  // Store full date for sorting
+          fullDate: item.date
         });
       });
     }
-    
-    // Convert map to array and sort by count (highest first) then name
+    // Convert map to array and sort
     const result = Array.from(pitchedMap.values());
-    
-    // Sort each item's history by date (newest first)
     result.forEach(item => {
       if (item.history && Array.isArray(item.history)) {
         item.history.sort((a, b) => {
@@ -926,9 +1057,8 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
         });
       }
     });
-    
     return result.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-  }, [statsPanel.yearly, selectedYear, cloudPitchedStats]);
+  }, [selectedYear, cloudPitchedStats]);
 
   // --- State for pitched modal ---
   const [pitchedModalItem, setPitchedModalItem] = useState(null);
@@ -1001,14 +1131,24 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
   const visibleCharSummaries = hideCompleted ? charSummaries.filter(cs => !cs.allCleared) : charSummaries;
 
   // --- 4. Custom checkbox component ---
-  function CustomCheckbox({ checked, onChange }) {
+  function CustomCheckbox({ checked, onChange, disabled = false }) {
     return (
-      <div className="checkbox-wrapper" style={{ transform: 'scale(0.8)' }}>
+      <div className="checkbox-wrapper" style={{ 
+        transform: 'scale(0.8)',
+        opacity: disabled ? 0.5 : 1,
+        cursor: disabled ? 'not-allowed' : 'pointer'
+      }}>
         <input
           type="checkbox"
           checked={checked}
           onChange={onChange}
-          style={{ background: '#3a335a', color: '#e6e0ff', border: '1.5px solid #2d2540' }}
+          disabled={disabled}
+          style={{ 
+            background: '#3a335a', 
+            color: '#e6e0ff', 
+            border: '1.5px solid #2d2540',
+            cursor: disabled ? 'not-allowed' : 'pointer'
+          }}
         />
         <svg viewBox="0 0 35.6 35.6">
           <circle className="background" cx="17.8" cy="17.8" r="17.8"></circle>
@@ -1041,49 +1181,57 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
         <img src="/bosses/yellowcrystal.png" alt="Yellow Crystal" style={{ width: 32, height: 32 }} />
       </div>
 
+      {/* Week Navigation */}
+      <WeekNavigator
+        selectedWeekKey={selectedWeekKey}
+        onWeekChange={handleWeekChange}
+        availableWeeks={availableWeeks}
+        isLoading={isLoadingWeekData}
+        isReadOnlyMode={isReadOnlyMode}
+        isHistoricalWeek={isHistoricalWeek}
+      />
+
+      {/* Top positioned elements */}
       <div style={{ position: 'absolute', top: 18, left: 32, zIndex: 10 }}>
         <span style={{ color: '#d6b4ff', fontSize: '1.08em', fontWeight: 700, letterSpacing: 1, background: 'rgba(128,90,213,0.08)', borderRadius: 8, padding: '0.3rem 1.1rem', boxShadow: '0 2px 8px #a259f722' }}>
           ID: {userCode}
         </span>
       </div>
       
-      {/* Current Week Display - Make it more prominent */}
-      <div style={{ 
-        maxWidth: 700, 
-        margin: '0 auto 1rem auto', 
-        background: 'linear-gradient(135deg, #3a2a5d, #28204a)', 
-        borderRadius: 12, 
-        padding: '1rem', 
-        boxShadow: '0 4px 16px rgba(40, 20, 60, 0.25)',
-        textAlign: 'center',
-        border: '2px solid #805ad5'
-      }}>
+      {/* Reset timer - top right position, only show for current week */}
+      {selectedWeekKey === currentWeekKey && (
         <div style={{ 
-          fontSize: '1.2rem', 
-          marginBottom: 8,
-          color: '#a259f7',
-          fontWeight: 700,
-          textShadow: '0 0 10px rgba(162, 89, 247, 0.5)'
+          position: 'absolute', 
+          top: 18, 
+          right: 32, 
+          zIndex: 10,
+          background: 'linear-gradient(135deg, #3a2a5d, #28204a)', 
+          borderRadius: 10, 
+          padding: '0.8rem 1rem', 
+          boxShadow: '0 4px 16px rgba(40, 20, 60, 0.3)',
+          textAlign: 'center',
+          border: '1px solid #4a4570',
+          minWidth: 180
         }}>
-          CURRENT WEEK: {weekKey}
+          <div style={{ fontSize: '0.85rem', fontWeight: 700, margin: 0, marginBottom: 6, color: '#b39ddb' }}>Next Reset</div>
+          <div style={{ 
+            fontSize: '1.1rem', 
+            fontFamily: 'monospace', 
+            fontWeight: 600, 
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '0.3rem',
+            color: '#e6e0ff'
+          }}>
+            <span>{timeUntilReset.days}d</span>
+            <span>{timeUntilReset.hours}h</span>
+            <span>{timeUntilReset.minutes}m</span>
+          </div>
+          <div style={{ fontSize: '0.7rem', marginTop: '0.3rem', color: '#9f7aea' }}>
+            Thursday 00:00 UTC
+          </div>
         </div>
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, marginBottom: 10 }}>Next Reset</h3>
-        <div style={{ 
-          fontSize: '1.5rem', 
-          fontFamily: 'monospace', 
-          fontWeight: 600, 
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '0.5rem'
-        }}>
-          <span>{timeUntilReset.days}d</span>
-          <span>{timeUntilReset.hours}h</span>
-          <span>{timeUntilReset.minutes}m</span>
-        </div>
-        <div style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>
-          Thursday 00:00 UTC
-        </div>
-      </div>
+      )}
 
       {/* 3. Character summary table/list */}
       <div style={{ 
@@ -1130,6 +1278,13 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
             <div
               key={cs.name + '-' + cs.idx}
               onClick={() => setSelectedCharIdx(cs.idx)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                if (!isReadOnlyMode) {
+                  setPurgeTargetCharacter({ name: cs.name, idx: cs.idx });
+                  setShowCharacterPurgeConfirm(true);
+                }
+              }}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -1145,14 +1300,13 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
-                border: '1px solid #3a335a',
+                border: selectedCharIdx === cs.idx 
+                  ? (isHistoricalWeek ? '1px solid #9f7aea' : '1px solid #805ad5')
+                  : '1px solid #3a335a',
                 textAlign: 'center',
                 transform: 'translateY(0)',
-                '&:hover': {
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 4px 12px rgba(40, 20, 60, 0.25)',
-                  background: '#2a2540'
-                }
+                opacity: isHistoricalWeek ? 0.9 : 1,
+                position: 'relative'
               }}
               onMouseOver={e => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
@@ -1165,6 +1319,27 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
                 e.currentTarget.style.background = selectedCharIdx === cs.idx ? '#3a335a' : '#23203a';
               }}
             >
+              {/* Historical week indicator */}
+              {isHistoricalWeek && selectedCharIdx === cs.idx && (
+                <div style={{
+                  position: 'absolute',
+                  top: -6,
+                  right: -6,
+                  background: isReadOnlyMode ? '#ff6b6b' : '#38a169',
+                  color: '#fff',
+                  borderRadius: '50%',
+                  width: 20,
+                  height: 20,
+                  fontSize: '0.7rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                  zIndex: 5
+                }}>
+                  {isReadOnlyMode ? '🔒' : '✏️'}
+                </div>
+              )}
               {cs.allCleared ? (
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontWeight: 700, fontSize: '1em', width: '100%' }}>
                   <span>{cs.name}</span>
@@ -1188,18 +1363,126 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
         </div>
 
       </div>
+      {/* Read-only mode indicator and controls for historical weeks */}
+      {isHistoricalWeek && (
+        <div style={{
+          maxWidth: 700,
+          margin: '0 auto 1rem auto',
+          background: isReadOnlyMode 
+            ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.2))' 
+            : 'linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(22, 163, 74, 0.2))',
+          borderRadius: 12,
+          padding: '1rem 1.5rem',
+          fontWeight: 600,
+          boxShadow: isReadOnlyMode 
+            ? '0 4px 12px rgba(239, 68, 68, 0.3)' 
+            : '0 4px 12px rgba(34, 197, 94, 0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '1rem',
+          border: isReadOnlyMode
+            ? '2px solid rgba(239, 68, 68, 0.6)'
+            : '2px solid rgba(34, 197, 94, 0.6)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
+            <span style={{ fontSize: '1.2rem' }}>
+              {isReadOnlyMode ? '🔒' : '✏️'}
+            </span>
+            <div>
+              <div style={{ 
+                fontSize: '1rem', 
+                marginBottom: '0.2rem',
+                color: '#ffffff', // White text for maximum contrast
+                fontWeight: 700,
+                textShadow: '1px 1px 2px rgba(0, 0, 0, 0.8)', // Text shadow for readability
+                filter: 'none' // Remove any glow effects
+              }}>
+                {isReadOnlyMode ? 'Read-Only Mode' : 'Edit Mode'}
+              </div>
+              <div style={{ 
+                fontSize: '0.85rem', 
+                color: '#f3f4f6', // Very light gray text
+                fontWeight: 500,
+                textShadow: '1px 1px 2px rgba(0, 0, 0, 0.7)', // Text shadow for readability
+                filter: 'none', // Remove any glow effects
+                opacity: 0.95
+              }}>
+                {isReadOnlyMode 
+                  ? 'Historical week data is protected from changes'
+                  : 'Editing enabled for historical week data'
+                }
+              </div>
+            </div>
+          </div>
+          
+          {/* Toggle button */}
+          <button
+            onClick={() => setReadOnlyOverride(!readOnlyOverride)}
+            style={{
+              background: isReadOnlyMode 
+                ? 'linear-gradient(135deg, #dc2626, #b91c1c)' 
+                : 'linear-gradient(135deg, #059669, #047857)',
+              border: 'none',
+              borderRadius: 8,
+              color: '#ffffff', // White text for maximum contrast
+              padding: '0.6rem 1.2rem',
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              minWidth: 120,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              boxShadow: isReadOnlyMode
+                ? '0 2px 8px rgba(220, 38, 38, 0.4)'
+                : '0 2px 8px rgba(5, 150, 105, 0.4)',
+              textShadow: '1px 1px 2px rgba(0, 0, 0, 0.5)', // Text shadow for button text
+              filter: 'none' // Remove any glow effects
+            }}
+            onMouseOver={e => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.boxShadow = isReadOnlyMode
+                ? '0 4px 12px rgba(220, 38, 38, 0.6)'
+                : '0 4px 12px rgba(5, 150, 105, 0.6)';
+            }}
+            onMouseOut={e => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = isReadOnlyMode
+                ? '0 2px 8px rgba(220, 38, 38, 0.4)'
+                : '0 2px 8px rgba(5, 150, 105, 0.4)';
+            }}
+            title={isReadOnlyMode 
+              ? 'Enable editing for this historical week' 
+              : 'Disable editing to protect historical data'
+            }
+          >
+            <span>{isReadOnlyMode ? '🔓' : '🔒'}</span>
+            <span>{isReadOnlyMode ? 'Enable Edit' : 'Lock Data'}</span>
+          </button>
+        </div>
+      )}
+
       {showCharacterDetails && (
         <>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 24 }}>
-            <button onClick={handleTickAll} style={{ 
-              padding: '0.5rem 1.2rem', 
-              borderRadius: 6, 
-              background: '#805ad5', 
-              color: '#fff', 
-              fontWeight: 600, 
-              cursor: 'pointer',
-              border: '1px solid #9f7aea'
-            }}>
+            <button 
+              onClick={handleTickAll} 
+              disabled={isReadOnlyMode}
+              style={{ 
+                padding: '0.5rem 1.2rem', 
+                borderRadius: 6, 
+                background: isReadOnlyMode ? '#4a4a4a' : '#805ad5', 
+                color: '#fff', 
+                fontWeight: 600, 
+                cursor: isReadOnlyMode ? 'not-allowed' : 'pointer',
+                opacity: isReadOnlyMode ? 0.5 : 1,
+                border: '1px solid #9f7aea'
+              }}
+              title={isReadOnlyMode ? 'Cannot modify historical week data' : undefined}
+            >
               {charBosses.every(b => checked[`${char?.name || ''}-${selectedCharIdx}`]?.[b.name + '-' + b.difficulty]) && charBosses.length > 0 ? 'Untick All' : 'Tick All'}
             </button>
           </div>
@@ -1225,14 +1508,16 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
                         background: idx % 2 === 0 ? '#23203a' : '#201c32',
                         border: '1px solid #3a335a',
                         transition: 'background-color 0.2s ease, transform 0.2s ease',
-                        cursor: 'pointer',
-                        color: '#e6e0ff'
+                        cursor: isReadOnlyMode ? 'default' : 'pointer',
+                        color: '#e6e0ff',
+                        ...(isReadOnlyMode && { opacity: 0.8 })
                       }}
-                      onMouseOver={e => e.currentTarget.style.background = '#2a2540'}
-                      onMouseOut={e => e.currentTarget.style.background = idx % 2 === 0 ? '#23203a' : '#201c32'}
+                      onMouseOver={e => !isReadOnlyMode && (e.currentTarget.style.background = '#2a2540')}
+                      onMouseOut={e => !isReadOnlyMode && (e.currentTarget.style.background = idx % 2 === 0 ? '#23203a' : '#201c32')}
                       onClick={(e) => {
                         // Only trigger if the click wasn't on the checkbox or pitched item
-                        if (!e.target.closest('.checkbox-wrapper') && !e.target.closest('.pitched-item-icon')) {
+                        // Also check if it's read-only mode
+                        if (!isReadOnlyMode && !e.target.closest('.checkbox-wrapper') && !e.target.closest('.pitched-item-icon')) {
                           handleCheck(b, !isChecked, e);
                         }
                       }}
@@ -1277,7 +1562,7 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
                                   style={{
                                     position: 'relative',
                                     display: 'inline-block',
-                                    cursor: 'pointer',
+                                    cursor: isReadOnlyMode ? 'not-allowed' : 'pointer',
                                     borderRadius: 6,
                                     boxShadow: got ? '0 0 8px #a259f7' : 'none',
                                     border: got ? '2px solid #a259f7' : '2px solid #3a335a',
@@ -1285,10 +1570,17 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
                                     transition: 'box-shadow 0.2s, border 0.2s, background 0.2s',
                                     width: 32,
                                     height: 32,
-                                    marginLeft: 2
+                                    marginLeft: 2,
+                                    opacity: isReadOnlyMode ? 0.6 : 1
                                   }}
                                   onClick={async (e) => {
                                     e.stopPropagation();
+                                    
+                                    // Prevent interaction for historical weeks
+                                    if (isReadOnlyMode) {
+                                      console.log('Pitched item click blocked - read-only mode');
+                                      return;
+                                    }
                                     
                                     // Set user interaction flag to prevent sync conflicts
                                     userInteractionRef.current = true;
@@ -1305,8 +1597,7 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
                                     setLoadingPitchedItems(prev => ({ ...prev, [key]: true }));
                                     
                                     try {
-                                      const userCodeVal = userCode || localStorage.getItem('ms-user-code');
-                                      if (!userCodeVal) {
+                                      if (!userCode) {
                                         setError('Please log in to save pitched items to cloud.');
                                         return;
                                       }
@@ -1329,7 +1620,7 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
                                       
                                       // 2. Save to cloud
                                       console.log('🖱️ USER: Saving to cloud...');
-                                      const result = await savePitchedItem(userCodeVal, {
+                                      const result = await savePitchedItem(userCode, {
                                         character: char.name,
                                         bossName: b.name,
                                         itemName: item.name,
@@ -1455,7 +1746,8 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
                         <span onClick={e => e.stopPropagation()}>
                           <CustomCheckbox
                             checked={isChecked}
-                            onChange={e => handleCheck(b, e.target.checked, e)}
+                            onChange={e => !isReadOnlyMode && handleCheck(b, e.target.checked, e)}
+                            disabled={isReadOnlyMode}
                           />
                         </span>
                       </td>
@@ -1471,90 +1763,41 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
             fontWeight: 'bold', 
             textAlign: 'center' 
           }}>
-
+            {/* Other content if needed */}
           </div>
         </>
       )}
       {/* Action buttons at top */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, maxWidth: 700, margin: '0 auto 12px auto' }}>
         <button
-          style={{ background: '#e53e3e', color: '#fff', border: 'none', borderRadius: 8, padding: '0.4rem 1.1rem', fontWeight: 700, fontSize: '1em', cursor: 'pointer' }}
-          onClick={async () => {
-            if (window.confirm('Are you sure you want to reset all weekly data? This will clear all boss clears and pitched items for the current week.')) {
-              try {
-                // 1. Clear all local state for boss clears
-                setChecked({});
-                
-                // 2. Clear all local state for pitched items
-                setPitchedChecked({});
-                
-                // 3. Clear database data if user is logged in
-                const userCode = localStorage.getItem('ms-user-code');
-                if (userCode) {
-                  // Get current data from database
-                  const { supabase } = await import('./supabaseClient');
-                  
-                  // For pitched items: filter out items from current week
-                  const { data, error } = await supabase
-                    .from('user_data')
-                    .select('pitched_items')
-                    .eq('id', userCode)
-                    .single();
-                  
-                  if (!error && data && data.pitched_items) {
-                    const currentWeekKey = getCurrentWeekKey();
-                    const filteredItems = data.pitched_items.filter(item => item.weekKey !== currentWeekKey);
-                    
-                    // Update pitched_items in database
-                    await supabase
-                      .from('user_data')
-                      .update({ pitched_items: filteredItems })
-                      .eq('id', userCode);
-                    
-                    // Update cloud pitched items in local state
-                    setCloudPitchedItems(filteredItems);
-                    
-                    // Refresh pitched items to ensure UI is in sync with database
-                    refreshPitchedItems(userCode);
-                  }
-                  
-                  // For boss clears: clear current week data
-                  const { data: userData, error: userError } = await supabase
-                    .from('user_data')
-                    .select('data')
-                    .eq('id', userCode)
-                    .single();
-                  
-                  if (!userError && userData && userData.data) {
-                    const updatedData = {
-                      ...userData.data,
-                      checked: {},
-                      lastUpdated: new Date().toISOString()
-                    };
-                    
-                    // Update data in database
-                    await supabase
-                      .from('user_data')
-                      .update({ data: updatedData })
-                      .eq('id', userCode);
-                  }
-                }
-                
-                alert('Weekly tracking data has been reset successfully!');
-              } catch (error) {
-                console.error('Error resetting data:', error);
-                setError('Failed to reset data. Please try again.');
-              }
-            }
+          style={{
+            background: 'linear-gradient(135deg, #805ad5, #9f7aea)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 12,
+            padding: '0.8rem 2.5rem',
+            fontWeight: 700,
+            fontSize: '1.1em',
+            cursor: 'pointer',
+            width: '100%',
+            maxWidth: 320,
+            boxShadow: '0 4px 12px rgba(128, 90, 213, 0.4)',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            letterSpacing: '0.5px',
+            position: 'relative',
+            overflow: 'hidden'
           }}
-        >
-          Reset Data
-        </button>
-        <button
-          style={{ background: '#805ad5', color: '#fff', border: 'none', borderRadius: 8, padding: '0.4rem 1.1rem', fontWeight: 700, fontSize: '1em', cursor: 'pointer' }}
+          onMouseOver={e => {
+            e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+            e.currentTarget.style.boxShadow = '0 8px 20px rgba(128, 90, 213, 0.6)';
+          }}
+          onMouseOut={e => {
+            e.currentTarget.style.transform = 'translateY(0) scale(1)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(128, 90, 213, 0.4)';
+          }}
           onClick={() => setShowStats(true)}
         >
-          View Stats
+           View Stats
         </button>
       </div>
       {/* Stats Modal Panel */}
@@ -1577,16 +1820,24 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
             <button onClick={() => setShowStats(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', color: '#fff', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }} title="Close">×</button>
             <h2 style={{ color: '#a259f7', fontWeight: 700, marginBottom: 18, textAlign: 'center' }}>Yearly Stats</h2>
             {/* Year selector dropdown */}
-            <div style={{ marginBottom: 18, display: 'flex', justifyContent: 'center' }}>
+            <div style={{ marginBottom: 18, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)} style={{ background: '#3a335a', color: '#e6e0ff', border: '1px solid #805ad5', borderRadius: 6, padding: '6px 18px', fontWeight: 600, fontSize: '1.08em', minWidth: 120, textAlign: 'center' }}>
                 {allYears.map(y => (
                   <option key={y} value={y}>{y}</option>
                 ))}
               </select>
+              {yearlyPitchedSummary.length === 0 && (
+                <div style={{ marginTop: 8, fontSize: '0.9rem', color: '#b39ddb', textAlign: 'center' }}>
+                  No ptiched were found for {selectedYear}
+                </div>
+              )}
             </div>
             <div style={{ marginBottom: 8 }}>Pitched Items Obtained:</div>
             {isLoadingCloudStats ? (
               <div style={{ textAlign: 'center', padding: '15px', color: '#b39ddb' }}>Loading cloud stats...</div>
+            ) : yearlyPitchedSummary.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#888', fontSize: '1.1rem' }}>
+              </div>
             ) : (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 8, justifyContent: 'center' }}>
                 {yearlyPitchedSummary.map((p, i) => {
@@ -1832,116 +2083,22 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
           </div>
         </div>
       )}
+      
+      {/* CSS for animations */}
+      <style jsx>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes pitched-spinner {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }
-
-<style>
-{`
-  @media (max-width: 600px) {
-    /* Table scroll container: full viewport width, no cutoff */
-    .table-scroll {
-      width: 100vw;
-      margin-left: -8px;
-      margin-right: -8px;
-      padding-left: 8px;
-      padding-right: 8px;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      padding-bottom: 8px;
-      margin-bottom: 12px;
-      box-sizing: border-box;
-    }
-    table {
-      min-width: 700px !important;
-      width: auto !important;
-      max-width: none !important;
-      display: table;
-      font-size: 0.95em;
-      border-collapse: separate !important;
-      border-spacing: 0;
-    }
-    thead, tbody, tr {
-      display: table-row;
-      width: auto;
-      table-layout: auto;
-    }
-    th, td {
-      padding: 6px 2px !important;
-      font-size: 0.95em !important;
-      white-space: nowrap;
-    }
-    thead tr {
-      background: #3a2a5d !important;
-    }
-    table, th, td {
-      border: 1.5px solid #2d2540 !important;
-    }
-    /* Remove padding from main content to avoid cutoff */
-    .App.dark > * {
-      padding-left: 0 !important;
-      padding-right: 0 !important;
-      max-width: 100vw !important;
-      box-sizing: border-box;
-    }
-    /* Center and align buttons */
-    .char-header-row, .table-container, .App.dark > div[style*='display: flex'] {
-      display: flex !important;
-      flex-wrap: wrap !important;
-      justify-content: center !important;
-      align-items: center !important;
-      gap: 8px !important;
-    }
-    .char-header-row > *, .table-container > button, .App.dark > div[style*='display: flex'] > button {
-      margin: 0 auto !important;
-      min-width: 0;
-      width: auto !important;
-      max-width: 90vw;
-      font-size: 0.95em !important;
-      padding: 0.5rem 1rem !important;
-      flex: 0 0 auto;
-    }
-    input, select {
-      font-size: 1em !important;
-      min-height: 44px !important;
-      width: 100% !important;
-      max-width: 100%;
-      box-sizing: border-box;
-    }
-    button {
-      font-size: 0.95em !important;
-      min-height: 38px !important;
-      width: auto !important;
-      max-width: 90vw;
-      padding: 0.5rem 1rem !important;
-      margin-bottom: 4px !important;
-      box-sizing: border-box;
-      border-radius: 12px !important;
-    }
-    .table-container {
-      min-width: 0 !important;
-      width: 100vw !important;
-      padding: 0.5rem 0 !important;
-    }
-    html, body {
-      overflow-x: hidden !important;
-    }
-  }
-  .pitched-count-white {
-    color: #fff !important;
-  }
-  .pitched-hover:hover {
-    background: #4b3a7a !important;
-    box-shadow: 0 4px 16px #a259f7cc !important;
-    transform: scale(1.08) !important;
-    transition: transform 0.18s cubic-bezier(.4,2,.6,1), box-shadow 0.18s cubic-bezier(.4,2,.6,1);
-  }
-  @keyframes pitched-spinner {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-`}
-</style> 
 
 // Export the WeeklyTracker component as default
 export default WeeklyTracker;
