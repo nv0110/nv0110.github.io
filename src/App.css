@@ -1,4 +1,5 @@
 #root {
+  position: relative;
   max-width: 1280px;
   margin: 0 auto;
   padding: 2rem;
@@ -863,5 +864,215 @@ body.dark th, body.dark thead th {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+/* Navigation Bar Styles - Matching Original App.jsx */
+
+/* Main navbar container for centering */
+.navbar-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: linear-gradient(135deg, 
+    rgba(24, 22, 34, 0.8) 0%, 
+    rgba(35, 32, 58, 0.75) 50%,
+    rgba(40, 32, 74, 0.8) 100%
+  );
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  border-bottom: 1px solid rgba(162, 89, 247, 0.15);
+  box-shadow: 
+    0 1px 0 0 rgba(255, 255, 255, 0.05) inset,
+    0 1px 3px 0 rgba(0, 0, 0, 0.12),
+    0 8px 32px 0 rgba(162, 89, 247, 0.08);
+  padding: 16px 0;
+}
+
+.navbar-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+}
+
+/* User Code Display (Left) */
+.navbar-usercode {
+  color: #e6e0ff;
+  font-size: 1.08em;
+  font-weight: 700;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, 
+    rgba(162, 89, 247, 0.15) 0%,
+    rgba(128, 90, 213, 0.12) 100%
+  );
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 12px;
+  padding: 0.4rem 1.2rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 
+    0 1px 0 0 rgba(255, 255, 255, 0.1) inset,
+    0 4px 12px 0 rgba(162, 89, 247, 0.15);
+}
+
+/* Page Navigation Container (Center) */
+.navbar-navigation {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(162, 89, 247, 0.05) 50%,
+    rgba(255, 255, 255, 0.08) 100%
+  );
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border-radius: 25px;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    0 1px 0 0 rgba(255, 255, 255, 0.15) inset,
+    0 8px 24px 0 rgba(162, 89, 247, 0.12),
+    0 2px 8px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* Navigation Buttons Container (Right) */
+.navbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Base Navigation Button Styling */
+.navbar-btn {
+  border: none;
+  border-radius: 20px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 1rem;
+  box-shadow: 0 2px 8px #0002;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(.4,2,.6,1), box-shadow 0.18s;
+  margin-right: 0;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Logout Button */
+.navbar-btn.logout {
+  background: #a259f7;
+  color: #fff;
+}
+
+.navbar-btn.logout:hover {
+  background: #b47aff;
+  box-shadow: 0 4px 16px #a259f799;
+}
+
+/* Delete Account Button */
+.navbar-btn.delete {
+  background: #ff6b6b;
+  color: #fff;
+}
+
+.navbar-btn.delete:hover {
+  background: #ff8b8b;
+  box-shadow: 0 4px 16px #ff6b6b99;
+}
+
+/* Help Button */
+.navbar-btn.help {
+  background: #805ad5;
+  color: #fff;
+}
+
+.navbar-btn.help:hover {
+  background: #a259f7;
+  box-shadow: 0 4px 16px #805ad599;
+}
+
+/* Page Navigation Button Styling */
+.navbar-nav-btn {
+  border: none;
+  border-radius: 18px;
+  padding: 0.4rem 1rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(.4,2,.6,1);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  color: #c4b5d4;
+  border: 1px solid transparent;
+}
+
+.navbar-nav-btn:hover {
+  background: rgba(162, 89, 247, 0.15);
+  color: #d6b4ff;
+  border-color: rgba(162, 89, 247, 0.3);
+  transform: translateY(-1px);
+}
+
+.navbar-nav-btn.active {
+  background: #a259f7;
+  color: #fff;
+  border-color: #a259f7;
+  box-shadow: 0 2px 8px rgba(162, 89, 247, 0.4);
+}
+
+.navbar-nav-btn.active:hover {
+  background: #b47aff;
+  border-color: #b47aff;
+}
+
+/* Responsive Navigation */
+@media (max-width: 768px) {
+  .navbar-container {
+    padding: 12px 0;
+  }
+  
+  .navbar-content {
+    flex-direction: column;
+    gap: 12px;
+    padding: 0 1rem;
+  }
+  
+  .navbar-usercode {
+    order: 1;
+  }
+  
+  .navbar-navigation {
+    position: static;
+    transform: none;
+    order: 2;
+    justify-content: center;
+  }
+  
+  .navbar-actions {
+    order: 3;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  .navbar-btn {
+    padding: 0.3rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  .navbar-nav-btn {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.85rem;
   }
 }

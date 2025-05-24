@@ -9,6 +9,22 @@ export function getCurrentWeekKey() {
   return `${utcNow.getUTCFullYear()}-${week}`;
 }
 
+// Helper: get week key from a date string
+function getWeekKeyFromDate(dateStr) {
+  if (!dateStr) return null;
+  
+  try {
+    const date = new Date(dateStr);
+    const utcDate = new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+    const onejan = new Date(utcDate.getUTCFullYear(), 0, 1);
+    const week = Math.ceil((((utcDate - onejan) / 86400000) + onejan.getUTCDay() + 1) / 7);
+    return `${utcDate.getUTCFullYear()}-${week}`;
+  } catch (error) {
+    console.error('Error getting week key from date:', error);
+    return null;
+  }
+}
+
 // Helper: get current month key (YYYY-MM)
 function getCurrentMonthKey() {
   const now = new Date();
@@ -235,9 +251,9 @@ export async function saveBossRun(userCode, data) {
 }
 
 // Function to save a pitched item to the cloud database
-export async function savePitchedItem(userCode, data, remove = false) {
+export async function savePitchedItem(userCode, data, remove = false, weekKey = null) {
   try {
-    console.log('savePitchedItem called with:', { userCode, data, remove });
+    console.log('savePitchedItem called with:', { userCode, data, remove, weekKey });
     const { character, bossName, itemName, itemImage, date, characterIdx } = data;
     
     if (!userCode || !character || !bossName || !itemName || !itemImage) {
@@ -262,16 +278,17 @@ export async function savePitchedItem(userCode, data, remove = false) {
     const currentData = userData.data || {};
     // Track boss runs inside the data object
     const currentBossRuns = currentData.boss_runs || [];
-    const currentWeekKey = getCurrentWeekKey();
+    // Use provided weekKey or derive from date or fall back to current week
+    const targetWeekKey = weekKey || getWeekKeyFromDate(date) || getCurrentWeekKey();
     
     if (remove) {
       // Remove the pitched item (filter it out)
-      console.log('Removing pitched item:', { character, bossName, itemName, weekKey: currentWeekKey });
+      console.log('Removing pitched item:', { character, bossName, itemName, weekKey: targetWeekKey });
       const updatedPitched = currentPitched.filter(item => {
         return !(item.character === character && 
                item.boss === bossName && 
                item.item === itemName && 
-               item.weekKey === currentWeekKey);
+               item.weekKey === targetWeekKey);
       });
       
       const { error: updateError } = await supabase
@@ -292,7 +309,7 @@ export async function savePitchedItem(userCode, data, remove = false) {
         item: itemName,
         image: itemImage,
         date: date || new Date().toISOString(),
-        weekKey: currentWeekKey,
+        weekKey: targetWeekKey,
       };
       
       // Check for duplicates
@@ -300,7 +317,7 @@ export async function savePitchedItem(userCode, data, remove = false) {
         item.character === character && 
         item.boss === bossName && 
         item.item === itemName && 
-        item.weekKey === currentWeekKey
+        item.weekKey === targetWeekKey
       );
       
       if (existingItem) {
@@ -318,7 +335,7 @@ export async function savePitchedItem(userCode, data, remove = false) {
       const existingRunIndex = currentBossRuns.findIndex(run => 
         run.character === character && 
         run.boss === bossName && 
-        run.weekKey === currentWeekKey
+        run.weekKey === targetWeekKey
       );
       
       // If no existing run for this boss (which is unlikely since we're getting a pitched item),
@@ -348,7 +365,7 @@ export async function savePitchedItem(userCode, data, remove = false) {
           difficulty: bossDifficulty,
           cleared: true,
           date: date || new Date().toISOString(),
-          weekKey: currentWeekKey,
+          weekKey: targetWeekKey,
           hasPitchedItem: true
         });
       } else {
@@ -419,23 +436,8 @@ export async function savePitchedItem(userCode, data, remove = false) {
         }
         checkedState[charKey][highestKey] = true;
         
-        // Update the user data with the new checked state
-        userDataObj = {
-          ...userDataObj,
-          checked: checkedState,
-          weekKey: currentWeekKey,
-          lastUpdated: new Date().toISOString()
-        };
-        
-        const { error: dataUpdateError } = await supabase
-          .from('user_data')
-          .update({ data: userDataObj })
-          .eq('id', userCode);
-          
-        if (dataUpdateError) {
-          console.error('Error updating checked state:', dataUpdateError);
-          // Continue anyway since the pitched item was saved
-        }
+        // Note: Boss checked state is now handled by boss_runs array only
+        // No need to update legacy checked field - boss_runs is the single source of truth
       }
       
       return { success: true };
@@ -445,8 +447,7 @@ export async function savePitchedItem(userCode, data, remove = false) {
     return { 
       success: true, 
       data: pitchedItem,
-      updatedWeekKey: currentWeekKey,
-      checked: updatedData.checked
+      updatedWeekKey: targetWeekKey
     };
   } catch (error) {
     console.error('Error saving pitched item:', error);
@@ -600,7 +601,7 @@ export async function exportUserData(userCode) {
       .single();
     if (error) throw error;
     
-    // Make sure weekKey and checked state are included in the export
+    // Export data with weekKey for compatibility
     const exportData = { 
       data: userData.data, 
       pitched_items: userData.pitched_items,
@@ -615,7 +616,8 @@ export async function exportUserData(userCode) {
   }
 }
 
-// Enhanced utility function to synchronize pitched items with checked state
+// DEPRECATED: Legacy function for checked state sync - no longer used
+// Boss clear state is now handled entirely by boss_runs array
 export function syncPitchedItemsToCheckedState(pitchedItems, checkedState = {}, weekKey = getCurrentWeekKey()) {
   if (!pitchedItems || !Array.isArray(pitchedItems) || pitchedItems.length === 0) {
     console.log('📦 No pitched items to sync, returning existing checked state unchanged');
@@ -739,10 +741,9 @@ export async function ensureDataSynchronization(userCode, checkedState, pitchedI
       return { success: false, error: 'No user data found' };
     }
     
-    // 2. Merge the local checked state with database state
+    // 2. Update database state without legacy checked field (boss_runs is single source of truth)
     let updatedData = {
       ...data.data,
-      checked: checkedState,
       weekKey,
       lastUpdated: new Date().toISOString()
     };
@@ -809,27 +810,14 @@ export async function importUserData(userCode, importObj) {
     // Handle week key transitions
     let updatedData = { ...data };
     
-    // If we're in a new week compared to the backup, update the weekKey but preserve boss clear state
+    // If we're in a new week compared to the backup, update the weekKey
     if (importedWeekKey && importedWeekKey !== currentWeekKey) {
       console.log(`[Import] Week key transition: ${importedWeekKey} -> ${currentWeekKey}`);
       updatedData.weekKey = currentWeekKey;
-      
-      // If it's a new week, we might want to preserve the checked state rather than reset it
-      // This ensures pitched items eligibility is maintained across backups
-      if (updatedData.checked && Object.keys(updatedData.checked).length > 0) {
-        console.log('[Import] Preserving checked state across week transition');
-      }
     }
     
-    // Synchronize pitched items with checked state
-    if (pitched_items && pitched_items.length > 0) {
-      console.log('[Import] Synchronizing pitched items with checked state');
-      updatedData.checked = syncPitchedItemsToCheckedState(
-        pitched_items, 
-        updatedData.checked || {}, 
-        currentWeekKey
-      );
-    }
+    // Note: Boss clear state is now tracked via boss_runs array, not legacy checked field
+    // Pitched items sync is handled separately via boss_runs reconstruction
     
     // Update the database with the processed data
     const { error } = await supabase
@@ -1061,10 +1049,10 @@ export async function getAvailableWeeks(userCode) {
       return { success: false, error: 'No user code provided' };
     }
 
-    // Get all unique week keys from pitched_items, boss_runs, and main data
+    // Get all unique week keys from pitched_items and main data
     const { data: userData, error } = await supabase
       .from('user_data')
-      .select('data, pitched_items, boss_runs')
+      .select('data, pitched_items')
       .eq('id', userCode)
       .single();
 
@@ -1088,9 +1076,9 @@ export async function getAvailableWeeks(userCode) {
       });
     }
 
-    // Add weeks from boss runs
-    if (userData.boss_runs && Array.isArray(userData.boss_runs)) {
-      userData.boss_runs.forEach(run => {
+    // Add weeks from boss runs stored in data object
+    if (userData.data && userData.data.boss_runs && Array.isArray(userData.data.boss_runs)) {
+      userData.data.boss_runs.forEach(run => {
         if (run.weekKey) {
           weekSet.add(run.weekKey);
         }
@@ -1139,7 +1127,7 @@ export async function getWeekData(userCode, weekKey) {
     // Get user data
     const { data: userData, error } = await supabase
       .from('user_data')
-      .select('data, pitched_items, boss_runs')
+      .select('data, pitched_items')
       .eq('id', userCode)
       .single();
 
@@ -1153,9 +1141,9 @@ export async function getWeekData(userCode, weekKey) {
       ? userData.pitched_items.filter(item => item.weekKey === weekKey)
       : [];
 
-    // Filter boss runs for this week
-    const bossRuns = userData.boss_runs
-      ? userData.boss_runs.filter(run => run.weekKey === weekKey)
+    // Filter boss runs for this week (stored in data object)
+    const bossRuns = userData.data && userData.data.boss_runs
+      ? userData.data.boss_runs.filter(run => run.weekKey === weekKey)
       : [];
 
     // Get checked state - either from specific week data or reconstruct from boss runs
@@ -1197,5 +1185,87 @@ export async function getWeekData(userCode, weekKey) {
   } catch (error) {
     console.error('Error in getWeekData:', error);
     return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Complete stats reset: Purge ALL pitched records and boss runs for a user
+ * @param {string} userCode - User code
+ * @returns {Object} - Result with success status and audit information
+ */
+export async function purgeAllStatsData(userCode) {
+  try {
+    console.log(`🗑️ Starting complete stats reset for user: ${userCode}`);
+    
+    if (!userCode) {
+      console.error('Missing required field: userCode');
+      return { success: false, error: 'Missing required field: userCode' };
+    }
+
+    // 1. Fetch current user data
+    const { data: userData, error: fetchError } = await supabase
+      .from('user_data')
+      .select('data, pitched_items')
+      .eq('id', userCode)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching user data:', fetchError);
+      throw fetchError;
+    }
+
+    const currentData = userData.data || {};
+    const currentPitchedItems = userData.pitched_items || [];
+    const currentBossRuns = currentData.boss_runs || [];
+
+    // 2. Create audit entry before clearing
+    const auditTimestamp = new Date().toISOString();
+    const auditEntry = {
+      timestamp: auditTimestamp,
+      action: 'complete_stats_reset',
+      itemsRemoved: currentPitchedItems.length,
+      bossRunsRemoved: currentBossRuns.length,
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Server'
+    };
+
+    // 3. Clear ALL pitched items and boss runs
+    const updatedData = {
+      ...currentData,
+      boss_runs: [], // Clear all boss runs
+      lastUpdated: auditTimestamp,
+      // Add audit tracking
+      pitched_reset_history: [
+        ...(currentData.pitched_reset_history || []),
+        auditEntry
+      ].slice(-50) // Keep only last 50 audit entries
+    };
+
+    // 4. Update database with completely cleared data
+    const { error: updateError } = await supabase
+      .from('user_data')
+      .update({ 
+        pitched_items: [], // Clear all pitched items
+        data: updatedData
+      })
+      .eq('id', userCode);
+
+    if (updateError) {
+      console.error('Database update error:', updateError);
+      throw updateError;
+    }
+
+    console.log(`✅ Complete stats reset successful for user ${userCode}`);
+    console.log(`📊 Removed ${auditEntry.itemsRemoved} pitched items and ${auditEntry.bossRunsRemoved} boss runs`);
+
+    return { 
+      success: true, 
+      audit: auditEntry,
+      itemsRemoved: auditEntry.itemsRemoved,
+      bossRunsRemoved: auditEntry.bossRunsRemoved
+    };
+
+  } catch (error) {
+    console.error('Error in complete stats reset:', error);
+    return { success: false, error: error.message || 'Unknown error occurred' };
   }
 }

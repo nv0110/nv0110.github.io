@@ -1,8 +1,261 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { savePitchedItem, getYearlyPitchedStats, removeManyPitchedItems, purgePitchedRecords, clearCharacterPitchedUI, getPitchedResetAuditHistory, getAvailableWeeks, getWeekData } from './pitched-data-service';
-import { getTimeUntilReset, getCurrentWeekKey, getCurrentMonthKey, getCurrentYearKey } from './utils/weekUtils';
+import { savePitchedItem, getYearlyPitchedStats, removeManyPitchedItems, purgePitchedRecords, clearCharacterPitchedUI, getPitchedResetAuditHistory, getAvailableWeeks, getWeekData, purgeAllStatsData } from './pitched-data-service';
+import { getTimeUntilReset, getCurrentWeekKey, getCurrentMonthKey, getCurrentYearKey, getWeekDateRange } from './utils/weekUtils';
 import { STORAGE_KEYS, MONTH_NAMES, BOSS_DIFFICULTIES, COOLDOWNS } from './constants';
 import WeekNavigator from './components/WeekNavigator';
+
+// Historical Pitched Item Modal Component
+function HistoricalPitchedModal({ data, characters, onClose, onConfirm }) {
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedCharacter, setSelectedCharacter] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Calculate the date range for the selected week
+  const weekDates = useMemo(() => {
+    if (!data.weekKey) return { start: null, end: null };
+    return getWeekDateRange(data.weekKey);
+  }, [data.weekKey]);
+
+  // Format date for input field (YYYY-MM-DD)
+  const formatDateForInput = (date) => {
+    return date.toISOString().split('T')[0];
+  };
+
+  // Get available dates for this week
+  const availableDates = useMemo(() => {
+    if (!weekDates.start || !weekDates.end) return [];
+    
+    const dates = [];
+    const current = new Date(weekDates.start);
+    const end = new Date(weekDates.end);
+    
+    while (current <= end) {
+      dates.push(new Date(current));
+      current.setDate(current.getDate() + 1);
+    }
+    
+    return dates;
+  }, [weekDates]);
+
+  useEffect(() => {
+    // Default to the first day of the week
+    if (availableDates.length > 0 && !selectedDate) {
+      setSelectedDate(formatDateForInput(availableDates[0]));
+    }
+    // Default to the first character
+    if (characters.length > 0 && !selectedCharacter) {
+      setSelectedCharacter(characters[0].name);
+    }
+  }, [availableDates, selectedDate, characters, selectedCharacter]);
+
+  const handleConfirm = async () => {
+    if (!selectedDate || !selectedCharacter) return;
+    
+    setIsLoading(true);
+    
+    // Create full ISO date string for the selected date
+    const fullDate = new Date(selectedDate + 'T12:00:00.000Z').toISOString();
+    
+    await onConfirm(fullDate, selectedCharacter);
+    setIsLoading(false);
+  };
+
+  return (
+    <div 
+      className="modal-fade" 
+      style={{
+        background: '#2d2540',
+        borderRadius: 16,
+        padding: '2.5rem',
+        maxWidth: 480,
+        color: '#e6e0ff',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        position: 'relative',
+        minWidth: 360,
+        textAlign: 'center',
+        border: '2px solid #a259f7'
+      }}
+      onClick={e => e.stopPropagation()}
+    >
+      {/* Header */}
+      <div style={{ 
+        width: 80, 
+        height: 80, 
+        background: 'linear-gradient(135deg, #a259f7, #9f7aea)', 
+        borderRadius: '50%', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        margin: '0 auto 24px',
+        boxShadow: '0 4px 20px rgba(162, 89, 247, 0.4)'
+      }}>
+        <img 
+          src={data.itemImage} 
+          alt={data.itemName}
+          style={{
+            width: 48,
+            height: 48,
+            objectFit: 'contain',
+            borderRadius: 8
+          }}
+        />
+      </div>
+      
+      <h2 style={{ color: '#a259f7', fontWeight: 700, marginBottom: 16, fontSize: '1.4rem' }}>
+        Log Historical Pitched Item
+      </h2>
+      
+      <div style={{ 
+        background: 'rgba(162, 89, 247, 0.1)', 
+        border: '1px solid rgba(162, 89, 247, 0.3)',
+        borderRadius: 12, 
+        padding: '20px', 
+        marginBottom: 24,
+        textAlign: 'left'
+      }}>
+        <div style={{ marginBottom: 12 }}>
+          <strong style={{ color: '#b39ddb' }}>Character:</strong> {selectedCharacter || data.character}
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <strong style={{ color: '#b39ddb' }}>Boss:</strong> {data.bossName}
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <strong style={{ color: '#b39ddb' }}>Item:</strong> {data.itemName}
+        </div>
+        <div>
+          <strong style={{ color: '#b39ddb' }}>Week:</strong> {data.weekKey}
+        </div>
+      </div>
+
+      {/* Character Selection */}
+      <div style={{ marginBottom: 24 }}>
+        <label style={{ 
+          display: 'block', 
+          marginBottom: 8, 
+          color: '#b39ddb', 
+          fontWeight: 600 
+        }}>
+          Select Character:
+        </label>
+        <select
+          value={selectedCharacter}
+          onChange={e => setSelectedCharacter(e.target.value)}
+          style={{
+            background: '#3a335a',
+            color: '#e6e0ff',
+            border: '2px solid #805ad5',
+            borderRadius: 8,
+            padding: '0.8rem 1rem',
+            fontSize: '1rem',
+            width: '100%',
+            outline: 'none'
+          }}
+        >
+          {characters.map(char => (
+            <option key={char.name} value={char.name}>
+              {char.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Date Selection */}
+      <div style={{ marginBottom: 24 }}>
+        <label style={{ 
+          display: 'block', 
+          marginBottom: 8, 
+          color: '#b39ddb', 
+          fontWeight: 600 
+        }}>
+          Select Date:
+        </label>
+        <input
+          type="date"
+          value={selectedDate}
+          onChange={e => setSelectedDate(e.target.value)}
+          min={weekDates.start ? formatDateForInput(weekDates.start) : ''}
+          max={weekDates.end ? formatDateForInput(weekDates.end) : ''}
+          style={{
+            background: '#3a335a',
+            color: '#e6e0ff',
+            border: '2px solid #805ad5',
+            borderRadius: 8,
+            padding: '0.8rem 1rem',
+            fontSize: '1rem',
+            width: '100%',
+            outline: 'none'
+          }}
+        />
+        {weekDates.start && weekDates.end && (
+          <div style={{ 
+            fontSize: '0.85rem', 
+            color: '#9f7aea', 
+            marginTop: 8 
+          }}>
+            Valid range: {formatDateForInput(weekDates.start)} to {formatDateForInput(weekDates.end)}
+          </div>
+        )}
+      </div>
+
+      {/* Buttons */}
+      <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+        <button
+          onClick={onClose}
+          disabled={isLoading}
+          style={{
+            background: '#3a335a',
+            color: '#e6e0ff',
+            border: '2px solid #4a4370',
+            borderRadius: 12,
+            padding: '0.8rem 2rem',
+            fontWeight: 700,
+            fontSize: '1.1rem',
+            cursor: isLoading ? 'not-allowed' : 'pointer',
+            minWidth: 120,
+            transition: 'all 0.2s ease',
+            opacity: isLoading ? 0.5 : 1
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleConfirm}
+          disabled={isLoading || !selectedDate || !selectedCharacter}
+          style={{
+            background: isLoading ? '#9f7aea' : 'linear-gradient(135deg, #a259f7, #805ad5)',
+            color: '#fff',
+            border: '2px solid #a259f7',
+            borderRadius: 12,
+            padding: '0.8rem 2rem',
+            fontWeight: 700,
+            fontSize: '1.1rem',
+            cursor: isLoading || !selectedDate || !selectedCharacter ? 'not-allowed' : 'pointer',
+            opacity: isLoading || !selectedDate || !selectedCharacter ? 0.7 : 1,
+            minWidth: 120,
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            boxShadow: isLoading ? 'none' : '0 4px 16px rgba(162, 89, 247, 0.3)'
+          }}
+        >
+          {isLoading && (
+            <div style={{
+              width: 16,
+              height: 16,
+              border: '2px solid rgba(255, 255, 255, 0.3)',
+              borderTopColor: '#fff',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }} />
+          )}
+          {isLoading ? 'Logging...' : 'Log Item'}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function ProgressFace({ progress, darkMode }) {
   let emoji = '😐';
@@ -87,7 +340,9 @@ function getPitchedKey(charName, charIdx, bossName, itemName, weekKey) {
   return `${charName}-${charIdx}__${bossName}__${itemName}__${weekKey}`;
 }
 
-function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, userCode }) {
+
+
+function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) {
   // Helper function to get boss price (now has access to bossData prop)
   function getBossPrice(bossName, difficulty) {
     const boss = bossData.find(b => b.name === bossName);
@@ -102,6 +357,9 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
   const [availableWeeks, setAvailableWeeks] = useState([]);
   const [isLoadingWeekData, setIsLoadingWeekData] = useState(false);
   const [weekDataCache, setWeekDataCache] = useState({});
+  
+  // Sidebar visibility state
+  const [sidebarVisible, setSidebarVisible] = useState(true);
   
   // Use selected week instead of current week
   const weekKey = selectedWeekKey;
@@ -119,13 +377,14 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
     
     console.log(`Navigating from week ${selectedWeekKey} to ${newWeekKey}`);
     
-    // Cache current week data before switching
+    // Cache current week data before switching (including pitched UI state)
     if (selectedWeekKey && !weekDataCache[selectedWeekKey]) {
       setWeekDataCache(prev => ({
         ...prev,
         [selectedWeekKey]: {
           checkedState: checked,
           pitchedItems: cloudPitchedItems,
+          pitchedChecked: pitchedChecked, // Cache the UI state
           hasData: Object.keys(checked).length > 0 || cloudPitchedItems.length > 0
         }
       }));
@@ -241,6 +500,9 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
         if (cachedData.pitchedItems) {
           setCloudPitchedItems(cachedData.pitchedItems);
         }
+        if (cachedData.pitchedChecked) {
+          setPitchedChecked(cachedData.pitchedChecked);
+        }
         return;
       }
       
@@ -251,12 +513,13 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
         const result = await getWeekData(userCode, selectedWeekKey);
         
         if (result.success) {
-          // Cache the data
+          // Cache the data (note: pitchedChecked will be populated by sync effect)
           setWeekDataCache(prev => ({
             ...prev,
             [selectedWeekKey]: {
               checkedState: result.checkedState,
               pitchedItems: result.pitchedItems,
+              pitchedChecked: {}, // Will be populated by sync
               hasData: result.hasData
             }
           }));
@@ -427,6 +690,15 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
           if (updatedPitched) {
             console.log('🔄 SYNC: Updating pitched item UI state based on database');
             setPitchedChecked(newPitchedChecked);
+            
+            // Update cache with new pitched UI state
+            setWeekDataCache(prev => ({
+              ...prev,
+              [weekKey]: {
+                ...prev[weekKey],
+                pitchedChecked: newPitchedChecked
+              }
+            }));
           } else {
             console.log('ℹ️ SYNC: No pitched item UI updates needed');
           }
@@ -447,12 +719,16 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
     // IMPORTANT: Do NOT include checked/pitchedChecked in dependencies to avoid race conditions
   }, [cloudPitchedItems, weekKey, characters]);
   
-  // Reset pitchedChecked if week changes (no longer using localStorage)
+  // Reset pitchedChecked if week changes (but only if not cached)
   useEffect(() => {
-    // Week change now handled entirely by cloud data sync
-    // Clear UI state when week changes
+    // Only clear if no cached data exists for this week
+    if (!weekDataCache[selectedWeekKey]?.pitchedChecked) {
+      console.log(`Clearing pitched UI state for week change to ${selectedWeekKey}`);
     setPitchedChecked({});
-  }, [weekKey]);
+    } else {
+      console.log(`Retaining cached pitched UI state for week ${selectedWeekKey}`);
+    }
+  }, [selectedWeekKey, weekDataCache]);
 
   // Handle boss checkbox changes - handles both direct calls and checkbox event objects
   const handleCheck = async (bossOrEvent, checkedValOrBoss, event = null) => {
@@ -523,54 +799,27 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
 
       setChecked(newChecked);
       
-      // Save to database (independent of pitched items)
+      // Save to database (boss_runs only - no more redundant checked state)
       if (userCode) {
         try {
-          // 1. First update the traditional checked state in the data object
-          const { supabase } = await import('./supabaseClient');
-          
-          const { data, error } = await supabase
-            .from('user_data')
-            .select('data')
-            .eq('id', userCode)
-            .single();
-            
-          if (error) throw error;
-          
-          // Update the checked state in the data object
-          const updatedData = {
-            ...data.data,
-            checked: newChecked,
-            weekKey: getCurrentWeekKey(),
-            lastUpdated: new Date().toISOString()
+          // Only save boss run for current week (read-only for historical weeks)
+          if (selectedWeekKey === currentWeekKey) {
+          const { saveBossRun } = await import('./pitched-data-service');
+          const bossRunData = {
+            character: charName,
+            characterIdx: charIdx,
+            bossName: bossName,
+            bossDifficulty: bossDifficulty,
+            isCleared: checkedVal,
+            date: new Date().toISOString()
           };
           
-          // Save back to database
-          const { error: updateError } = await supabase
-            .from('user_data')
-            .update({ data: updatedData })
-            .eq('id', userCode);
-            
-          if (updateError) throw updateError;
-          
-          // 2. Only save boss run for current week (read-only for historical weeks)
-          if (selectedWeekKey === currentWeekKey) {
-            const { saveBossRun } = await import('./pitched-data-service');
-            const bossRunData = {
-              character: charName,
-              characterIdx: charIdx,
-              bossName: bossName,
-              bossDifficulty: bossDifficulty,
-              isCleared: checkedVal,
-              date: new Date().toISOString()
-            };
-            
-            // Save to boss_runs array in database
-            const result = await saveBossRun(userCode, bossRunData);
-            if (!result.success) {
-              console.error('Error saving boss run:', result.error);
-            } else {
-              console.log(`Boss run saved to database: ${charName} - ${bossName} ${bossDifficulty}: ${checkedVal}`);
+            // Save to boss_runs array in database (single source of truth)
+          const result = await saveBossRun(userCode, bossRunData);
+          if (!result.success) {
+            console.error('Error saving boss run:', result.error);
+          } else {
+            console.log(`Boss run saved to database: ${charName} - ${bossName} ${bossDifficulty}: ${checkedVal}`);
             }
           } else {
             console.log(`Skipping boss run save for historical week: ${selectedWeekKey}`);
@@ -595,19 +844,19 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
             return updated;
           });
           
-          // Also remove pitched items from database if user is logged in
-          const itemsToRemove = bossObj.pitchedItems.map(item => ({
-            character: charName,
-            bossName: bossName,
-            itemName: item.name,
-            weekKey
-          }));
-          
-          if (itemsToRemove.length > 0 && userCode) {
-            removeManyPitchedItems(userCode, itemsToRemove).catch(err => {
-              console.error('Error removing pitched items:', err);
-            });
-          }
+                  // Also remove pitched items from database if user is logged in
+        const itemsToRemove = bossObj.pitchedItems.map(item => ({
+          character: charName,
+          bossName: bossName,
+          itemName: item.name,
+          weekKey
+        }));
+        
+        if (itemsToRemove.length > 0 && userCode) {
+          removeManyPitchedItems(userCode, itemsToRemove).catch(err => {
+            console.error('Error removing pitched items:', err);
+          });
+        }
         }
       }
       
@@ -677,31 +926,7 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
               // Add small staggered delay to prevent overwhelming database
               await new Promise(resolve => setTimeout(resolve, index * 25));
               
-              // Save boss run to database using the same logic as handleCheck
-              const { supabase } = await import('./supabaseClient');
-              const { data, error } = await supabase
-                .from('user_data')
-                .select('data')
-                .eq('id', userCode)
-                .single();
-                
-              if (error) throw error;
-              
-              const updatedData = {
-                ...data.data,
-                checked: newChecked,
-                weekKey: getCurrentWeekKey(),
-                lastUpdated: new Date().toISOString()
-              };
-              
-              const { error: updateError } = await supabase
-                .from('user_data')
-                .update({ data: updatedData })
-                .eq('id', userCode);
-                
-              if (updateError) throw updateError;
-              
-              // Also save boss run in new format
+              // Save boss run to database (single source of truth)
               const { saveBossRun } = await import('./pitched-data-service');
               const bossRunData = {
                 character: characters[selectedCharIdx].name,
@@ -829,7 +1054,7 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
   const [showStatsResetConfirm, setShowStatsResetConfirm] = useState(false);
   
   // Stats are now completely cloud-based - no local storage
-  const [statsPanel] = useState({ monthly: [], yearly: [] }); // Empty placeholder
+  const [statsPanel, setStatsPanel] = useState({ monthly: [], yearly: [] }); // Empty placeholder
   
   // No more local stats tracking - everything is cloud-based
   function startStatsTrackingIfNeeded() {
@@ -849,21 +1074,9 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
     const [purgeSuccess, setPurgeSuccess] = useState(false);
     const [auditHistory, setAuditHistory] = useState([]);
   
-    // --- Separate function to handle the actual data reset ---
-    const resetAllStatsData = () => {
-      // Clear pitched items UI only (cloud data cleared separately)
-      setPitchedChecked({});
-      
-      // Reset selectors
-      setSelectedYear(getCurrentYearKey());
-    };
+
     
-    // --- Reset handler (just closes confirm dialog and shows success message) ---
-    const handleStatsReset = () => {
-      resetAllStatsData();
-      setShowStatsResetConfirm(false);
-      setResetSuccessVisible(true);
-    };
+
     
     // --- Close success message handler ---
     const closeResetSuccess = () => {
@@ -1064,6 +1277,10 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
   const [pitchedModalItem, setPitchedModalItem] = useState(null);
   const [showPitchedModal, setShowPitchedModal] = useState(false);
 
+  // --- State for historical pitched item logging modal ---
+  const [showHistoricalPitchedModal, setShowHistoricalPitchedModal] = useState(false);
+  const [historicalPitchedData, setHistoricalPitchedData] = useState(null);
+
   // --- Modal details for clicked pitched item ---
   const pitchedModalDetails = useMemo(() => {
     if (!pitchedModalItem) return [];
@@ -1075,7 +1292,7 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
       <div className="App dark" style={{ padding: '2rem', color: '#e6e0ff', fontSize: '1.2rem', textAlign: 'center' }}>
         <div style={{ color: '#ff6b6b', marginBottom: '1rem' }}>{error}</div>
         <button onClick={() => setError(null)} style={{ marginRight: '1rem' }}>Try Again</button>
-        <button onClick={onBack}>Back to Calculator</button>
+
       </div>
     );
   }
@@ -1085,7 +1302,7 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
       <div className="App dark" style={{ padding: '2rem', color: '#e6e0ff', fontSize: '1.2rem', textAlign: 'center' }}>
         No characters found. Go back and add a character first.
         <br /><br />
-        <button onClick={onBack} style={{ marginTop: 16 }}>Back to Calculator</button>
+
       </div>
     );
   }
@@ -1163,7 +1380,12 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
   const showCharacterDetails = charBosses.length > 0;
 
   return (
-    <div className="App dark" style={{ minHeight: '100vh', color: '#e6e0ff', padding: '2rem 0', background: '#28204a' }}>
+    <div className="App dark" style={{ 
+      width: '100%', 
+      minHeight: '100vh', 
+      color: '#e6e0ff', 
+      background: '#28204a' 
+    }}>
       {crystalAnimation && (
         <CrystalAnimation
           startPosition={crystalAnimation.startPosition}
@@ -1171,333 +1393,725 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
           onComplete={() => setCrystalAnimation(null)}
         />
       )}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: 700, margin: '0 auto 1rem auto' }}>
-        <button onClick={onBack} style={{ marginBottom: 24 }}>← Back to Calculator</button>
-      </div>
-      <h2 style={{ textAlign: 'center', fontWeight: 700, fontSize: '2rem', marginBottom: '0.5rem' }}>Weekly Boss Tracker</h2>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: '1rem' }}>
-        <img src="/bosses/crystal.png" alt="Crystal" style={{ width: 32, height: 32 }} />
-        <img src="/bosses/bluecrystal.png" alt="Blue Crystal" style={{ width: 32, height: 32 }} />
-        <img src="/bosses/yellowcrystal.png" alt="Yellow Crystal" style={{ width: 32, height: 32 }} />
-      </div>
-
-      {/* Week Navigation */}
-      <WeekNavigator
-        selectedWeekKey={selectedWeekKey}
-        onWeekChange={handleWeekChange}
-        availableWeeks={availableWeeks}
-        isLoading={isLoadingWeekData}
-        isReadOnlyMode={isReadOnlyMode}
-        isHistoricalWeek={isHistoricalWeek}
-      />
-
-      {/* Top positioned elements */}
-      <div style={{ position: 'absolute', top: 18, left: 32, zIndex: 10 }}>
-        <span style={{ color: '#d6b4ff', fontSize: '1.08em', fontWeight: 700, letterSpacing: 1, background: 'rgba(128,90,213,0.08)', borderRadius: 8, padding: '0.3rem 1.1rem', boxShadow: '0 2px 8px #a259f722' }}>
-          ID: {userCode}
-        </span>
-      </div>
-      
-      {/* Reset timer - top right position, only show for current week */}
-      {selectedWeekKey === currentWeekKey && (
-        <div style={{ 
-          position: 'absolute', 
-          top: 18, 
-          right: 32, 
-          zIndex: 10,
-          background: 'linear-gradient(135deg, #3a2a5d, #28204a)', 
-          borderRadius: 10, 
-          padding: '0.8rem 1rem', 
-          boxShadow: '0 4px 16px rgba(40, 20, 60, 0.3)',
-          textAlign: 'center',
-          border: '1px solid #4a4570',
-          minWidth: 180
-        }}>
-          <div style={{ fontSize: '0.85rem', fontWeight: 700, margin: 0, marginBottom: 6, color: '#b39ddb' }}>Next Reset</div>
-          <div style={{ 
-            fontSize: '1.1rem', 
-            fontFamily: 'monospace', 
-            fontWeight: 600, 
-            display: 'flex',
-            justifyContent: 'center',
-            gap: '0.3rem',
-            color: '#e6e0ff'
-          }}>
-            <span>{timeUntilReset.days}d</span>
-            <span>{timeUntilReset.hours}h</span>
-            <span>{timeUntilReset.minutes}m</span>
-          </div>
-          <div style={{ fontSize: '0.7rem', marginTop: '0.3rem', color: '#9f7aea' }}>
-            Thursday 00:00 UTC
-          </div>
-        </div>
-      )}
-
-      {/* 3. Character summary table/list */}
-      <div style={{ 
-        maxWidth: 700, 
-        margin: '0 auto 1.5rem auto', 
-        background: '#28204a', 
-        borderRadius: 10, 
-        padding: '1rem', 
-        boxShadow: '0 2px 8px rgba(40, 20, 60, 0.18)',
-        textAlign: 'center',
-        border: '1.5px solid #2d2540'
+      {/* Centered flex container for sidebar + main content */}
+      <div style={{
+        display: 'flex',
+        maxWidth: 1200,
+        margin: '0 auto',
+        width: '100%',
+        minHeight: '100vh',
+        paddingTop: '100px', // Account for navbar
+        boxSizing: 'border-box'
       }}>
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 10 }}>Weekly Clear Status</h3>
-        {/* Progress Bar directly under heading */}
-        <div style={{ margin: '0 auto 0.8rem auto', background: '#23203a', borderRadius: 8, padding: '1.2rem', border: '1px solid #3a335a', maxWidth: 420 }}>
-          <div style={{ background: '#3a335a', height: 8, borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
-            <div style={{ background: 'linear-gradient(90deg, #805ad5, #a259f7)', height: '100%', width: `${obtainableMeso > 0 ? Math.min((totalMeso / obtainableMeso) * 100, 100) : 0}%`, borderRadius: 4, transition: 'width 0.3s ease' }} />
+        {/* Left Sidebar - Character Selection */}
+        <div style={{ 
+          width: sidebarVisible ? 280 : 0,
+          minWidth: sidebarVisible ? 280 : 0,
+          background: 'linear-gradient(180deg, rgba(40, 32, 74, 0.95), rgba(35, 32, 58, 0.9))',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          borderRight: sidebarVisible ? '1px solid rgba(162, 89, 247, 0.15)' : 'none',
+          position: 'fixed',
+          left: 0,
+          top: 0, // Touch the navbar
+          bottom: 0,
+          overflowY: 'auto',
+          zIndex: 99, // Below navbar but above content
+          padding: sidebarVisible ? '1rem' : '0', 
+          paddingTop: sidebarVisible ? '100px' : '0', // Account for navbar height
+          boxShadow: sidebarVisible ? '2px 0 24px rgba(162, 89, 247, 0.08), 2px 0 8px rgba(0, 0, 0, 0.1)' : 'none',
+          transition: 'all 0.3s ease',
+          overflow: 'hidden'
+        }}>
+          {sidebarVisible && (
+            <>
+          {/* Sidebar Header */}
+          <div style={{ 
+            textAlign: 'center', 
+            marginBottom: '1.5rem',
+            paddingBottom: '1rem',
+            borderBottom: '1px solid rgba(162, 89, 247, 0.15)'
+          }}>
+            <h3 style={{ 
+              fontSize: '1.3rem', 
+              fontWeight: 700,
+              margin: 0, 
+              color: '#e6e0ff',
+              marginBottom: '0.5rem'
+            }}>
+              Characters
+            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <img src="/bosses/crystal.png" alt="Crystal" style={{ width: 20, height: 20 }} />
+              <img src="/bosses/bluecrystal.png" alt="Blue Crystal" style={{ width: 20, height: 20 }} />
+              <img src="/bosses/yellowcrystal.png" alt="Yellow Crystal" style={{ width: 20, height: 20 }} />
+      </div>
+      </div>
+
+        {/* Progress Bar - only for current week */}
+        {!isHistoricalWeek && (
+      <div style={{ 
+            background: 'rgba(255, 255, 255, 0.05)', 
+            backdropFilter: 'blur(8px)',
+        borderRadius: 12, 
+        padding: '1rem', 
+            border: '1px solid rgba(255, 255, 255, 0.1)', 
+            marginBottom: '1rem' 
+      }}>
+        <div style={{ 
+              fontSize: '0.9rem', 
+              fontWeight: 600, 
+              marginBottom: '0.5rem', 
+              color: '#d6b4ff',
+              textAlign: 'center' 
+        }}>
+              Weekly Progress
+        </div>
+            <div style={{ background: 'rgba(255, 255, 255, 0.1)', height: 6, borderRadius: 3, overflow: 'hidden', position: 'relative' }}>
+        <div style={{ 
+                background: 'linear-gradient(90deg, #a259f7, #b47aff)', 
+                height: '100%', 
+                width: `${obtainableMeso > 0 ? Math.min((totalMeso / obtainableMeso) * 100, 100) : 0}%`, 
+                borderRadius: 3, 
+                transition: 'width 0.3s ease' 
+              }} />
+            </div>
+            <div style={{ 
+          display: 'flex',
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              marginTop: '0.4rem', 
+              color: '#c4b5d4', 
+              fontSize: '0.8rem' 
+        }}>
+              <span>{totalMeso.toLocaleString()}</span>
+              <img src="/bosses/crystal.png" alt="Crystal" style={{ width: 16, height: 16 }} />
+              <span>{obtainableMeso.toLocaleString()}</span>
+        </div>
+        </div>
+        )}
+
+        {/* Historical week indicator */}
+        {isHistoricalWeek && (
+      <div style={{ 
+            background: 'rgba(162, 89, 247, 0.1)', 
+            backdropFilter: 'blur(8px)',
+            borderRadius: 12, 
+        padding: '1rem', 
+            border: '1px solid rgba(162, 89, 247, 0.2)',
+            marginBottom: '1rem',
+            textAlign: 'center'
+          }}>
+            <div style={{ color: '#d6b4ff', fontSize: '0.9rem', fontWeight: 600 }}>
+              Week {selectedWeekKey}
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', color: '#b39ddb', fontSize: '0.9rem' }}>
-            <span>{totalMeso.toLocaleString()}</span>
-            <img src="/bosses/crystal.png" alt="Crystal" style={{ width: 20, height: 20, margin: '0 auto' }} />
-            <span>{obtainableMeso.toLocaleString()}</span>
+            <div style={{ color: '#b39ddb', fontSize: '0.8rem' }}>
+              Historical Data
           </div>
-          {/* Checkbox moved here, under the progress bar */}
-          <div style={{ marginTop: '12px', textAlign: 'center' }}>
-            <label style={{ fontSize: '0.98em', color: '#b39ddb', cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center' }}>
+          </div>
+        )}
+
+        {/* Hide completed checkbox */}
+        <div style={{ marginBottom: '1rem', textAlign: 'center' }}>
+          <label style={{ 
+            fontSize: '0.85rem', 
+            color: '#c4b5d4', 
+            cursor: 'pointer', 
+            userSelect: 'none', 
+            display: 'inline-flex', 
+            alignItems: 'center',
+            gap: '6px'
+          }}>
               <input
                 type="checkbox"
                 checked={hideCompleted}
                 onChange={e => setHideCompleted(e.target.checked)}
-                style={{ marginRight: 6, accentColor: '#805ad5' }}
+              style={{ accentColor: '#a259f7' }}
               />
-              Hide characters with all bosses cleared
+            Hide completed
             </label>
           </div>
-          {visibleCharSummaries.length === 0 && (
-            <div style={{ color: '#888', fontSize: '1.05em', margin: '1.5rem 0 0 0', textAlign: 'center', width: '100%', display: 'block' }}>
+
+        {/* Character Cards */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {visibleCharSummaries.length === 0 ? (
+            <div style={{ 
+              color: '#9f9fb8', 
+              fontSize: '0.9rem', 
+              textAlign: 'center', 
+              padding: '1rem',
+              background: 'rgba(255, 255, 255, 0.05)',
+              backdropFilter: 'blur(8px)',
+              borderRadius: 12,
+              border: '1px solid rgba(255, 255, 255, 0.1)'
+            }}>
               {hideCompleted ? 'No characters with bosses left to clear.' : 'No characters found.'}
             </div>
-          )}
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
-          {visibleCharSummaries.map(cs => (
+          ) : (
+            visibleCharSummaries.map(cs => (
             <div
               key={cs.name + '-' + cs.idx}
               onClick={() => setSelectedCharIdx(cs.idx)}
               onContextMenu={(e) => {
                 e.preventDefault();
-                if (!isReadOnlyMode) {
-                  setPurgeTargetCharacter({ name: cs.name, idx: cs.idx });
-                  setShowCharacterPurgeConfirm(true);
-                }
+                  if (!isReadOnlyMode) {
+                setPurgeTargetCharacter({ name: cs.name, idx: cs.idx });
+                setShowCharacterPurgeConfirm(true);
+                  }
               }}
               style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                background: selectedCharIdx === cs.idx ? '#3a335a' : '#23203a',
-                borderRadius: 8,
-                padding: '0.6rem 1rem',
-                minWidth: 140,
-                maxWidth: 160,
-                boxShadow: '0 1px 4px rgba(40, 20, 60, 0.18)',
-                fontWeight: 600,
+                  background: selectedCharIdx === cs.idx 
+                    ? 'linear-gradient(135deg, rgba(162, 89, 247, 0.25), rgba(128, 90, 213, 0.2))' 
+                    : 'rgba(255, 255, 255, 0.05)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  borderRadius: 12,
+                  padding: '0.9rem',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                border: selectedCharIdx === cs.idx 
-                  ? (isHistoricalWeek ? '1px solid #9f7aea' : '1px solid #805ad5')
-                  : '1px solid #3a335a',
-                textAlign: 'center',
-                transform: 'translateY(0)',
-                opacity: isHistoricalWeek ? 0.9 : 1,
-                position: 'relative'
+                  transition: 'all 0.3s ease',
+                  border: selectedCharIdx === cs.idx 
+                    ? (isHistoricalWeek ? '1px solid rgba(159, 122, 234, 0.5)' : '1px solid rgba(162, 89, 247, 0.5)')
+                    : '1px solid rgba(255, 255, 255, 0.1)',
+                  position: 'relative',
+                  transform: selectedCharIdx === cs.idx ? 'translateX(3px)' : 'translateX(0)',
+                  boxShadow: selectedCharIdx === cs.idx 
+                    ? '0 8px 32px rgba(162, 89, 247, 0.15)' 
+                    : '0 2px 8px rgba(0, 0, 0, 0.1)'
               }}
               onMouseOver={e => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(40, 20, 60, 0.25)';
-                e.currentTarget.style.background = selectedCharIdx === cs.idx ? '#3a335a' : '#23203a';
+                  if (selectedCharIdx !== cs.idx) {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                    e.currentTarget.style.transform = 'translateX(2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 16px rgba(162, 89, 247, 0.1)';
+                  }
               }}
               onMouseOut={e => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 1px 4px rgba(40, 20, 60, 0.18)';
-                e.currentTarget.style.background = selectedCharIdx === cs.idx ? '#3a335a' : '#23203a';
-              }}
-            >
-              {/* Historical week indicator */}
-              {isHistoricalWeek && selectedCharIdx === cs.idx && (
-                <div style={{
-                  position: 'absolute',
-                  top: -6,
-                  right: -6,
-                  background: isReadOnlyMode ? '#ff6b6b' : '#38a169',
-                  color: '#fff',
-                  borderRadius: '50%',
-                  width: 20,
-                  height: 20,
-                  fontSize: '0.7rem',
-                  display: 'flex',
+                  if (selectedCharIdx !== cs.idx) {
+                    e.currentTarget.style.background = '#23203a';
+                    e.currentTarget.style.transform = 'translateX(0)';
+                  }
+                }}
+              >
+                {/* Historical week indicator */}
+                {isHistoricalWeek && selectedCharIdx === cs.idx && (
+                  <div style={{
+                    position: 'absolute',
+                    top: -6,
+                    right: -6,
+                    background: isReadOnlyMode ? '#ff6b6b' : '#38a169',
+                    color: '#fff',
+                    borderRadius: '50%',
+                    width: 18,
+                    height: 18,
+                    fontSize: '0.6rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                    zIndex: 5
+                  }}>
+                    {isReadOnlyMode ? '🔒' : '✏️'}
+                  </div>
+                )}
+
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                  zIndex: 5
+                  marginBottom: '0.4rem'
                 }}>
-                  {isReadOnlyMode ? '🔒' : '✏️'}
-                </div>
-              )}
-              {cs.allCleared ? (
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontWeight: 700, fontSize: '1em', width: '100%' }}>
-                  <span>{cs.name}</span>
-                  <svg width="19" height="19" viewBox="0 0 22 22"><circle cx="11" cy="11" r="11" fill="#38a169"/><polyline points="6,12 10,16 16,7" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <span style={{ 
+                    fontWeight: 700, 
+                    fontSize: '1rem',
+                    color: selectedCharIdx === cs.idx ? '#e6e0ff' : '#d0c5ff'
+                  }}>
+                    {cs.name}
                 </span>
-              ) : (
-                <>
-                  <span>{cs.name}</span>
-                  {cs.total === 0 ? (
-                    <span style={{ color: '#888', fontWeight: 500, fontSize: '0.95em' }}>No bosses</span>
-                  ) : (
-                    <span>{cs.cleared} / {cs.total} sold</span>
+                  {cs.allCleared && (
+                    <svg width="16" height="16" viewBox="0 0 22 22">
+                      <circle cx="11" cy="11" r="11" fill="#38a169"/>
+                      <polyline points="6,12 10,16 16,7" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
                   )}
+                </div>
+
+                  {cs.total === 0 ? (
+                  <div style={{ color: '#888', fontWeight: 500, fontSize: '0.85rem' }}>
+                    No bosses configured
+                  </div>
+                  ) : (
+                  <>
+                    <div style={{ 
+                      fontSize: '0.85rem', 
+                      color: '#b39ddb',
+                      marginBottom: '0.3rem'
+                    }}>
+                      {cs.cleared} / {cs.total} bosses cleared
+                    </div>
+                    <div style={{ 
+                      fontSize: '0.9rem', 
+                      fontWeight: 600,
+                      color: '#a259f7'
+                    }}>
+                      {cs.totalMeso.toLocaleString()} meso
+                    </div>
+                  </>
+                  )}
+              </div>
+            ))
+          )}
+        </div>
                 </>
               )}
-              <span>
-                {cs.totalMeso.toLocaleString()} meso
-              </span>
-            </div>
-          ))}
-        </div>
-
       </div>
-      {/* Read-only mode indicator and controls for historical weeks */}
-      {isHistoricalWeek && (
-        <div style={{
-          maxWidth: 700,
-          margin: '0 auto 1rem auto',
-          background: isReadOnlyMode 
-            ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.2))' 
-            : 'linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(22, 163, 74, 0.2))',
-          borderRadius: 12,
-          padding: '1rem 1.5rem',
-          fontWeight: 600,
-          boxShadow: isReadOnlyMode 
-            ? '0 4px 12px rgba(239, 68, 68, 0.3)' 
-            : '0 4px 12px rgba(34, 197, 94, 0.3)',
+
+      {/* Sidebar Toggle Button */}
+      <button
+        onClick={() => setSidebarVisible(!sidebarVisible)}
+        style={{
+          position: 'fixed',
+          left: sidebarVisible ? 260 : 10,
+          top: '110px',
+          background: 'linear-gradient(135deg, #a259f7, #805ad5)',
+          color: '#fff',
+          border: 'none',
+          borderRadius: '50%',
+          width: 40,
+          height: 40,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '1rem',
-          border: isReadOnlyMode
-            ? '2px solid rgba(239, 68, 68, 0.6)'
-            : '2px solid rgba(34, 197, 94, 0.6)'
+          justifyContent: 'center',
+          cursor: 'pointer',
+          zIndex: 200,
+          boxShadow: '0 4px 12px rgba(162, 89, 247, 0.4)',
+          transition: 'all 0.3s ease',
+          fontSize: '1.2rem'
+        }}
+        title={sidebarVisible ? 'Hide sidebar' : 'Show sidebar'}
+        onMouseOver={e => {
+          e.currentTarget.style.transform = 'scale(1.1)';
+          e.currentTarget.style.boxShadow = '0 6px 16px rgba(162, 89, 247, 0.6)';
+        }}
+        onMouseOut={e => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(162, 89, 247, 0.4)';
+        }}
+      >
+        {sidebarVisible ? '◀' : '▶'}
+      </button>
+
+      {/* Main Content Area - Now with proper centering */}
+      <div style={{ 
+        paddingLeft: sidebarVisible ? 280 : 0, // Account for sidebar
+        paddingTop: '100px', // Account for navbar
+        minHeight: '100vh',
+        transition: 'padding-left 0.3s ease'
+      }}>
+        {/* Centered content container - like InputPage */}
+        <div style={{
+          maxWidth: 900,
+          margin: '0 auto',
+          padding: '2rem',
+          width: '100%'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
-            <span style={{ fontSize: '1.2rem' }}>
-              {isReadOnlyMode ? '🔒' : '✏️'}
-            </span>
-            <div>
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <h2 style={{ fontWeight: 700, fontSize: '2rem', marginBottom: '0.5rem' }}>
+              Weekly Boss Tracker
+            </h2>
+          </div>
+
+          {/* Week Navigation */}
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            marginBottom: '2rem' 
+          }}>
+            <WeekNavigator
+              selectedWeekKey={selectedWeekKey}
+              onWeekChange={handleWeekChange}
+              availableWeeks={availableWeeks}
+              isLoading={isLoadingWeekData}
+              isReadOnlyMode={isReadOnlyMode}
+              isHistoricalWeek={isHistoricalWeek}
+            />
+          </div>
+
+                  {/* Top positioned elements removed - user code now shown in navbar */}
+        
+                  {/* Reset timer - positioned below navbar, only show for current week */}
+          {selectedWeekKey === currentWeekKey && (
+            <div style={{ 
+              position: 'fixed', 
+              top: 120, // Moved down to account for navbar
+              right: 20, 
+              zIndex: 150,
+              background: 'linear-gradient(135deg, #3a2a5d, #28204a)', 
+              borderRadius: 10, 
+              padding: '0.8rem 1rem', 
+              boxShadow: '0 4px 16px rgba(40, 20, 60, 0.3)',
+              textAlign: 'center',
+              border: '1px solid #4a4570',
+              minWidth: 180
+            }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 700, margin: 0, marginBottom: 6, color: '#b39ddb' }}>Next Reset</div>
               <div style={{ 
-                fontSize: '1rem', 
-                marginBottom: '0.2rem',
-                color: '#ffffff', // White text for maximum contrast
-                fontWeight: 700,
-                textShadow: '1px 1px 2px rgba(0, 0, 0, 0.8)', // Text shadow for readability
-                filter: 'none' // Remove any glow effects
+                fontSize: '1.1rem', 
+                fontFamily: 'monospace', 
+                fontWeight: 600, 
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '0.3rem',
+                color: '#e6e0ff'
               }}>
-                {isReadOnlyMode ? 'Read-Only Mode' : 'Edit Mode'}
+                <span>{timeUntilReset.days}d</span>
+                <span>{timeUntilReset.hours}h</span>
+                <span>{timeUntilReset.minutes}m</span>
               </div>
-              <div style={{ 
-                fontSize: '0.85rem', 
-                color: '#f3f4f6', // Very light gray text
-                fontWeight: 500,
-                textShadow: '1px 1px 2px rgba(0, 0, 0, 0.7)', // Text shadow for readability
-                filter: 'none', // Remove any glow effects
-                opacity: 0.95
-              }}>
-                {isReadOnlyMode 
-                  ? 'Historical week data is protected from changes'
-                  : 'Editing enabled for historical week data'
-                }
+              <div style={{ fontSize: '0.7rem', marginTop: '0.3rem', color: '#9f7aea' }}>
+                Thursday 00:00 UTC
               </div>
             </div>
-          </div>
-          
-          {/* Toggle button */}
-          <button
-            onClick={() => setReadOnlyOverride(!readOnlyOverride)}
-            style={{
-              background: isReadOnlyMode 
-                ? 'linear-gradient(135deg, #dc2626, #b91c1c)' 
-                : 'linear-gradient(135deg, #059669, #047857)',
-              border: 'none',
-              borderRadius: 8,
-              color: '#ffffff', // White text for maximum contrast
-              padding: '0.6rem 1.2rem',
-              fontWeight: 700,
-              fontSize: '0.9rem',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              minWidth: 120,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              boxShadow: isReadOnlyMode
-                ? '0 2px 8px rgba(220, 38, 38, 0.4)'
-                : '0 2px 8px rgba(5, 150, 105, 0.4)',
-              textShadow: '1px 1px 2px rgba(0, 0, 0, 0.5)', // Text shadow for button text
-              filter: 'none' // Remove any glow effects
-            }}
-            onMouseOver={e => {
-              e.currentTarget.style.transform = 'scale(1.05)';
-              e.currentTarget.style.boxShadow = isReadOnlyMode
-                ? '0 4px 12px rgba(220, 38, 38, 0.6)'
-                : '0 4px 12px rgba(5, 150, 105, 0.6)';
-            }}
-            onMouseOut={e => {
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.boxShadow = isReadOnlyMode
-                ? '0 2px 8px rgba(220, 38, 38, 0.4)'
-                : '0 2px 8px rgba(5, 150, 105, 0.4)';
-            }}
-            title={isReadOnlyMode 
-              ? 'Enable editing for this historical week' 
-              : 'Disable editing to protect historical data'
-            }
-          >
-            <span>{isReadOnlyMode ? '🔓' : '🔒'}</span>
-            <span>{isReadOnlyMode ? 'Enable Edit' : 'Lock Data'}</span>
-          </button>
+          )}
+
+
+          {/* Read-only mode indicator and controls for historical weeks */}
+          {isHistoricalWeek && (
+            <div style={{
+              margin: '0 auto 1rem auto',
+              maxWidth: 'calc(100% - 2rem)',
+            background: isReadOnlyMode 
+              ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.2))' 
+              : 'linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(22, 163, 74, 0.2))',
+            borderRadius: 12,
+            padding: '1rem 1.5rem',
+            fontWeight: 600,
+            boxShadow: isReadOnlyMode 
+              ? '0 4px 12px rgba(239, 68, 68, 0.3)' 
+              : '0 4px 12px rgba(34, 197, 94, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '1rem',
+            border: isReadOnlyMode
+              ? '2px solid rgba(239, 68, 68, 0.6)'
+              : '2px solid rgba(34, 197, 94, 0.6)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
+              <span style={{ fontSize: '1.2rem' }}>
+                {isReadOnlyMode ? '🔒' : '✏️'}
+              </span>
+              <div>
+                <div style={{ 
+                  fontSize: '1rem', 
+                  marginBottom: '0.2rem',
+                  color: '#ffffff', // White text for maximum contrast
+                  fontWeight: 700,
+                  textShadow: '1px 1px 2px rgba(0, 0, 0, 0.8)', // Text shadow for readability
+                  filter: 'none' // Remove any glow effects
+                }}>
+                  {isReadOnlyMode ? 'Read-Only Mode' : 'Edit Mode'}
+            </div>
+                <div style={{ 
+                  fontSize: '0.85rem', 
+                  color: '#f3f4f6', // Very light gray text
+                  fontWeight: 500,
+                  textShadow: '1px 1px 2px rgba(0, 0, 0, 0.7)', // Text shadow for readability
+                  filter: 'none', // Remove any glow effects
+                  opacity: 0.95
+                }}>
+                  {isReadOnlyMode 
+                    ? 'Historical week data is protected from changes'
+                    : 'Editing enabled for historical week data'
+                  }
+                </div>
+              </div>
         </div>
-      )}
+
+            {/* Toggle button */}
+            <button
+              onClick={() => setReadOnlyOverride(!readOnlyOverride)}
+              style={{
+                background: isReadOnlyMode 
+                  ? 'linear-gradient(135deg, #dc2626, #b91c1c)' 
+                  : 'linear-gradient(135deg, #059669, #047857)',
+                border: 'none',
+                borderRadius: 8,
+                color: '#ffffff', // White text for maximum contrast
+                padding: '0.6rem 1.2rem',
+                fontWeight: 700,
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                minWidth: 120,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                boxShadow: isReadOnlyMode
+                  ? '0 2px 8px rgba(220, 38, 38, 0.4)'
+                  : '0 2px 8px rgba(5, 150, 105, 0.4)',
+                textShadow: '1px 1px 2px rgba(0, 0, 0, 0.5)', // Text shadow for button text
+                filter: 'none' // Remove any glow effects
+              }}
+              onMouseOver={e => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = isReadOnlyMode
+                  ? '0 4px 12px rgba(220, 38, 38, 0.6)'
+                  : '0 4px 12px rgba(5, 150, 105, 0.6)';
+              }}
+              onMouseOut={e => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = isReadOnlyMode
+                  ? '0 2px 8px rgba(220, 38, 38, 0.4)'
+                  : '0 2px 8px rgba(5, 150, 105, 0.4)';
+              }}
+              title={isReadOnlyMode 
+                ? 'Enable editing for this historical week' 
+                : 'Disable editing to protect historical data'
+              }
+            >
+              <span>{isReadOnlyMode ? '🔓' : '🔒'}</span>
+              <span>{isReadOnlyMode ? 'Enable Edit' : 'Lock Data'}</span>
+            </button>
+      </div>
+          )}
 
       {showCharacterDetails && (
-        <>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 24 }}>
-            <button 
-              onClick={handleTickAll} 
-              disabled={isReadOnlyMode}
-              style={{ 
-                padding: '0.5rem 1.2rem', 
-                borderRadius: 6, 
-                background: isReadOnlyMode ? '#4a4a4a' : '#805ad5', 
-                color: '#fff', 
-                fontWeight: 600, 
-                cursor: isReadOnlyMode ? 'not-allowed' : 'pointer',
-                opacity: isReadOnlyMode ? 0.5 : 1,
-                border: '1px solid #9f7aea'
-              }}
-              title={isReadOnlyMode ? 'Cannot modify historical week data' : undefined}
-            >
+                <div>
+                {/* Only show Tick All button for current week */}
+                {!isHistoricalWeek && (
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    gap: 12, 
+                    marginBottom: 24 
+                  }}>
+                    <button 
+                      onClick={handleTickAll} 
+                      disabled={isReadOnlyMode}
+                      style={{ 
+              padding: '0.5rem 1.2rem', 
+              borderRadius: 6, 
+                        background: isReadOnlyMode ? '#4a4a4a' : '#805ad5', 
+              color: '#fff', 
+              fontWeight: 600, 
+                        cursor: isReadOnlyMode ? 'not-allowed' : 'pointer',
+                        opacity: isReadOnlyMode ? 0.5 : 1,
+              border: '1px solid #9f7aea'
+                      }}
+                      title={isReadOnlyMode ? 'Cannot modify historical week data' : undefined}
+                    >
               {charBosses.every(b => checked[`${char?.name || ''}-${selectedCharIdx}`]?.[b.name + '-' + b.difficulty]) && charBosses.length > 0 ? 'Untick All' : 'Tick All'}
             </button>
           </div>
-          <div className="table-scroll">
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700, border: '1px solid #e0e0ef', borderRadius: 12, overflow: 'hidden' }}>
+                )}
+                {/* Show historical week notice */}
+                {isHistoricalWeek && (
+                  <div style={{ 
+                    textAlign: 'center', 
+                    marginBottom: 24, 
+                    padding: '1rem', 
+                    background: 'rgba(162, 89, 247, 0.1)', 
+                    borderRadius: 8, 
+                    border: '1px solid rgba(162, 89, 247, 0.3)',
+                    color: '#b39ddb',
+                    maxWidth: 'calc(100% - 2rem)',
+                    margin: '0 auto 24px auto'
+                  }}>
+                    <strong>Historical Week View</strong> - Showing only boss pitched items for week {selectedWeekKey}
+                  </div>
+                )}
+                <div className="table-scroll" style={{ 
+                  display: 'flex', 
+                  justifyContent: 'center',
+                  width: '100%'
+                }}>
+                  <table style={{ 
+                    borderCollapse: 'collapse', 
+                    minWidth: isHistoricalWeek ? 500 : 700,
+                    maxWidth: isHistoricalWeek ? 600 : 800,
+                    width: '100%',
+                    border: '1px solid #e0e0ef', 
+                    borderRadius: 12, 
+                    overflow: 'hidden' 
+                  }}>
               <thead>
                 <tr style={{ background: '#3a2a5d', color: '#e6e0ff' }}>
                   <th style={{ padding: '6px 14px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 180 }}>Boss</th>
+                        {!isHistoricalWeek && (
+                          <>
                   <th style={{ padding: '6px 4px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 110 }}>Difficulty</th>
                   <th style={{ padding: '6px 24px', textAlign: 'right', fontWeight: 600, fontSize: '0.9em', minWidth: 110 }}>Mesos</th>
                   <th style={{ padding: '6px 4px', textAlign: 'center', fontWeight: 600, fontSize: '0.9em', minWidth: 90 }}>Cleared</th>
+                          </>
+                        )}
+                        {isHistoricalWeek && (
+                          <th style={{ padding: '6px 14px', textAlign: 'center', fontWeight: 600, fontSize: '0.9em', minWidth: 200 }}>Pitched Items</th>
+                        )}
                 </tr>
               </thead>
               <tbody>
-                {sortedBosses.map((b, idx) => {
+                      {isHistoricalWeek ? (
+                        // Historical week view - show unique bosses with pitched items only
+                        (() => {
+                          // Get all unique bosses across all characters
+                          const allBosses = new Map();
+                          characters.forEach(char => {
+                            char.bosses?.forEach(boss => {
+                              const bossObj = bossData.find(bd => bd.name === boss.name);
+                              if (bossObj && bossObj.pitchedItems && bossObj.pitchedItems.length > 0) {
+                                allBosses.set(boss.name, bossObj);
+                              }
+                            });
+                          });
+
+                          return Array.from(allBosses.values()).map((bossObj, idx) => (
+                            <tr
+                              key={bossObj.name}
+                              style={{
+                                background: idx % 2 === 0 ? '#23203a' : '#201c32',
+                                border: '1px solid #3a335a',
+                                color: '#e6e0ff',
+                                opacity: 0.9
+                              }}
+                            >
+                              {/* Boss Column */}
+                              <td style={{ padding: '8px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                                {bossObj.image && (
+                                  <img
+                                    src={bossObj.image}
+                                    alt={bossObj.name}
+                                    style={{
+                                      width: 40,
+                                      height: 40,
+                                      objectFit: 'contain',
+                                      borderRadius: 6,
+                                      background: '#fff2',
+                                      marginRight: 8
+                                    }}
+                                  />
+                                )}
+                                <span style={{ fontWeight: 600 }}>{bossObj.name}</span>
+                              </td>
+
+                              {/* Pitched Items Column */}
+                              <td style={{ padding: '8px', textAlign: 'center' }}>
+                                <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                                  {(bossObj.pitchedItems || []).map(item => {
+                                    // Check if any character has this pitched item for this boss in this week
+                                    let hasPitchedItem = false;
+                                    let characterWithItem = null;
+
+                                    // Check across all characters
+                                    characters.forEach((char, charIdx) => {
+                                      const key = getPitchedKey(char.name, charIdx, bossObj.name, item.name, weekKey);
+                                      if (pitchedChecked[key]) {
+                                        hasPitchedItem = true;
+                                        characterWithItem = char.name;
+                                      }
+                                    });
+
+                                    return (
+                                      <div
+                                        key={item.name}
+                                        className="pitched-item-icon"
+                                        style={{
+                                          position: 'relative',
+                                          display: 'inline-block',
+                                          borderRadius: 6,
+                                          boxShadow: hasPitchedItem ? '0 0 8px #a259f7' : 'none',
+                                          border: hasPitchedItem ? '2px solid #a259f7' : '2px solid #3a335a',
+                                          background: hasPitchedItem ? '#3a335a' : '#23203a',
+                                          transition: 'box-shadow 0.2s, border 0.2s, background 0.2s',
+                                          width: 36,
+                                          height: 36,
+                                          cursor: isReadOnlyMode ? 'default' : 'pointer',
+                                          opacity: isReadOnlyMode ? 0.6 : 1
+                                        }}
+                                        title={isReadOnlyMode 
+                                          ? (hasPitchedItem ? `${item.name} (obtained by ${characterWithItem})` : item.name)
+                                          : `Click to track: ${item.name}${hasPitchedItem ? ` (obtained by ${characterWithItem})` : ''}`
+                                        }
+                                        onClick={async (e) => {
+                                          e.stopPropagation();
+                                          
+                                          // For historical weeks in read-only mode, block interaction
+                                          if (isReadOnlyMode) {
+                                            console.log('Historical pitched item click blocked - read-only mode');
+                                            return;
+                                          }
+
+                                          // For historical weeks in edit mode, show historical logging modal
+                                          if (isHistoricalWeek && readOnlyOverride) {
+                                            console.log('Opening historical pitched item modal for:', item.name);
+                                            setHistoricalPitchedData({
+                                              character: '', // Will be selected in modal
+                                              characterIdx: -1,
+                                              bossName: bossObj.name,
+                                              itemName: item.name,
+                                              itemImage: item.image,
+                                              weekKey: weekKey
+                                            });
+                                            setShowHistoricalPitchedModal(true);
+                                            return;
+                                          }
+                                        }}
+                                        onMouseOver={e => {
+                                          if (!isReadOnlyMode) {
+                                            e.currentTarget.style.transform = 'scale(1.1)';
+                                            e.currentTarget.style.boxShadow = hasPitchedItem ? '0 0 12px #a259f7' : '0 0 8px rgba(162, 89, 247, 0.5)';
+                                          }
+                                        }}
+                                        onMouseOut={e => {
+                                          if (!isReadOnlyMode) {
+                                            e.currentTarget.style.transform = 'scale(1)';
+                                            e.currentTarget.style.boxShadow = hasPitchedItem ? '0 0 8px #a259f7' : 'none';
+                                          }
+                                        }}
+                                      >
+                                        <img
+                                          src={item.image}
+                                          alt={item.name}
+                                          style={{
+                                            width: 32,
+                                            height: 32,
+                                            objectFit: 'contain',
+                                            borderRadius: 4,
+                                            opacity: hasPitchedItem ? 1 : 0.4,
+                                            filter: hasPitchedItem ? 'drop-shadow(0 0 6px #a259f7)' : 'none'
+                                          }}
+                                        />
+                                        {hasPitchedItem && (
+                                          <span style={{
+                                            position: 'absolute',
+                                            top: -2,
+                                            right: -2,
+                                            background: '#a259f7',
+                                            color: '#fff',
+                                            borderRadius: '50%',
+                                            width: 16,
+                                            height: 16,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: 10,
+                                            fontWeight: 700,
+                                            boxShadow: '0 1px 4px #0004'
+                                          }}>✓</span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </td>
+                            </tr>
+                          ));
+                        })()
+                      ) : (
+                        // Current week view - show detailed boss information
+                        sortedBosses.map((b, idx) => {
                   const bossObj = bossData.find(bd => bd.name === b.name);
                   const isChecked = !!checked[charKey]?.[b.name + '-' + b.difficulty];
                   const pitched = bossObj?.pitchedItems || [];
@@ -1508,16 +2122,16 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
                         background: idx % 2 === 0 ? '#23203a' : '#201c32',
                         border: '1px solid #3a335a',
                         transition: 'background-color 0.2s ease, transform 0.2s ease',
-                        cursor: isReadOnlyMode ? 'default' : 'pointer',
-                        color: '#e6e0ff',
-                        ...(isReadOnlyMode && { opacity: 0.8 })
+                                cursor: isReadOnlyMode ? 'default' : 'pointer',
+                                color: '#e6e0ff',
+                                ...(isReadOnlyMode && { opacity: 0.8 })
                       }}
-                      onMouseOver={e => !isReadOnlyMode && (e.currentTarget.style.background = '#2a2540')}
-                      onMouseOut={e => !isReadOnlyMode && (e.currentTarget.style.background = idx % 2 === 0 ? '#23203a' : '#201c32')}
+                              onMouseOver={e => !isReadOnlyMode && (e.currentTarget.style.background = '#2a2540')}
+                              onMouseOut={e => !isReadOnlyMode && (e.currentTarget.style.background = idx % 2 === 0 ? '#23203a' : '#201c32')}
                       onClick={(e) => {
                         // Only trigger if the click wasn't on the checkbox or pitched item
-                        // Also check if it's read-only mode
-                        if (!isReadOnlyMode && !e.target.closest('.checkbox-wrapper') && !e.target.closest('.pitched-item-icon')) {
+                                // Also check if it's read-only mode
+                                if (!isReadOnlyMode && !e.target.closest('.checkbox-wrapper') && !e.target.closest('.pitched-item-icon')) {
                           handleCheck(b, !isChecked, e);
                         }
                       }}
@@ -1562,7 +2176,7 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
                                   style={{
                                     position: 'relative',
                                     display: 'inline-block',
-                                    cursor: isReadOnlyMode ? 'not-allowed' : 'pointer',
+                                            cursor: isReadOnlyMode ? 'not-allowed' : 'pointer',
                                     borderRadius: 6,
                                     boxShadow: got ? '0 0 8px #a259f7' : 'none',
                                     border: got ? '2px solid #a259f7' : '2px solid #3a335a',
@@ -1570,17 +2184,32 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
                                     transition: 'box-shadow 0.2s, border 0.2s, background 0.2s',
                                     width: 32,
                                     height: 32,
-                                    marginLeft: 2,
-                                    opacity: isReadOnlyMode ? 0.6 : 1
+                                            marginLeft: 2,
+                                            opacity: isReadOnlyMode ? 0.6 : 1
                                   }}
                                   onClick={async (e) => {
                                     e.stopPropagation();
-                                    
-                                    // Prevent interaction for historical weeks
-                                    if (isReadOnlyMode) {
-                                      console.log('Pitched item click blocked - read-only mode');
-                                      return;
-                                    }
+                                            
+                                            // For historical weeks in read-only mode, block interaction
+                                            if (isReadOnlyMode) {
+                                              console.log('Pitched item click blocked - read-only mode');
+                                              return;
+                                            }
+
+                                            // For historical weeks in edit mode, show historical logging modal
+                                            if (isHistoricalWeek && readOnlyOverride) {
+                                              console.log('Opening historical pitched item modal for:', item.name);
+                                              setHistoricalPitchedData({
+                                                character: char.name,
+                                                characterIdx: selectedCharIdx,
+                                                bossName: b.name,
+                                                itemName: item.name,
+                                                itemImage: item.image,
+                                                weekKey: weekKey
+                                              });
+                                              setShowHistoricalPitchedModal(true);
+                                              return;
+                                            }
                                     
                                     // Set user interaction flag to prevent sync conflicts
                                     userInteractionRef.current = true;
@@ -1626,7 +2255,7 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
                                         itemName: item.name,
                                         itemImage: item.image,
                                         date: new Date().toISOString()
-                                      }, got); // got=true means remove, got=false means add
+                                              }, got, weekKey); // got=true means remove, got=false means add, pass current weekKey
                                       
                                       if (!result.success) {
                                         console.error('🖱️ USER: Cloud save failed:', result.error);
@@ -1746,14 +2375,15 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
                         <span onClick={e => e.stopPropagation()}>
                           <CustomCheckbox
                             checked={isChecked}
-                            onChange={e => !isReadOnlyMode && handleCheck(b, e.target.checked, e)}
-                            disabled={isReadOnlyMode}
+                                        onChange={e => !isReadOnlyMode && handleCheck(b, e.target.checked, e)}
+                                        disabled={isReadOnlyMode}
                           />
                         </span>
                       </td>
                     </tr>
                   );
-                })}
+                        })
+                   )}
               </tbody>
             </table>
           </div>
@@ -1765,39 +2395,44 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
           }}>
             {/* Other content if needed */}
           </div>
-        </>
+            </div>
       )}
-      {/* Action buttons at top */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, maxWidth: 700, margin: '0 auto 12px auto' }}>
+            {/* Action buttons */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              marginBottom: 12, 
+              marginTop: '2rem'
+            }}>
         <button
           style={{
-            background: 'linear-gradient(135deg, #805ad5, #9f7aea)',
+                background: 'linear-gradient(135deg, #805ad5, #9f7aea)',
             color: '#fff',
             border: 'none',
-            borderRadius: 12,
-            padding: '0.8rem 2.5rem',
+                borderRadius: 12,
+                padding: '0.8rem 2.5rem',
             fontWeight: 700,
             fontSize: '1.1em',
             cursor: 'pointer',
             width: '100%',
-            maxWidth: 320,
-            boxShadow: '0 4px 12px rgba(128, 90, 213, 0.4)',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            letterSpacing: '0.5px',
-            position: 'relative',
-            overflow: 'hidden'
-          }}
-          onMouseOver={e => {
-            e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
-            e.currentTarget.style.boxShadow = '0 8px 20px rgba(128, 90, 213, 0.6)';
-          }}
-          onMouseOut={e => {
-            e.currentTarget.style.transform = 'translateY(0) scale(1)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(128, 90, 213, 0.4)';
+                maxWidth: 320,
+                boxShadow: '0 4px 12px rgba(128, 90, 213, 0.4)',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                letterSpacing: '0.5px',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+              onMouseOver={e => {
+                e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+                e.currentTarget.style.boxShadow = '0 8px 20px rgba(128, 90, 213, 0.6)';
+              }}
+              onMouseOut={e => {
+                e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(128, 90, 213, 0.4)';
           }}
           onClick={() => setShowStats(true)}
         >
-           View Stats
+          View Stats
         </button>
       </div>
       {/* Stats Modal Panel */}
@@ -1932,12 +2567,34 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
                       Cancel
                     </button>
                     <button
-                      onClick={() => {
-                        // Clear stats data
+                          onClick={async () => {
+                            try {
+                              console.log('🗑️ Starting complete stats reset...');
+                              
+                              // Clear local UI state first
                         setStatsPanel({ monthly: [], yearly: [] });
-                        // REMOVED: localStorage.setItem('ms-stats-panel', JSON.stringify({ monthly: [], yearly: [] })); // Now handled by cloud storage
                         setPitchedChecked({});
-                        // REMOVED: localStorage.setItem('ms-weekly-pitched', JSON.stringify({})); // Now handled by cloud storage
+                              setSelectedYear(getCurrentYearKey());
+                              
+                              // Perform cloud data deletion
+                              if (userCode) {
+                                const result = await purgeAllStatsData(userCode);
+                                
+                                if (result.success) {
+                                  console.log(`✅ Successfully reset all stats data. Removed ${result.itemsRemoved} pitched items and ${result.bossRunsRemoved} boss runs`);
+                                  
+                                  // Clear local cloud data states to force refresh
+                                  setCloudPitchedItems([]);
+                                  setCloudPitchedStats({});
+                                  
+                                  // Refresh cloud data
+                                  await refreshPitchedItems(userCode);
+                                } else {
+                                  console.error('❌ Failed to reset stats data:', result.error);
+                                  setError('Failed to reset stats data. Please try again.');
+                                  return;
+                                }
+                              }
                         
                         // Close confirmation dialog
                         setShowStatsResetConfirm(false);
@@ -1945,11 +2602,16 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
                         // Show success message
                         setResetSuccessVisible(true);
                         
-                        // Auto-close success message after 2 seconds
+                              // Auto-close success message after 3.4 seconds
                         setTimeout(() => {
                           setResetSuccessVisible(false);
                           setShowStats(false);
-                        }, 2000);
+                              }, 3400);
+                              
+                            } catch (error) {
+                              console.error('❌ Error in stats reset:', error);
+                              setError('Failed to reset stats data. Please try again.');
+                            }
                       }}
                       style={{ background: '#e53e3e', color: '#fff', border: 'none', borderRadius: 8, padding: '0.7rem 1.5rem', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer', minWidth: 100 }}
                     >
@@ -2083,19 +2745,89 @@ function WeeklyTracker({ characters, bossData, onBack, checked, setChecked, user
           </div>
         </div>
       )}
-      
-      {/* CSS for animations */}
-      <style jsx>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        
-        @keyframes pitched-spinner {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
+
+          {/* Historical Pitched Item Logging Modal */}
+          {showHistoricalPitchedModal && historicalPitchedData && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(40,32,74,0.96)',
+              zIndex: 6000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+              onClick={() => setShowHistoricalPitchedModal(false)}
+            >
+              <HistoricalPitchedModal
+                data={historicalPitchedData}
+                characters={characters}
+                onClose={() => setShowHistoricalPitchedModal(false)}
+                onConfirm={async (dateStr, selectedCharacter) => {
+                  try {
+                    console.log('🏛️ Historical pitched item logging:', {
+                      ...historicalPitchedData,
+                      date: dateStr
+                    });
+
+                    // Save to cloud using existing savePitchedItem function
+                    const result = await savePitchedItem(userCode, {
+                      character: selectedCharacter,
+                      bossName: historicalPitchedData.bossName,
+                      itemName: historicalPitchedData.itemName,
+                      itemImage: historicalPitchedData.itemImage,
+                      date: dateStr
+                    }, false, historicalPitchedData.weekKey); // false = add item, pass correct weekKey
+
+                    if (result.success) {
+                      console.log('✅ Historical pitched item saved successfully');
+                      
+                      // Update local UI state
+                      const characterIdx = characters.findIndex(c => c.name === selectedCharacter);
+                      const key = getPitchedKey(
+                        selectedCharacter, 
+                        characterIdx, 
+                        historicalPitchedData.bossName, 
+                        historicalPitchedData.itemName, 
+                        historicalPitchedData.weekKey
+                      );
+                      setPitchedChecked(prev => ({ ...prev, [key]: true }));
+                      
+                      // Refresh cloud data
+                      await refreshPitchedItems(userCode);
+                      
+                      setShowHistoricalPitchedModal(false);
+                    } else {
+                      console.error('❌ Failed to save historical pitched item:', result.error);
+                      setError('Failed to save historical pitched item. Please try again.');
+                    }
+                  } catch (error) {
+                    console.error('❌ Error saving historical pitched item:', error);
+                    setError('Failed to save historical pitched item. Please try again.');
+                  }
+                }}
+              />
+            </div>
+          )}
+          
+            {/* CSS for animations */}
+            <style jsx>{`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+              
+              @keyframes pitched-spinner {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}</style>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
