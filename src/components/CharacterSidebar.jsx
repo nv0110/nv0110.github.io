@@ -56,7 +56,7 @@ function CharacterSidebar({
   return (
     <>
       <div
-        className="sidebar-scroll"
+        className="sidebar-scroll fade-in-no-slide"
         style={{ 
           width: sidebarVisible ? 280 : 0,
           minWidth: sidebarVisible ? 280 : 0,

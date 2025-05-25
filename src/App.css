@@ -30,6 +30,14 @@
   to { opacity: 1; transform: none;}
 }
 
+.fade-in-no-slide {
+  animation: fadeInNoSlide 0.4s ease;
+}
+@keyframes fadeInNoSlide {
+  from { opacity: 0;}
+  to { opacity: 1;}
+}
+
 /* ===== 1. BASE STYLES & RESET ===== */
 
 html {
