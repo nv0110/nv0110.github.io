@@ -3,51 +3,19 @@ import React from 'react';
 function SidebarToggle({ sidebarVisible, setSidebarVisible }) {
   return (
     <div
-      className=""
+      className={`sidebar-toggle ${sidebarVisible ? 'visible' : 'hidden'}`}
       onClick={() => setSidebarVisible(!sidebarVisible)}
-      style={{
-        position: 'fixed',
-        left: sidebarVisible ? 220 : 10,
-        top: '100px', // Adjusted to match new sidebar position
-        zIndex: 200,
-        transition: 'all 0.3s ease',
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-        cursor: 'pointer',
-        width: 44,
-        height: 44,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        transform: 'scale(1) translateZ(0)',
-        willChange: 'transform, opacity'
-      }}
       title={sidebarVisible ? 'Hide sidebar' : 'Show sidebar'}
-      onMouseEnter={e => {
-        e.currentTarget.style.transform = 'scale(1.15)';
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.transform = 'scale(1)';
-      }}
     >
       {sidebarVisible ? (
         // Close icon (SVG X)
         <svg
+          className="sidebar-toggle-close-icon"
           width="24"
           height="24"
           viewBox="0 0 24 24"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          style={{
-            transition: 'all 0.3s ease',
-            filter: 'drop-shadow(0 0 3px rgba(255, 255, 255, 0.4)) drop-shadow(0 0 6px rgba(255, 255, 255, 0.2))'
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.filter = 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 16px rgba(255, 255, 255, 0.4))';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.filter = 'drop-shadow(0 0 3px rgba(255, 255, 255, 0.4)) drop-shadow(0 0 6px rgba(255, 255, 255, 0.2))';
-          }}
         >
           <defs>
             <linearGradient id="crossGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -63,30 +31,11 @@ function SidebarToggle({ sidebarVisible, setSidebarVisible }) {
         </svg>
       ) : (
         // Hamburger icon (3 lines)
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '4px',
-          transition: 'all 0.3s ease'
-        }}>
+        <div className="sidebar-toggle-hamburger">
           {[0, 1, 2].map(index => (
             <span
               key={index}
-              style={{
-                display: 'block',
-                width: 22,
-                height: 3,
-                background: 'linear-gradient(90deg, #ffffff, #e6e0ff, #d6b4ff)',
-                borderRadius: 2,
-                transition: 'all 0.3s ease',
-                filter: 'drop-shadow(0 0 2px rgba(255, 255, 255, 0.4)) drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))'
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.filter = 'drop-shadow(0 0 6px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 12px rgba(255, 255, 255, 0.4))';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.filter = 'drop-shadow(0 0 2px rgba(255, 255, 255, 0.4)) drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))';
-              }}
+              className="sidebar-toggle-hamburger-line"
             />
           ))}
         </div>

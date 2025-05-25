@@ -224,28 +224,30 @@ function InputPage() {
         onShowDeleteConfirm={() => setShowDeleteConfirm(true)}
       />
       
-      <div className="crystal-images-container">
-        <img src="/bosses/crystal.png" alt="Crystal" />
-        <img src="/bosses/bluecrystal.png" alt="Blue Crystal" />
-        <img src="/bosses/yellowcrystal.png" alt="Yellow Crystal" />
+      <div className="page-header-container fade-in">
+        <div className="crystal-images-container">
+          <img src="/bosses/crystal.png" alt="Crystal" />
+          <img src="/bosses/bluecrystal.png" alt="Blue Crystal" />
+          <img src="/bosses/yellowcrystal.png" alt="Yellow Crystal" />
+        </div>
+        
+        <h1 className="page-title-main">
+          Character & Boss Configuration
+        </h1>
+        
+        <p className="page-description">
+          Create characters, configure boss difficulties and party sizes for your weekly runs!
+        </p>
+        
+        {/* Action buttons */}
+        <ActionButtons
+          onExport={handleExport}
+          onImport={handleImport}
+          onShowPresets={() => setShowPresetModal(true)}
+          onShowQuickSelect={() => setShowQuickSelectModal(true)}
+          fileInputRef={fileInputRef}
+        />
       </div>
-      
-      <h1 className="page-title-main">
-        Character & Boss Configuration
-      </h1>
-      
-      <p className="page-description">
-        Create characters, configure boss difficulties and party sizes for your weekly runs!
-      </p>
-      
-      {/* Action buttons */}
-      <ActionButtons
-        onExport={handleExport}
-        onImport={handleImport}
-        onShowPresets={() => setShowPresetModal(true)}
-        onShowQuickSelect={() => setShowQuickSelectModal(true)}
-        fileInputRef={fileInputRef}
-      />
 
       {/* Success/Error Messages */}
       {importError && (

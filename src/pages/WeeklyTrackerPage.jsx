@@ -52,21 +52,17 @@ function WeeklyTrackerPage() {
         onShowDeleteConfirm={() => setShowDeleteConfirm(true)}
       />
       
-      {/* Main content container - properly centered */}
+      {/* Main content container - full width for sidebar + content layout */}
       <ViewTransitionWrapper>
-        <div className="weekly-tracker-main-container">
-          <div className="weekly-tracker-content-wrapper">
-            <WeeklyTracker 
-              characters={characters}
-              bossData={bossData}
-              checked={checked}
-              setChecked={setChecked}
-              userCode={userCode}
-              fullUserData={fullUserData}
-              weekKey={weekKey}
-            />
-          </div>
-        </div>
+        <WeeklyTracker 
+          characters={characters}
+          bossData={bossData}
+          checked={checked}
+          setChecked={setChecked}
+          userCode={userCode}
+          fullUserData={fullUserData}
+          weekKey={weekKey}
+        />
       </ViewTransitionWrapper>
 
       {/* Help Modal */}

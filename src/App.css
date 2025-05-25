@@ -222,7 +222,7 @@ body {
 
 /* Main page container - provides proper spacing for fixed navbar */
 .page-container {
-  padding: 6.5rem 0 2rem 0; /* Top padding accounts for fixed navbar height */
+  padding: 80px 0 2rem 0; /* Top padding accounts for fixed navbar height */
   width: 100%;
   min-height: 100vh;
   display: flex;
@@ -1378,28 +1378,258 @@ body {
 
 /* ===== 14. LEGACY TABLE STYLING & MISC COMPONENTS ===== */
 
-/* Weekly tracker main container */
+/* ===== WEEKLY TRACKER COMPONENTS ===== */
+
+/* Weekly tracker main container - main content area with fade-in animation */
 .weekly-tracker-main {
-  min-height: 100vh;
-}
-
-/* WeeklyTrackerPage main container - centers content properly */
-.weekly-tracker-main-container {
-  flex: 1;
+  width: 100%; /* Full width of the page */
   display: flex;
-  justify-content: center;
+  justify-content: center; /* Center content horizontally */
   align-items: flex-start;
-  width: 100%;
-  box-sizing: border-box;
-  min-height: calc(100vh - 6.5rem); /* Prevent layout shift */
 }
 
-/* WeeklyTracker content wrapper - constrains max width */
-.weekly-tracker-content-wrapper {
+/* REMOVED: WeeklyTrackerPage wrapper containers - no longer needed */
+
+/* Main layout container - flexbox layout for sidebar and content */
+.weekly-tracker-layout {
   width: 100%;
-  max-width: 1200px;
+  min-height: calc(100vh - 6.5rem); /* Account for navbar height */
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* Content area wrapper - contains all main content */
+.weekly-tracker-content {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+  width: 100%;
+  flex: 1; /* Take remaining space after sidebar */
+}
+
+/* Header section - page title area */
+.weekly-tracker-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+/* Main page title - "Weekly Boss Tracker" heading */
+.weekly-tracker-title {
+  font-weight: 700;
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  color: #e6e0ff; /* Light purple text for dark theme */
+}
+
+/* Week navigator container - centers the week navigation component */
+.weekly-tracker-week-nav {
   display: flex;
   justify-content: center;
+  margin-bottom: 2rem;
+}
+
+/* Tick All button container - centers the tick all button */
+.weekly-tracker-tick-all-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+/* Tick All button - purple gradient button for marking all bosses */
+.weekly-tracker-tick-all-btn {
+  padding: 0.5rem 1.2rem;
+  border-radius: 6px;
+  background: #805ad5; /* Purple background */
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #9f7aea; /* Lighter purple border */
+  transition: all 0.3s ease;
+}
+
+/* Tick All button disabled state - grayed out when read-only */
+.weekly-tracker-tick-all-btn:disabled {
+  background: #4a4a4a; /* Gray background for disabled state */
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Action buttons container - contains View Stats and Refresh buttons */
+.weekly-tracker-actions {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+  margin-top: 2rem;
+}
+
+/* View Stats button - main purple gradient button */
+.weekly-tracker-stats-btn {
+  background: linear-gradient(135deg, #805ad5, #9f7aea); /* Purple gradient */
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 0.8rem 2.5rem;
+  font-weight: 700;
+  font-size: 1.1em;
+  cursor: pointer;
+  width: 100%;
+  max-width: 320px;
+  box-shadow: 0 4px 12px rgba(128, 90, 213, 0.4); /* Purple shadow */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Debug refresh button container - centers the debug refresh button */
+.weekly-tracker-debug-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+/* Debug refresh button - green gradient button for manual refresh */
+.weekly-tracker-debug-btn {
+  background: linear-gradient(135deg, #48bb78, #38a169); /* Green gradient */
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1.5rem;
+  font-weight: 600;
+  font-size: 0.9em;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(72, 187, 120, 0.4); /* Green shadow */
+  transition: all 0.3s ease;
+}
+
+/* Error state container - displays error messages with red styling */
+.weekly-tracker-error {
+  padding: 2rem;
+  color: #e6e0ff; /* Light purple text */
+  font-size: 1.2rem;
+  text-align: center;
+}
+
+/* Error message text - red color for error text */
+.weekly-tracker-error-message {
+  color: #ff6b6b; /* Red error color */
+  margin-bottom: 1rem;
+}
+
+/* Error retry button - simple button for retrying after error */
+.weekly-tracker-error-btn {
+  margin-right: 1rem;
+  padding: 0.5rem 1rem;
+  background: #805ad5;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* No characters state container - displays when no characters exist */
+.weekly-tracker-no-characters {
+  padding: 2rem;
+  color: #e6e0ff; /* Light purple text */
+  font-size: 1.2rem;
+  text-align: center;
+}
+
+/* No characters message - animated fade-in message */
+.weekly-tracker-no-characters-message {
+  transition: opacity 0.5s ease-in-out;
+}
+
+/* Historical pitched modal backdrop - full screen overlay */
+.weekly-tracker-historical-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(40, 32, 74, 0.96); /* Dark purple overlay */
+  z-index: 6000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Refresh overlay - loading overlay during data refresh */
+.weekly-tracker-refresh-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(40, 32, 74, 0.8); /* Semi-transparent dark overlay */
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+
+/* Refresh modal - centered loading modal */
+.weekly-tracker-refresh-modal {
+  background: linear-gradient(135deg, #805ad5, #9f7aea); /* Purple gradient */
+  color: #fff;
+  padding: 2rem 3rem;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Refresh spinner - animated loading spinner */
+.weekly-tracker-refresh-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+/* Refresh text - loading message text */
+.weekly-tracker-refresh-text {
+  font-weight: 600;
+  font-size: 1.1em;
+}
+
+/* Fade-in message animation - for no characters message */
+@keyframes fadeInMessage {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* WeeklyTracker specific color overrides to prevent dark theme conflicts */
+.weekly-tracker-layout * {
+  color: inherit; /* Prevent global color overrides */
+}
+
+.weekly-tracker-title {
+  color: #e6e0ff !important; /* Ensure title is visible */
+}
+
+.weekly-tracker-tick-all-btn {
+  color: #fff !important; /* Ensure button text is white */
+}
+
+.weekly-tracker-stats-btn {
+  color: #fff !important; /* Ensure button text is white */
+}
+
+.weekly-tracker-debug-btn {
+  color: #fff !important; /* Ensure button text is white */
+}
+
+.weekly-tracker-error-btn {
+  color: #fff !important; /* Ensure button text is white */
 }
 
 /* Generic table styling */
@@ -1661,82 +1891,531 @@ html.scrolling .App.dark *::-webkit-scrollbar-thumb:hover {
   background: rgba(162, 89, 247, 0.7);
 }
 
-/* Sidebar scrollbar - permanently hidden */
+/* ===== SIDEBAR COMPONENTS ===== */
+
+/* Main sidebar container - fixed positioned character navigation panel */
 .sidebar-scroll {
+  /* Scrollbar styling - hidden for clean appearance */
   scrollbar-width: none;
   -ms-overflow-style: none;
-  /* Ensure sidebar is never affected by parent layout */
-  position: fixed ;
-  top: 75px; /* Start right under navbar */
-  left: 0;
-  transform: translateZ(0) ;
-  contain: layout style paint ;
+  
+  /* Layout positioning - fixed to left side of viewport */
+  position: fixed; /* Fixed positioning to start from top */
+  top: 75px; /* Start right after the navbar (navbar height = 80px) */
+  left: 0; /* Align to left edge of viewport */
+  height: calc(100vh - 80px); /* Full viewport height minus navbar */
+  flex-shrink: 0; /* Prevent sidebar from shrinking in flexbox */
+  
+  /* Overflow handling - vertical scroll, horizontal hidden */
+  overflow-y: auto; /* Allow vertical scrolling for character list */
+  overflow-x: hidden; /* Prevent horizontal overflow */
+  
+  /* Z-index hierarchy - below navbar (1000) but above main content */
+  z-index: 99; /* Positioned above main content but below navbar */
+  
+  /* Animation and performance optimization */
+  transition: all 0.3s ease; /* Smooth transitions for show/hide */
+  will-change: transform, opacity; /* Optimize for animations */
+}
+
+/* Sidebar visible state - full width with background and styling */
+.sidebar-scroll.visible {
+  width: 280px; /* Fixed sidebar width when visible */
+  min-width: 280px; /* Prevent shrinking below minimum width */
+  
+  /* Glass-morphism background styling */
+  background: linear-gradient(180deg, rgba(40, 32, 74, 0.95), rgba(35, 32, 58, 0.9));
+  backdrop-filter: blur(12px); /* Background blur effect */
+  -webkit-backdrop-filter: blur(12px); /* Safari compatibility */
+  
+  /* Border and shadow styling */
+  border-right: 1px solid rgba(162, 89, 247, 0.15); /* Purple accent border */
+  box-shadow: 2px 0 24px rgba(162, 89, 247, 0.08), 2px 0 8px rgba(0, 0, 0, 0.1); /* Depth shadow */
+  
+  /* Internal spacing */
+  padding: 1rem; /* General padding around content */
+  padding-right: 0.5rem; /* Reduced right padding for scrollbar space */
+}
+
+/* Sidebar hidden state - collapsed with no visual elements */
+.sidebar-scroll.hidden {
+  width: 0; /* Collapsed width when hidden */
+  min-width: 0; /* Allow full collapse */
+  
+  /* Remove all visual styling when hidden */
+  background: none;
+  border-right: none;
+  box-shadow: none;
+  padding: 0; /* No padding when collapsed */
+}
+
+/* Sidebar content wrapper - contains all sidebar elements with proper spacing */
+.sidebar-content {
+  padding-right: 0.5rem; /* Space for scrollbar and visual breathing room */
+}
+
+/* Sidebar header section - title and crystal icons */
+.sidebar-header {
+  text-align: center; /* Center-align header content */
+  margin-bottom: 1.5rem; /* Space below header */
+  padding-bottom: 1rem; /* Internal spacing */
+  border-bottom: 1px solid rgba(162, 89, 247, 0.15); /* Separator line */
+}
+
+/* Sidebar main title - "Characters" heading */
+.sidebar-title {
+  font-size: 1.3rem; /* Large, prominent title */
+  font-weight: 700; /* Bold weight for emphasis */
+  margin: 0; /* Remove default margins */
+  margin-bottom: 0.5rem; /* Space below title */
+  color: #e6e0ff; /* Light purple text color */
+}
+
+/* Crystal icons container - decorative boss crystal images */
+.sidebar-crystal-icons {
+  display: flex; /* Horizontal layout */
+  align-items: center; /* Vertical center alignment */
+  justify-content: center; /* Horizontal center alignment */
+  gap: 6px; /* Space between crystal icons */
+}
+
+/* Individual crystal icon styling */
+.sidebar-crystal-icon {
+  width: 20px; /* Fixed icon width */
+  height: 20px; /* Fixed icon height */
+}
+
+/* Weekly progress section - current week progress display */
+.sidebar-progress-section {
+  /* Glass-morphism container styling */
+  background: rgba(255, 255, 255, 0.05); /* Semi-transparent white background */
+  backdrop-filter: blur(8px); /* Background blur effect */
+  border-radius: 12px; /* Rounded corners */
+  padding: 1rem; /* Internal spacing */
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border */
+  margin-bottom: 1rem; /* Space below section */
+}
+
+/* Progress section title */
+.sidebar-progress-title {
+  font-size: 0.9rem; /* Smaller title text */
+  font-weight: 600; /* Semi-bold weight */
+  margin-bottom: 0.5rem; /* Space below title */
+  color: #d6b4ff; /* Light purple accent color */
+  text-align: center; /* Center-aligned text */
+}
+
+/* Progress bar track - background container for progress bar */
+.sidebar-progress-track {
+  background: rgba(255, 255, 255, 0.1); /* Semi-transparent background */
+  height: 6px; /* Thin progress bar */
+  border-radius: 3px; /* Rounded ends */
+  overflow: hidden; /* Hide overflow for clean edges */
+  position: relative; /* For absolute positioned fill */
+}
+
+/* Progress bar fill - animated progress indicator */
+.sidebar-progress-fill {
+  background: linear-gradient(90deg, #a259f7, #b47aff); /* Purple gradient fill */
+  height: 100%; /* Full height of track */
+  border-radius: 3px; /* Rounded ends */
+  transition: width 0.3s ease; /* Smooth width animation */
+}
+
+/* Progress numbers container - current/max meso display */
+.sidebar-progress-numbers {
+  display: flex; /* Horizontal layout */
+  justify-content: space-between; /* Space between current and max */
+  align-items: center; /* Vertical center alignment */
+  margin-top: 0.4rem; /* Space above numbers */
+  color: #c4b5d4; /* Muted purple text color */
+  font-size: 0.8rem; /* Small text size */
+}
+
+/* Historical week indicator - shows when viewing past weeks */
+.sidebar-historical-section {
+  /* Purple accent container styling */
+  background: rgba(162, 89, 247, 0.1); /* Light purple background */
+  backdrop-filter: blur(8px); /* Background blur effect */
+  border-radius: 12px; /* Rounded corners */
+  padding: 1rem; /* Internal spacing */
+  border: 1px solid rgba(162, 89, 247, 0.2); /* Purple border */
+  margin-bottom: 1rem; /* Space below section */
+  text-align: center; /* Center-aligned content */
+}
+
+/* Historical week title */
+.sidebar-historical-title {
+  color: #d6b4ff; /* Light purple text */
+  font-size: 0.9rem; /* Medium text size */
+  font-weight: 600; /* Semi-bold weight */
+}
+
+/* Historical week subtitle */
+.sidebar-historical-subtitle {
+  color: #b39ddb; /* Muted purple text */
+  font-size: 0.8rem; /* Small text size */
+}
+
+/* Hide completed checkbox section */
+.sidebar-checkbox-section {
+  margin-bottom: 1rem; /* Space below section */
+  text-align: center; /* Center-aligned content */
+}
+
+/* Hide completed checkbox label */
+.sidebar-checkbox-label {
+  font-size: 0.85rem; /* Small text size */
+  color: #c4b5d4; /* Muted purple text */
+  cursor: pointer; /* Indicate clickable element */
+  user-select: none; /* Prevent text selection */
+  display: inline-flex; /* Inline flexbox for alignment */
+  align-items: center; /* Vertical center alignment */
+  gap: 6px; /* Space between checkbox and text */
+}
+
+/* Hide completed checkbox input */
+.sidebar-checkbox-input {
+  accent-color: #a259f7; /* Purple accent color for checkbox */
+}
+
+/* Pagination navigation section - page controls when multiple pages exist */
+.sidebar-pagination {
+  display: flex; /* Horizontal layout */
+  align-items: center; /* Vertical center alignment */
+  justify-content: space-between; /* Space between arrows and indicator */
+  margin-bottom: 1rem; /* Space below pagination */
+  padding: 0.5rem 0; /* Vertical padding */
+  border-bottom: 1px solid rgba(162, 89, 247, 0.15); /* Separator line */
+}
+
+/* Pagination arrow buttons - previous/next page navigation */
+.sidebar-pagination-arrow {
+  cursor: pointer; /* Indicate clickable element */
+  transition: all 0.3s ease; /* Smooth hover transitions */
+  /* Default glow effect */
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.4)) drop-shadow(0 0 4px rgba(255, 255, 255, 0.2));
+}
+
+/* Pagination arrow hover effects */
+.sidebar-pagination-arrow:hover {
+  /* Enhanced glow on hover */
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 12px rgba(255, 255, 255, 0.4));
+}
+
+/* Previous arrow specific hover effect */
+.sidebar-pagination-arrow.previous:hover {
+  transform: scale(1.15) translateX(-2px); /* Scale and move left */
+}
+
+/* Next arrow specific hover effect */
+.sidebar-pagination-arrow.next:hover {
+  transform: scale(1.15) translateX(2px); /* Scale and move right */
+}
+
+/* Pagination page indicator - shows current page info */
+.sidebar-pagination-indicator {
+  font-size: 0.85rem; /* Small text size */
+  color: #b39ddb; /* Muted purple text */
+  font-weight: 600; /* Semi-bold weight */
+  text-align: center; /* Center-aligned text */
+}
+
+/* Character cards container - scrollable list of character cards */
+.sidebar-character-list {
+  display: flex; /* Vertical layout */
+  flex-direction: column; /* Stack cards vertically */
+  gap: 8px; /* Space between character cards */
+  min-height: 320px; /* Minimum height to prevent layout shift */
+}
+
+/* Empty state message - shown when no characters match filters */
+.sidebar-empty-state {
+  color: #9f9fb8; /* Muted gray text */
+  font-size: 0.9rem; /* Medium text size */
+  text-align: center; /* Center-aligned text */
+  padding: 2rem 1rem; /* Generous padding */
+  
+  /* Glass-morphism container styling */
+  background: rgba(255, 255, 255, 0.05); /* Semi-transparent background */
+  backdrop-filter: blur(8px); /* Background blur effect */
+  border-radius: 12px; /* Rounded corners */
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border */
+}
+
+/* Individual character card - clickable character summary */
+.sidebar-character-card {
+  /* Glass-morphism container styling */
+  backdrop-filter: blur(12px); /* Background blur effect */
+  -webkit-backdrop-filter: blur(12px); /* Safari compatibility */
+  border-radius: 12px; /* Rounded corners */
+  padding: 0.9rem; /* Internal spacing */
+  cursor: pointer; /* Indicate clickable element */
+  transition: all 0.3s ease; /* Smooth hover and selection transitions */
+  position: relative; /* For absolute positioned elements */
+}
+
+/* Character card default state */
+.sidebar-character-card.default {
+  background: rgba(255, 255, 255, 0.05); /* Semi-transparent background */
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border */
+  transform: translateX(0); /* Default position */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+}
+
+/* Character card hover state */
+.sidebar-character-card.default:hover {
+  background: rgba(255, 255, 255, 0.08); /* Slightly more opaque on hover */
+  transform: translateX(2px); /* Slight right movement */
+  box-shadow: 0 4px 16px rgba(162, 89, 247, 0.1); /* Enhanced purple shadow */
+}
+
+/* Character card selected state - active character */
+.sidebar-character-card.selected {
+  /* Purple gradient background for selected state */
+  background: linear-gradient(135deg, rgba(162, 89, 247, 0.25), rgba(128, 90, 213, 0.2));
+  transform: translateX(3px); /* More pronounced right movement */
+  box-shadow: 0 8px 32px rgba(162, 89, 247, 0.15); /* Strong purple shadow */
+}
+
+/* Selected character card border - different for historical vs current week */
+.sidebar-character-card.selected.current-week {
+  border: 1px solid rgba(162, 89, 247, 0.5); /* Purple border for current week */
+}
+
+.sidebar-character-card.selected.historical-week {
+  border: 1px solid rgba(159, 122, 234, 0.5); /* Lighter purple for historical */
+}
+
+/* Character card status indicator - shows edit/lock status for historical weeks */
+.sidebar-character-status-indicator {
+  position: absolute; /* Positioned relative to card */
+  top: -6px; /* Slightly above card */
+  right: -6px; /* Slightly to the right of card */
+  color: #fff; /* White icon color */
+  border-radius: 50%; /* Circular indicator */
+  width: 18px; /* Fixed width */
+  height: 18px; /* Fixed height */
+  font-size: 0.6rem; /* Small icon size */
+  display: flex; /* Center content */
+  align-items: center; /* Vertical center */
+  justify-content: center; /* Horizontal center */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3); /* Depth shadow */
+  z-index: 5; /* Above card content */
+}
+
+/* Read-only indicator (lock icon) */
+.sidebar-character-status-indicator.readonly {
+  background: #ff6b6b; /* Red background for read-only */
+}
+
+/* Editable indicator (edit icon) */
+.sidebar-character-status-indicator.editable {
+  background: #38a169; /* Green background for editable */
+}
+
+/* Character card header - name and completion status */
+.sidebar-character-header {
+  display: flex; /* Horizontal layout */
+  justify-content: space-between; /* Space between name and status */
+  align-items: center; /* Vertical center alignment */
+  margin-bottom: 0.4rem; /* Space below header */
+}
+
+/* Character name text */
+.sidebar-character-name {
+  font-weight: 700; /* Bold text */
+  font-size: 1rem; /* Medium text size */
+}
+
+/* Character name - default state */
+.sidebar-character-name.default {
+  color: #d0c5ff; /* Light purple for unselected */
+}
+
+/* Character name - selected state */
+.sidebar-character-name.selected {
+  color: #e6e0ff; /* Brighter purple for selected */
+}
+
+/* Character completion checkmark - shown when all bosses cleared */
+.sidebar-character-checkmark {
+  /* Green checkmark circle */
+  width: 16px;
+  height: 16px;
+}
+
+/* Character stats section - boss completion and meso info */
+.sidebar-character-stats {
+  /* Spacing and layout handled by parent container */
+}
+
+/* No bosses configured message */
+.sidebar-character-no-bosses {
+  color: #888; /* Gray text for inactive state */
+  font-weight: 500; /* Medium weight */
+  font-size: 0.85rem; /* Small text size */
+}
+
+/* Boss completion counter */
+.sidebar-character-completion {
+  font-size: 0.85rem; /* Small text size */
+  color: #b39ddb; /* Muted purple text */
+  margin-bottom: 0.3rem; /* Space below completion info */
+}
+
+/* Character meso total */
+.sidebar-character-meso {
+  font-size: 0.9rem; /* Medium text size */
+  font-weight: 600; /* Semi-bold weight */
+  color: #a259f7; /* Purple accent color */
+}
+
+/* ===== SIDEBAR TOGGLE BUTTON ===== */
+
+/* Main toggle button container - floating button to show/hide sidebar */
+.sidebar-toggle {
+  /* Fixed positioning - stays in place during scroll */
+  position: fixed; /* Fixed positioning relative to viewport */
+  top: calc(80px + 20px); /* Position below navbar with margin */
+  z-index: 200; /* Above sidebar but below modals */
+  
+  /* Button styling */
+  width: 44px; /* Fixed button width */
+  height: 44px; /* Fixed button height */
+  cursor: pointer; /* Indicate clickable element */
+  
+  /* Layout and alignment */
+  display: flex; /* Center content */
+  align-items: center; /* Vertical center */
+  justify-content: center; /* Horizontal center */
+  
+  /* User interaction */
+  user-select: none; /* Prevent text selection */
+  -webkit-user-select: none; /* Safari compatibility */
+  
+  /* Animation and performance */
+  transition: all 0.3s ease; /* Smooth position and scale transitions */
+  transform: scale(1) translateZ(0); /* Default scale with GPU acceleration */
+  will-change: transform, opacity; /* Optimize for animations */
+}
+
+/* Toggle button visible state - positioned next to visible sidebar */
+.sidebar-toggle.visible {
+  left: calc(270px - 44px); /* Position to the right of sidebar (280px - 10px margin) */
+}
+
+/* Toggle button hidden state - positioned at left edge */
+.sidebar-toggle.hidden {
+  left: 10px; /* Position at left edge of viewport */
+}
+
+/* Toggle button hover effect */
+.sidebar-toggle:hover {
+  transform: scale(1.15); /* Enlarge button on hover */
+}
+
+/* Close icon (X) - shown when sidebar is visible */
+.sidebar-toggle-close-icon {
+  transition: all 0.3s ease; /* Smooth filter transitions */
+  /* Default glow effect */
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.4)) drop-shadow(0 0 6px rgba(255, 255, 255, 0.2));
+}
+
+/* Close icon hover effect */
+.sidebar-toggle-close-icon:hover {
+  /* Enhanced glow on hover */
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 16px rgba(255, 255, 255, 0.4));
+}
+
+/* Hamburger menu container - shown when sidebar is hidden */
+.sidebar-toggle-hamburger {
+  display: flex; /* Vertical layout */
+  flex-direction: column; /* Stack lines vertically */
+  gap: 4px; /* Space between hamburger lines */
+  transition: all 0.3s ease; /* Smooth transitions */
+}
+
+/* Individual hamburger line */
+.sidebar-toggle-hamburger-line {
+  display: block; /* Block element for proper sizing */
+  width: 22px; /* Fixed line width */
+  height: 3px; /* Thin line height */
+  background: linear-gradient(90deg, #ffffff, #e6e0ff, #d6b4ff); /* Purple gradient */
+  border-radius: 2px; /* Rounded ends */
+  transition: all 0.3s ease; /* Smooth transitions */
+  /* Default glow effect */
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.4)) drop-shadow(0 0 4px rgba(255, 255, 255, 0.2));
+}
+
+/* Hamburger line hover effect */
+.sidebar-toggle-hamburger-line:hover {
+  /* Enhanced glow on hover */
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 12px rgba(255, 255, 255, 0.4));
 }
 
 /* ===== 18. DARK THEME OVERRIDES ===== */
 
-/* Text color overrides for consistent dark theme */
+/* Text color overrides for consistent dark theme - REMOVED OVERLY AGGRESSIVE OVERRIDES */
 .App.dark h1, .App.dark p, .App.dark th, .App.dark td {
-  color: #cebbe4 !important;
+  color: #cebbe4;
 }
 
-.App.dark div, .App.dark span {
-  color: #8d80c4 !important;
-}
+/* REMOVED: Overly broad div and span color override that was breaking component styling */
 
 /* Table styling overrides */
 .App.dark .table th {
-  background-color: #2d2540 !important;
-  color: #a084e8 !important;
+  background-color: #2d2540;
+  color: #a084e8;
 }
 
 .App.dark .table td {
-  background: #23203a !important;
-  color: #e6e0ff !important;
+  background: #23203a;
+  color: #e6e0ff;
 }
 
 .App.dark .table tr:nth-child(even) td {
-  background: #201c32 !important;
+  background: #201c32;
 }
 
 /* Button styling overrides */
 .App.dark .boton-elegante {
-  background-color: #50AD7E !important;
-  color: #e6e0ff !important;
-  border: 2px solid #AFE4C9 !important;
+  background-color: #50AD7E;
+  color: #e6e0ff;
+  border: 2px solid #AFE4C9;
 }
 
 .App.dark .boton-elegante:hover {
-  background: #7BCAA2 !important;
-  border-color: #AFE4C9 !important;
+  background: #7BCAA2;
+  border-color: #AFE4C9;
 }
 
 /* Button variant overrides */
 .App.dark .boton-elegante.clone {
-  background-color: #2c5282 !important;
-  border-color: #4299e1 !important;
+  background-color: #2c5282;
+  border-color: #4299e1;
 }
 
 .App.dark .boton-elegante.ctene {
-  background-color: #38a169 !important;
-  border-color: #48bb78 !important;
+  background-color: #38a169;
+  border-color: #48bb78;
 }
 
 .App.dark .boton-elegante.hlom {
-  background-color: #805ad5 !important;
-  border-color: #9f7aea !important;
+  background-color: #805ad5;
+  border-color: #9f7aea;
 }
 
 .App.dark .boton-elegante.delete {
-  background-color: #e53e3e !important;
-  border-color: #fc8181 !important;
+  background-color: #e53e3e;
+  border-color: #fc8181;
 }
 
 /* Preset button styling */
 .App.dark .boton-elegante.add-preset {
-  background-color: #356159 !important;
-  border-color: #2B4D4C !important;
-  color: #F0EEFA !important;
+  background-color: #356159;
+  border-color: #2B4D4C;
+  color: #F0EEFA;
 }
 
 .App.dark .boton-elegante.preset0,
@@ -1745,9 +2424,9 @@ html.scrolling .App.dark *::-webkit-scrollbar-thumb:hover {
 .App.dark .boton-elegante.preset3,
 .App.dark .boton-elegante.preset4,
 .App.dark .boton-elegante.preset5 {
-  background-color: #447a70 !important;
-  border-color: #498381 !important;
-  color: #F0EEFA !important;
+  background-color: #447a70;
+  border-color: #498381;
+  color: #F0EEFA;
 }
 
 /* Form input styling overrides */
@@ -1755,59 +2434,59 @@ html.scrolling .App.dark *::-webkit-scrollbar-thumb:hover {
 .App.dark input[type="password"], 
 .App.dark input[type="email"], 
 .App.dark textarea {
-  background-color: #3a335a !important;
-  border: 1px solid #4a4370 !important;
-  color: #e6e0ff !important;
-  transition: all 0.25s ease !important;
+  background-color: #3a335a;
+  border: 1px solid #4a4370;
+  color: #e6e0ff;
+  transition: all 0.25s ease;
 }
 
 .App.dark input:focus, 
 .App.dark textarea:focus {
-  border-color: #a259f7 !important;
-  box-shadow: 0 0 0 2px rgba(162, 89, 247, 0.3), 0 0 10px rgba(255, 255, 255, 0.15) !important;
-  outline: none !important;
+  border-color: #a259f7;
+  box-shadow: 0 0 0 2px rgba(162, 89, 247, 0.3), 0 0 10px rgba(255, 255, 255, 0.15);
+  outline: none;
 }
 
 .App.dark input:hover:not(:focus),
 .App.dark textarea:hover:not(:focus) {
-  border-color: #6a5c9e !important;
-  box-shadow: 0 0 5px rgba(255, 255, 255, 0.1) !important;
+  border-color: #6a5c9e;
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.1);
 }
 
 /* Dropdown styling overrides */
 .App.dark .party-size-dropdown, .App.dark .boss-table-difficulty {
-  background: #181622 !important;
-  color: #e6e0ff !important;
-  border: 1px solid #3a335a !important;
+  background: #181622;
+  color: #e6e0ff;
+  border: 1px solid #3a335a;
 }
 
 /* Text color overrides for specific elements */
 .App.dark .boss-table-price, .App.dark .boss-table-controls {
-  color: #b39ddb !important;
+  color: #b39ddb;
 }
 
 .App.dark .info-text, .App.dark .empty-message, .App.dark p, .App.dark .overall-total, .App.dark .meso-total {
-  color: #e6e0ff !important;
+  color: #e6e0ff;
 }
 
 .App.dark th,
 .App.dark .boss-table-price,
 .App.dark .boss-table-controls {
-  color: #b39ddb !important;
+  color: #b39ddb;
 }
 
 .App.dark h1 {
-  color: #c4b5d4 !important;
+  color: #c4b5d4;
 }
 
 /* Global table header styling */
 body.dark th, body.dark thead th {
-  background: #3a2a5d !important;
-  color: #e0d6f7 !important;
+  background: #3a2a5d;
+  color: #e0d6f7;
 }
 
 .App.dark .delete-all-characters-btn {
-  color: #a259f7 !important;
+  color: #a259f7;
 }
 
 /* ===== 19. LEGACY COMPONENTS ===== */
