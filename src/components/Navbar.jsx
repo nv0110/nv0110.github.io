@@ -1,11 +1,12 @@
 import { useAuth } from '../hooks/useAuth';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { getTimeUntilReset, getCurrentWeekKey } from '../utils/weekUtils';
+import { useViewTransition } from '../hooks/useViewTransition';
 
 function Navbar({ currentPage, onShowHelp, onShowDeleteConfirm }) {
   const { userCode, handleLogout } = useAuth();
-  const navigate = useNavigate();
+  const { navigate, isPending } = useViewTransition();
   const location = useLocation();
 
   // Timer state managed within navbar
@@ -52,19 +53,10 @@ function Navbar({ currentPage, onShowHelp, onShowDeleteConfirm }) {
         <div className="navbar-left">
           {timeUntilReset && (
             <div className="navbar-timer">
-              <div style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: '#b39ddb', marginRight: '0.6rem' }}>
+              <div className="navbar-timer-label">
                  Reset:  
               </div>
-              <div style={{ 
-                fontSize: '1.1rem', 
-                fontFamily: 'monospace', 
-                fontWeight: 700, 
-                display: 'flex',
-                justifyContent: 'center',
-                gap: '0.3rem',
-                color: '#e6e0ff'
-                
-              }}>
+              <div className="navbar-timer-countdown">
                 <span>{timeUntilReset.days}D</span>
                 <span>{timeUntilReset.hours}H</span>
                 <span>{timeUntilReset.minutes}M</span>

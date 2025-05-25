@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import useScrollbarVisibility from './hooks/useScrollbarVisibility';
+import ViewTransitionWrapper from './components/ViewTransitionWrapper';
 import LoginPage from './pages/LoginPage';
 import InputPage from './pages/InputPage';
 import BossTablePage from './pages/BossTablePage';
@@ -27,30 +28,14 @@ class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
     return (
-        <div className="App dark" style={{ 
-          background: '#28204a', 
-          minHeight: '100vh', 
-                color: '#e6e0ff', 
-          display: 'flex',
-          flexDirection: 'column',
-            alignItems: 'center', 
-            justifyContent: 'center' 
-          }}>
-          <h1 style={{ color: '#ff6b6b', marginBottom: '1rem' }}>Something went wrong</h1>
-          <p style={{ marginBottom: '1rem', textAlign: 'center', maxWidth: 600 }}>
+        <div className="App dark error-container">
+          <h1 className="error-page-title">Something went wrong</h1>
+          <p className="error-page-description">
             An unexpected error occurred. Please try refreshing the page.
           </p>
               <button 
             onClick={() => window.location.reload()} 
-                style={{ 
-                  background: '#a259f7', 
-                  color: '#fff', 
-                  border: 'none', 
-                  borderRadius: 8, 
-              padding: '0.8rem 1.5rem',
-                  fontWeight: 700, 
-              cursor: 'pointer'
-                }}
+                className="error-refresh-btn"
               >
             Refresh Page
               </button>
@@ -65,19 +50,10 @@ class ErrorBoundary extends Component {
 // 404 Not Found Component
 function NotFound() {
                 return (
-    <div className="App dark" style={{ 
-      background: '#28204a', 
-      minHeight: '100vh', 
-              color: '#e6e0ff',
-      padding: '2rem', 
-                display: 'flex',
-      flexDirection: 'column', 
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}>
-      <h1 style={{ fontSize: '4rem', marginBottom: '1rem', color: '#a259f7' }}>404</h1>
-      <h2 style={{ marginBottom: '1rem' }}>Page Not Found</h2>
-      <p style={{ marginBottom: '2rem', textAlign: 'center', maxWidth: 600 }}>
+    <div className="App dark not-found-container">
+      <h1 className="not-found-title">404</h1>
+      <h2 className="not-found-subtitle">Page Not Found</h2>
+      <p className="not-found-description">
         The page you're looking for doesn't exist. It might have been moved or deleted.
       </p>
       <Navigate to="/" replace />
@@ -105,49 +81,47 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <div className="App dark" style={{
-        background: '#28204a',
-        minHeight: '100vh',
-        color: '#e6e0ff'
-      }}>
-        <Routes>
-          {/* Login Route - redirect to home if already logged in */}
-          <Route 
-            path="/login" 
-            element={isLoggedIn ? <Navigate to="/" replace /> : <LoginPage />} 
-          />
-          
-          {/* Protected Routes */}
-          <Route 
-            path="/" 
-            element={
-              <ProtectedRoute>
-                <InputPage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/weeklytracker" 
-            element={
-              <ProtectedRoute>
-                <WeeklyTrackerPage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/bosstable" 
-            element={
-              <ProtectedRoute>
-                <BossTablePage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          {/* Catch all route - 404 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+      <div className="App dark">
+        <ViewTransitionWrapper>
+          <Routes>
+            {/* Login Route - redirect to home if already logged in */}
+            <Route 
+              path="/login" 
+              element={isLoggedIn ? <Navigate to="/" replace /> : <LoginPage />} 
+            />
+            
+            {/* Protected Routes */}
+            <Route 
+              path="/" 
+              element={
+                <ProtectedRoute>
+                  <InputPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/weeklytracker" 
+              element={
+                <ProtectedRoute>
+                  <WeeklyTrackerPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/bosstable" 
+              element={
+                <ProtectedRoute>
+                  <BossTablePage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* Catch all route - 404 */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </ViewTransitionWrapper>
       </div>
     </ErrorBoundary>
   );

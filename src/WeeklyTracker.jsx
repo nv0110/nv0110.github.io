@@ -38,6 +38,7 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
   const [selectedCharIdx, setSelectedCharIdx] = useState(0);
   const [error, setError] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showNoCharactersMessage, setShowNoCharactersMessage] = useState(false);
   const [progressData, setProgressData] = useState({
     weeklyTotal: 0,
     lastReset: new Date().toISOString(),
@@ -53,6 +54,19 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.WEEKLY_HIDE_COMPLETED, JSON.stringify(hideCompleted));
   }, [hideCompleted]);
+
+  // Handle fade-in animation for "No characters found" message
+  useEffect(() => {
+    if (!characters.length) {
+      setShowNoCharactersMessage(false);
+      const timer = setTimeout(() => {
+        setShowNoCharactersMessage(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    } else {
+      setShowNoCharactersMessage(false);
+    }
+  }, [characters.length]);
 
   // Custom hooks for complex logic
   const weekNavigation = useWeekNavigation(userCode);
@@ -246,7 +260,29 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
   if (!characters.length) {
     return (
       <div className="App dark" style={{ padding: '2rem', color: '#e6e0ff', fontSize: '1.2rem', textAlign: 'center' }}>
-        No characters found. Go back and add a character first.
+        <div 
+          style={{ 
+            opacity: showNoCharactersMessage ? 1 : 0,
+            transition: 'opacity 0.5s ease-in-out',
+            animation: showNoCharactersMessage ? 'fadeInMessage 0.5s ease-in-out' : 'none'
+          }}
+        >
+          No characters found. Go back and add a character first.
+        </div>
+        <style>
+          {`
+            @keyframes fadeInMessage {
+              from {
+                opacity: 0;
+                transform: translateY(10px);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0);
+              }
+            }
+          `}
+        </style>
       </div>
     );
   }
@@ -433,10 +469,9 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Modals */}
-      <StatsModal
+        {/* Modals */}
+        <StatsModal
         showStats={statsManagement.showStats}
         setShowStats={statsManagement.setShowStats}
         allYears={statsManagement.allYears}
@@ -548,6 +583,7 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

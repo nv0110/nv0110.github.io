@@ -3,11 +3,12 @@ import React from 'react';
 function SidebarToggle({ sidebarVisible, setSidebarVisible }) {
   return (
     <div
+      className=""
       onClick={() => setSidebarVisible(!sidebarVisible)}
       style={{
         position: 'fixed',
         left: sidebarVisible ? 220 : 10,
-        top: '110px',
+        top: '100px', // Adjusted to match new sidebar position
         zIndex: 200,
         transition: 'all 0.3s ease',
         userSelect: 'none',
@@ -18,7 +19,8 @@ function SidebarToggle({ sidebarVisible, setSidebarVisible }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        transform: 'scale(1)'
+        transform: 'scale(1) translateZ(0)',
+        willChange: 'transform, opacity'
       }}
       title={sidebarVisible ? 'Hide sidebar' : 'Show sidebar'}
       onMouseEnter={e => {

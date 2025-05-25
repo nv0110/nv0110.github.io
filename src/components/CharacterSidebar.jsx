@@ -64,18 +64,16 @@ function CharacterSidebar({
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
           borderRight: sidebarVisible ? '1px solid rgba(162, 89, 247, 0.15)' : 'none',
-          position: 'fixed',
-          left: 0,
-          top: 0, // Touch the navbar
           bottom: 0,
           overflowY: 'auto',
           overflowX: 'hidden',
-          zIndex: 99, // Below navbar but above content
+          zIndex: 99,
           padding: sidebarVisible ? '1rem' : '0', 
-          paddingTop: sidebarVisible ? '100px' : '0', // Account for navbar height
-          paddingRight: sidebarVisible ? '0.5rem' : '0', // Reduced right padding for scrollbar
+          paddingTop: sidebarVisible ? '1rem' : '0', // Normal padding, not extra for navbar
+          paddingRight: sidebarVisible ? '0.5rem' : '0',
           boxShadow: sidebarVisible ? '2px 0 24px rgba(162, 89, 247, 0.08), 2px 0 8px rgba(0, 0, 0, 0.1)' : 'none',
           transition: 'all 0.3s ease',
+          willChange: 'transform, opacity', // Optimize for animations
         }}>
         {sidebarVisible && (
           <div style={{ paddingRight: '0.5rem' }}>
@@ -280,7 +278,8 @@ function CharacterSidebar({
                   background: 'rgba(255, 255, 255, 0.05)',
                   backdropFilter: 'blur(8px)',
                   borderRadius: 12,
-                  border: '1px solid rgba(255, 255, 255, 0.1)'
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  opacity: visibleCharSummaries.length === 0 ? 0 : 1
                 }}>
                   {hideCompleted ? 'No characters with bosses left to clear.' : 'No characters found.'}
                 </div>
