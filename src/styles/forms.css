@@ -1,0 +1,140 @@
+/* =====================================================================================
+   FORM ELEMENTS & INPUTS
+   =====================================================================================
+   
+   Form controls, dropdowns, and input styling including:
+   - Character selection dropdowns
+   - Party size controls
+   - Input fields and text areas
+   - Form validation states
+   
+   ===================================================================================== */
+
+/* ===== CHARACTER SELECTION FORMS ===== */
+
+/* Character selection dropdowns */
+.char-header-row select {
+  background: #353434;
+  color: #fff;
+  border: 2px solid #fff;
+  border-radius: 10px;
+  font-size: 1.1em;
+  min-width: 140px;
+  height: 36px;
+  box-shadow: 0 1px 4px #0001;
+  transition: border-color 0.2s;
+  text-align: center;
+  text-align-last: center;
+  padding-right: 20px;
+}
+
+.char-header-row select option {
+  text-align: center;
+}
+
+/* Party size dropdown styling */
+.party-size-dropdown {
+  height: 32px;
+  min-width: 70px;
+  width: 70px;
+  padding: 0 20px 0 8px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #222;
+  color: #fff;
+  font-weight: 600;
+  text-align: center;
+  font-size: 1rem;
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* ===== CHARACTER NAME EDITING ===== */
+
+/* Character name edit button styling */
+.character-name-edit-btn {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 1.2em;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.character-name-edit-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.character-name-edit-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ===== STATUS MESSAGES ===== */
+
+/* Status message containers */
+.error-message-container {
+  color: #ff8383;
+  margin-bottom: 1rem;
+  text-align: center;
+  padding: 10px;
+  background: #3a335a;
+  border-radius: 6px;
+  max-width: 600px;
+  margin: 0 auto 20px auto;
+}
+
+.success-message-container {
+  color: #83ff9b;
+  margin-bottom: 1rem;
+  text-align: center;
+  padding: 10px;
+  background: #3a335a;
+  border-radius: 6px;
+  max-width: 600px;
+  margin: 0 auto 20px auto;
+}
+
+.character-error-message {
+  color: red;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+/* ===== SNACKBAR NOTIFICATIONS ===== */
+
+/* Undo snackbar - character deletion notification */
+.undo-snackbar {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #23203a;
+  color: #fff;
+  border-radius: 8px;
+  padding: 1rem 2rem;
+  font-weight: 700;
+  font-size: 1.1rem;
+  box-shadow: 0 4px 24px #0006;
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.undo-btn {
+  background: #a259f7;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1.2rem;
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: pointer;
+  margin-left: 12px;
+} 

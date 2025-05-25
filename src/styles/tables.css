@@ -1,0 +1,221 @@
+/* =====================================================================================
+   TABLE COMPONENTS
+   =====================================================================================
+   
+   Boss tables, data tables, and table-related styling including:
+   - Boss price tables
+   - Table headers and cells
+   - Table hover effects
+   - Responsive table behavior
+   
+   ===================================================================================== */
+
+/* ===== TABLE CONTAINERS ===== */
+
+/* Table scroll wrapper - enables horizontal scrolling for large tables */
+.table-scroll {
+  /* Container class for organization - no specific styles needed */
+}
+
+/* Table container with hover effects */
+.table-container {
+  width: 100%;
+  transition: box-shadow 0.3s, border 0.3s, max-width 0.3s;
+}
+
+.table-container.wide {
+  max-width: 900px;
+}
+
+.table-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, 
+    rgba(162, 89, 247, 0.02) 0%,
+    rgba(255, 255, 255, 0.01) 50%,
+    rgba(162, 89, 247, 0.02) 100%
+  );
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.table-container:hover::before {
+  opacity: 0.25;
+}
+
+/* ===== BOSS PRICE TABLES ===== */
+
+/* Boss price table - main data table on BossTablePage */
+.boss-price-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 700px;
+  border: 1px solid #2d2540;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Boss table header row styling */
+.boss-table-header {
+  background: #3a2a5d;
+  color: #fff;
+}
+
+/* Standard table header cells */
+.boss-table-header-cell {
+  padding: 6px 14px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.9em;
+  min-width: 100px;
+  vertical-align: bottom;
+}
+
+/* Difficulty column header - smaller padding */
+.boss-table-header-cell-difficulty {
+  padding: 6px 4px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.9em;
+  min-width: 90px;
+}
+
+/* Price column header - right aligned for numbers */
+.boss-table-header-cell-price {
+  padding: 6px 14px;
+  text-align: right;
+  font-weight: 600;
+  font-size: 0.9em;
+  min-width: 120px;
+}
+
+/* ===== TABLE ROWS ===== */
+
+/* Alternating row colors for better readability */
+.boss-table-row-even {
+  background: #23203a;
+  border: 1px solid #3a335a;
+}
+
+.boss-table-row-odd {
+  background: #201c32;
+  border: 1px solid #3a335a;
+}
+
+/* ===== TABLE CELLS ===== */
+
+/* Boss name cell - contains image and text */
+.boss-name-cell {
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 100px;
+}
+
+/* Boss name text styling */
+.boss-name-text {
+  font-weight: 600;
+  font-size: 1.05em;
+}
+
+/* Boss images in tables */
+.boss-table-image {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #fff1;
+  margin-right: 8px;
+}
+
+/* Difficulty column cells */
+.boss-difficulty-cell {
+  padding: 8px;
+  text-align: left;
+  min-width: 90px;
+}
+
+.boss-difficulty-text {
+  font-weight: 500;
+}
+
+/* Price column cells - right aligned for currency values */
+.boss-price-cell {
+  padding: 8px;
+  text-align: right;
+  min-width: 120px;
+}
+
+.boss-price-text {
+  color: #6a11cb;
+  font-weight: 600;
+}
+
+/* ===== GENERIC TABLE STYLING ===== */
+
+/* Generic table styling */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5em 0;
+}
+
+.table th,
+.table td {
+  padding: 0.5em;
+  font-size: 0.85rem;
+  text-align: left;
+  border: 1px solid #ddd;
+}
+
+.table th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+}
+
+/* ===== BOSS TABLE SPECIFIC COLUMNS ===== */
+
+/* Boss table specific column widths */
+.boss-table-price {
+  width: 130px;
+  min-width: 130px;
+  max-width: 130px;
+  text-align: right;
+}
+
+.boss-table-controls {
+  width: 220px;
+  min-width: 220px;
+  max-width: 220px;
+  text-align: center;
+}
+
+.boss-table-difficulty {
+  width: 90px;
+  min-width: 90px;
+  max-width: 90px;
+  font-size: 0.80rem;
+}
+
+.boss-table-party-size {
+  width: 70px;
+  min-width: 70px;
+  max-width: 70px;
+}
+
+/* Force consistent boss image sizing */
+.table td img {
+  width: 40px !important;
+  height: 40px !important;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #fff2;
+  margin-right: 8px;
+} 

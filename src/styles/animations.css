@@ -1,0 +1,99 @@
+/* =====================================================================================
+   ANIMATIONS & TRANSITIONS
+   =====================================================================================
+   
+   All keyframe animations and transition effects including:
+   - Fade-in animations for content
+   - Modal animations
+   - Loading spinners
+   - Logo animations
+   - Hover transitions
+   
+   ===================================================================================== */
+
+/* ===== FADE ANIMATIONS ===== */
+
+/* Fade-in animation for main content areas */
+.fade-in {
+  animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(10px);
+  }
+  to { 
+    opacity: 1; 
+    transform: none;
+  }
+}
+
+/* Fade-in without slide animation */
+.fade-in-no-slide {
+  animation: fadeInNoSlide 0.4s ease;
+}
+
+@keyframes fadeInNoSlide {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Fade-in message animation - for no characters message */
+@keyframes fadeInMessage {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== MODAL ANIMATIONS ===== */
+
+/* Modal fade-in animation */
+.modal-fade {
+  animation: modalFadeIn 0.32s cubic-bezier(.4,2,.6,1);
+  will-change: opacity, transform;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ===== LOADING ANIMATIONS ===== */
+
+/* Spinner animation for loading states */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Logo animations */
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+} 

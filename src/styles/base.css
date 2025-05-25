@@ -1,0 +1,72 @@
+/* =====================================================================================
+   BASE STYLES & RESET
+   =====================================================================================
+   
+   Core styling foundation including:
+   - CSS Reset and normalization
+   - Box-sizing rules
+   - Root element styling
+   - Basic app container structure
+   
+   ===================================================================================== */
+
+/* Global box-sizing rule */
+html {
+  box-sizing: border-box;
+}
+
+/* Body reset and base styling */
+body {
+  overflow-x: hidden;
+  overflow-y: overlay;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  min-width: 100vw;
+  box-sizing: border-box;
+}
+
+/* Root container styling */
+#root {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* Main app container - base styling for all pages */
+.App {
+  min-height: 100vh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* Dark theme main container - primary background and colors */
+.App.dark {
+  background: linear-gradient(135deg, #181622 0%, #23203a 100%);
+  color: #f4f6fb;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* Error page layout - centered error display */
+.App.dark.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 404 page layout - centered not found display */
+.App.dark.not-found-container {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+} 

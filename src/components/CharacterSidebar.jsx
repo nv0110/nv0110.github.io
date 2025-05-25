@@ -1,5 +1,23 @@
 import React, { useState, useMemo } from 'react';
 
+// Format meso values in billions (e.g., 1.1B, 2.5B)
+const formatMesoBillions = (meso) => {
+  if (meso === 0) return '0';
+  if (meso < 1000000000) {
+    // Less than 1 billion, show in millions with 'M'
+    const millions = meso / 1000000;
+    if (millions < 1) {
+      // Less than 1 million, show in thousands with 'K'
+      const thousands = meso / 1000;
+      return thousands < 1 ? meso.toString() : `${thousands.toFixed(1)}K`;
+    }
+    return `${millions.toFixed(1)}M`;
+  }
+  // 1 billion or more, show in billions with 'B'
+  const billions = meso / 1000000000;
+  return `${billions.toFixed(1)}B`;
+};
+
 function CharacterSidebar({
   sidebarVisible,
   isHistoricalWeek,
@@ -58,8 +76,7 @@ function CharacterSidebar({
       <div
         className={`sidebar-scroll fade-in-no-slide ${sidebarVisible ? 'visible' : 'hidden'}`}
       >
-        {sidebarVisible && (
-          <div className="sidebar-content">
+        <div className="sidebar-content">
             {/* Sidebar Header */}
             <div className="sidebar-header">
               <h3 className="sidebar-title">
@@ -87,8 +104,8 @@ function CharacterSidebar({
                   />
                 </div>
                 <div className="sidebar-progress-numbers">
-                  <span>{totalMeso.toLocaleString()}</span>
-                  <span>{obtainableMeso.toLocaleString()}</span>
+                  <span>{formatMesoBillions(totalMeso)}</span>
+                  <span>{formatMesoBillions(obtainableMeso)}</span>
                 </div>
               </div>
             )}
@@ -225,7 +242,7 @@ function CharacterSidebar({
                             {cs.cleared} / {cs.total} bosses cleared
                           </div>
                           <div className="sidebar-character-meso">
-                            {cs.totalMeso.toLocaleString()} meso
+                            {formatMesoBillions(cs.totalMeso)} meso
                           </div>
                         </>
                       )}
@@ -235,7 +252,6 @@ function CharacterSidebar({
               )}
             </div>
           </div>
-        )}
       </div>
     </>
   );

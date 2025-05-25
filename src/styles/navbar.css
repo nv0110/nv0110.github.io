@@ -1,0 +1,277 @@
+/* =====================================================================================
+   NAVBAR COMPONENTS
+   =====================================================================================
+   
+   Fixed navigation header styling including:
+   - Main navbar container with glass-morphism
+   - Navigation buttons and states
+   - Timer and user code display
+   - Responsive navigation layout
+   
+   ===================================================================================== */
+
+/* ===== MAIN NAVBAR CONTAINER ===== */
+
+/* Main navbar container - fixed header across all pages */
+.navbar-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: linear-gradient(135deg, 
+    rgba(24, 22, 34, 0.8) 0%, 
+    rgba(35, 32, 58, 0.75) 50%,
+    rgba(40, 32, 74, 0.8) 100%
+  );
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  border-bottom: 1px solid rgba(162, 89, 247, 0.15);
+  box-shadow: 
+    0 1px 0 0 rgba(255, 255, 255, 0.05) inset,
+    0 1px 3px 0 rgba(0, 0, 0, 0.12),
+    0 8px 32px 0 rgba(162, 89, 247, 0.08);
+  padding: 16px 0;
+}
+
+/* Navbar content wrapper - manages internal layout */
+.navbar-content {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+}
+
+/* ===== NAVBAR SECTIONS ===== */
+
+/* Left section container - timer and user ID */
+.navbar-left {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+}
+
+/* Right section container - action buttons */
+.navbar-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ===== TIMER COMPONENTS ===== */
+
+/* Timer container - weekly reset countdown with styled background */
+.navbar-timer {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(162, 89, 247, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(162, 89, 247, 0.2);
+}
+
+/* Timer label - "RESET:" text styling */
+.navbar-timer-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0;
+  color: #b39ddb;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Timer countdown - displays days/hours/minutes until weekly reset */
+.navbar-timer-countdown {
+  font-size: 1rem;
+  font-weight: 700;
+  display: flex;
+  gap: 0.4rem;
+  color: #e6e0ff;
+}
+
+/* ===== USER CODE DISPLAY ===== */
+
+/* User code display - shows user ID with consistent font styling */
+.navbar-usercode {
+  color: #e6e0ff;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  padding: 0.5rem 1rem;
+  background: rgba(230, 224, 255, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(230, 224, 255, 0.2);
+}
+
+/* ===== NAVIGATION BUTTONS ===== */
+
+/* Center navigation container - page navigation buttons */
+.navbar-navigation {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(162, 89, 247, 0.05) 50%,
+    rgba(255, 255, 255, 0.08) 100%
+  );
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border-radius: 25px;
+  padding: 6px;
+  border: 1px solid rgba(107, 33, 168, 0.4);
+  box-shadow: 
+    0 1px 0 0 rgba(255, 255, 255, 0.15) inset,
+    0 8px 24px 0 rgba(162, 89, 247, 0.12),
+    0 2px 8px 0 rgba(0, 0, 0, 0.1),
+    0 0 20px rgba(107, 33, 168, 0.4),
+    0 0 40px rgba(107, 33, 168, 0.2);
+}
+
+/* ===== BUTTON STYLES ===== */
+
+/* Base navigation button styling - used in navbar */
+.navbar-btn {
+  border: none;
+  border-radius: 18px;
+  padding: 0.5rem 1.4rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-right: 0;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.15),
+    0 1px 0 rgba(255, 255, 255, 0.1) inset;
+}
+
+/* Button hover effect overlay */
+.navbar-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.navbar-btn:hover::before {
+  opacity: 1;
+}
+
+/* ===== BUTTON VARIANTS ===== */
+
+/* Logout button styling */
+.navbar-btn.logout {
+  background: linear-gradient(135deg, #4c82f7, #3b72e8);
+  color: #ffffff;
+  border-color: rgba(76, 130, 247, 0.3);
+}
+
+.navbar-btn.logout:hover {
+  background: linear-gradient(135deg, #5c92ff, #4b82f7);
+  border-color: rgba(92, 146, 255, 0.5);
+  box-shadow: 
+    0 4px 20px rgba(76, 130, 247, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.2) inset;
+  transform: translateY(-1px);
+}
+
+/* Delete button styling */
+.navbar-btn.delete {
+  background: linear-gradient(135deg, #ff4757, #ff3742);
+  color: #ffffff;
+  border-color: rgba(255, 71, 87, 0.3);
+}
+
+.navbar-btn.delete:hover {
+  background: linear-gradient(135deg, #ff6b7a, #ff4757);
+  border-color: rgba(255, 107, 122, 0.5);
+  box-shadow: 
+    0 4px 20px rgba(255, 71, 87, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.2) inset;
+  transform: translateY(-1px);
+}
+
+/* Help button styling */
+.navbar-btn.help {
+  background: linear-gradient(135deg, #a259f7, #8b46e8);
+  color: #ffffff;
+  border-color: rgba(162, 89, 247, 0.3);
+}
+
+.navbar-btn.help:hover {
+  background: linear-gradient(135deg, #b470ff, #a259f7);
+  border-color: rgba(180, 112, 255, 0.5);
+  box-shadow: 
+    0 4px 20px rgba(162, 89, 247, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.2) inset;
+  transform: translateY(-1px);
+}
+
+/* ===== PAGE NAVIGATION BUTTONS ===== */
+
+/* Page navigation button styling */
+.navbar-nav-btn {
+  border: none;
+  border-radius: 18px;
+  padding: 0.4rem 1rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(.4,2,.6,1);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  color: #c4b5d4;
+  border: 1px solid transparent;
+}
+
+.navbar-nav-btn:hover {
+  background: rgba(107, 33, 168, 0.15);
+  color: #c4a3ff;
+  border-color: rgba(107, 33, 168, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 
+    0 2px 12px rgba(107, 33, 168, 0.35),
+    0 0 16px rgba(107, 33, 168, 0.25),
+    0 0 24px rgba(107, 33, 168, 0.15);
+}
+
+.navbar-nav-btn.active {
+  background: #a259f7;
+  color: #fff;
+  border-color: #a259f7;
+  box-shadow: 
+    0 2px 8px rgba(162, 89, 247, 0.4),
+    0 0 12px rgba(162, 89, 247, 0.3);
+}
+
+.navbar-nav-btn.active:hover {
+  background: #b47aff;
+  border-color: #b47aff;
+  box-shadow: 
+    0 4px 20px rgba(107, 33, 168, 0.5),
+    0 0 24px rgba(107, 33, 168, 0.4),
+    0 0 32px rgba(107, 33, 168, 0.2);
+} 

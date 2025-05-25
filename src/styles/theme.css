@@ -1,0 +1,179 @@
+/* =====================================================================================
+   THEME OVERRIDES (Dark Mode)
+   =====================================================================================
+   
+   Dark theme specific overrides and styling including:
+   - Text color overrides
+   - Button styling overrides
+   - Form input styling
+   - Table styling overrides
+   
+   ===================================================================================== */
+
+/* ===== TEXT COLOR OVERRIDES ===== */
+
+/* Text color overrides for consistent dark theme */
+.App.dark h1, .App.dark p, .App.dark th, .App.dark td {
+  color: #cebbe4;
+}
+
+/* Table styling overrides */
+.App.dark .table th {
+  background-color: #2d2540;
+  color: #a084e8;
+}
+
+.App.dark .table td {
+  background: #23203a;
+  color: #e6e0ff;
+}
+
+.App.dark .table tr:nth-child(even) td {
+  background: #201c32;
+}
+
+/* ===== BUTTON STYLING OVERRIDES ===== */
+
+/* Button styling overrides */
+.App.dark .boton-elegante {
+  background-color: #50AD7E;
+  color: #e6e0ff;
+  border: 2px solid #AFE4C9;
+}
+
+.App.dark .boton-elegante:hover {
+  background: #7BCAA2;
+  border-color: #AFE4C9;
+}
+
+/* Button variant overrides */
+.App.dark .boton-elegante.clone {
+  background-color: #2c5282;
+  border-color: #4299e1;
+}
+
+.App.dark .boton-elegante.ctene {
+  background-color: #38a169;
+  border-color: #48bb78;
+}
+
+.App.dark .boton-elegante.hlom {
+  background-color: #805ad5;
+  border-color: #9f7aea;
+}
+
+.App.dark .boton-elegante.delete {
+  background-color: #e53e3e;
+  border-color: #fc8181;
+}
+
+/* Preset button styling */
+.App.dark .boton-elegante.add-preset {
+  background-color: #356159;
+  border-color: #2B4D4C;
+  color: #F0EEFA;
+}
+
+.App.dark .boton-elegante.preset0,
+.App.dark .boton-elegante.preset1,
+.App.dark .boton-elegante.preset2,
+.App.dark .boton-elegante.preset3,
+.App.dark .boton-elegante.preset4,
+.App.dark .boton-elegante.preset5 {
+  background-color: #447a70;
+  border-color: #498381;
+  color: #F0EEFA;
+}
+
+/* ===== FORM INPUT STYLING OVERRIDES ===== */
+
+/* Form input styling overrides */
+.App.dark input[type="text"], 
+.App.dark input[type="password"], 
+.App.dark input[type="email"], 
+.App.dark textarea {
+  background-color: #3a335a;
+  border: 1px solid #4a4370;
+  color: #e6e0ff;
+  transition: all 0.25s ease;
+}
+
+.App.dark input:focus, 
+.App.dark textarea:focus {
+  border-color: #a259f7;
+  box-shadow: 0 0 0 2px rgba(162, 89, 247, 0.3), 0 0 10px rgba(255, 255, 255, 0.15);
+  outline: none;
+}
+
+.App.dark input:hover:not(:focus),
+.App.dark textarea:hover:not(:focus) {
+  border-color: #6a5c9e;
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.1);
+}
+
+/* Dropdown styling overrides */
+.App.dark .party-size-dropdown, .App.dark .boss-table-difficulty {
+  background: #181622;
+  color: #e6e0ff;
+  border: 1px solid #3a335a;
+}
+
+/* ===== SPECIFIC ELEMENT OVERRIDES ===== */
+
+/* Text color overrides for specific elements */
+.App.dark .boss-table-price, .App.dark .boss-table-controls {
+  color: #b39ddb;
+}
+
+.App.dark .info-text, .App.dark .empty-message, .App.dark p, .App.dark .overall-total, .App.dark .meso-total {
+  color: #e6e0ff;
+}
+
+.App.dark th,
+.App.dark .boss-table-price,
+.App.dark .boss-table-controls {
+  color: #b39ddb;
+}
+
+.App.dark h1 {
+  color: #c4b5d4;
+}
+
+/* Global table header styling */
+body.dark th, body.dark thead th {
+  background: #3a2a5d;
+  color: #e0d6f7;
+}
+
+.App.dark .delete-all-characters-btn {
+  color: #a259f7;
+}
+
+/* ===== LEGACY COMPONENTS ===== */
+
+/* Logo styling for branding elements */
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+/* Card styling for informational content */
+.card {
+  padding: 1em;
+  font-size: 0.9rem;
+}
+
+/* Misc utility classes */
+.read-the-docs {
+  color: #888;
+} 

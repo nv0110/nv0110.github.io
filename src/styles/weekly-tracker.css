@@ -1,0 +1,191 @@
+/* =====================================================================================
+   WEEKLY TRACKER COMPONENTS
+   =====================================================================================
+   
+   Weekly boss tracker specific styling including:
+   - Tracker layout and containers
+   - Action buttons and controls
+   - Progress indicators
+   - Error and loading states
+   
+   ===================================================================================== */
+
+/* ===== WEEKLY TRACKER ACTIONS ===== */
+
+/* Tick All button container - centers the tick all button */
+.weekly-tracker-tick-all-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+/* Tick All button - purple gradient button for marking all bosses */
+.weekly-tracker-tick-all-btn {
+  padding: 0.5rem 1.2rem;
+  border-radius: 6px;
+  background: #805ad5; /* Purple background */
+  color: #fff !important; /* Ensure button text is white */
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #9f7aea; /* Lighter purple border */
+  transition: all 0.3s ease;
+}
+
+/* Tick All button disabled state - grayed out when read-only */
+.weekly-tracker-tick-all-btn:disabled {
+  background: #4a4a4a; /* Gray background for disabled state */
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Action buttons container - contains View Stats and Refresh buttons */
+.weekly-tracker-actions {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+  margin-top: 2rem;
+}
+
+/* View Stats button - main purple gradient button */
+.weekly-tracker-stats-btn {
+  background: linear-gradient(135deg, #805ad5, #9f7aea); /* Purple gradient */
+  color: #fff !important; /* Ensure button text is white */
+  border: none;
+  border-radius: 12px;
+  padding: 0.8rem 2.5rem;
+  font-weight: 700;
+  font-size: 1.1em;
+  cursor: pointer;
+  width: 100%;
+  max-width: 320px;
+  box-shadow: 0 4px 12px rgba(128, 90, 213, 0.4); /* Purple shadow */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Debug refresh button container - centers the debug refresh button */
+.weekly-tracker-debug-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+/* Debug refresh button - green gradient button for manual refresh */
+.weekly-tracker-debug-btn {
+  background: linear-gradient(135deg, #48bb78, #38a169); /* Green gradient */
+  color: #fff !important; /* Ensure button text is white */
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1.5rem;
+  font-weight: 600;
+  font-size: 0.9em;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(72, 187, 120, 0.4); /* Green shadow */
+  transition: all 0.3s ease;
+}
+
+/* ===== ERROR & LOADING STATES ===== */
+
+/* Error state container - displays error messages with red styling */
+.weekly-tracker-error {
+  padding: 2rem;
+  color: #e6e0ff; /* Light purple text */
+  font-size: 1.2rem;
+  text-align: center;
+}
+
+/* Error message text - red color for error text */
+.weekly-tracker-error-message {
+  color: #ff6b6b; /* Red error color */
+  margin-bottom: 1rem;
+}
+
+/* Error retry button - simple button for retrying after error */
+.weekly-tracker-error-btn {
+  margin-right: 1rem;
+  padding: 0.5rem 1rem;
+  background: #805ad5;
+  color: #fff !important; /* Ensure button text is white */
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* No characters state container - displays when no characters exist */
+.weekly-tracker-no-characters {
+  padding: 2rem;
+  color: #e6e0ff; /* Light purple text */
+  font-size: 1.2rem;
+  text-align: center;
+}
+
+/* No characters message - animated fade-in message */
+.weekly-tracker-no-characters-message {
+  transition: opacity 0.5s ease-in-out;
+}
+
+/* ===== MODAL OVERLAYS ===== */
+
+/* Historical pitched modal backdrop - full screen overlay */
+.weekly-tracker-historical-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(40, 32, 74, 0.96); /* Dark purple overlay */
+  z-index: 6000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Refresh overlay - loading overlay during data refresh */
+.weekly-tracker-refresh-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(40, 32, 74, 0.8); /* Semi-transparent dark overlay */
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+
+/* Refresh modal - centered loading modal */
+.weekly-tracker-refresh-modal {
+  background: linear-gradient(135deg, #805ad5, #9f7aea); /* Purple gradient */
+  color: #fff;
+  padding: 2rem 3rem;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Refresh spinner - animated loading spinner */
+.weekly-tracker-refresh-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+/* Refresh text - loading message text */
+.weekly-tracker-refresh-text {
+  font-weight: 600;
+  font-size: 1.1em;
+}
+
+/* ===== LAYOUT OVERRIDES ===== */
+
+/* WeeklyTracker specific color overrides to prevent dark theme conflicts */
+.weekly-tracker-layout * {
+  color: inherit; /* Prevent global color overrides */
+} 

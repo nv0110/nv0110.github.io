@@ -250,13 +250,7 @@ function HistoricalPitchedModal({ data, characters, onClose, onConfirm }) {
           {isLoading ? 'Logging...' : 'Log Item'}
         </button>
       </div>
-      {/* CSS for spin animation */}
-      <style jsx>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
+
     </div>
   );
 }

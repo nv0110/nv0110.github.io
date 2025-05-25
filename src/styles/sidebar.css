@@ -1,0 +1,508 @@
+/* =====================================================================================
+   SIDEBAR COMPONENTS
+   =====================================================================================
+   
+   Character sidebar and toggle button styling including:
+   - Sidebar positioning and layout
+   - Character cards and pagination
+   - Toggle button animations
+   - Glass-morphism effects
+   
+   ===================================================================================== */
+
+/* ===== MAIN SIDEBAR CONTAINER ===== */
+
+/* Main sidebar container - fixed positioned character navigation panel */
+.sidebar-scroll {
+  /* Scrollbar styling - hidden for clean appearance */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  
+  /* Layout positioning - fixed to left side of viewport */
+  position: fixed; /* Fixed positioning to start from top */
+  top: 71px; /* Start right after the navbar (navbar height = 80px) */
+  left: 0; /* Align to left edge of viewport */
+  height: calc(100vh - 80px); /* Full viewport height minus navbar */
+  flex-shrink: 0; /* Prevent sidebar from shrinking in flexbox */
+  
+  /* Overflow handling - clip content when collapsed */
+  overflow: hidden; /* Hide all overflow to clip content during animation */
+  
+  /* Z-index hierarchy - below navbar (1000) but above main content */
+  z-index: 99; /* Positioned above main content but below navbar */
+  
+  /* Base styling - always present for smooth transitions */
+  background: linear-gradient(180deg, rgba(40, 32, 74, 0.95), rgba(35, 32, 58, 0.9));
+  backdrop-filter: blur(12px); /* Background blur effect */
+  -webkit-backdrop-filter: blur(12px); /* Safari compatibility */
+  border-right: 1px solid rgba(162, 89, 247, 0.15); /* Purple accent border */
+  box-shadow: 2px 0 24px rgba(162, 89, 247, 0.08), 2px 0 8px rgba(0, 0, 0, 0.1); /* Depth shadow */
+  
+  /* Animation and performance optimization */
+  transition: width 0.3s ease, min-width 0.3s ease, padding 0.3s ease; /* Smooth transitions for show/hide */
+  will-change: width, min-width, padding; /* Optimize for animations */
+}
+
+/* Hide scrollbar for webkit browsers */
+.sidebar-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Sidebar visible state - full width with scrolling */
+.sidebar-scroll.visible {
+  width: 280px; /* Fixed sidebar width when visible */
+  min-width: 280px; /* Prevent shrinking below minimum width */
+  
+  /* Internal spacing */
+  padding: 1rem; /* General padding around content */
+  padding-right: 0.5rem; /* Reduced right padding for scrollbar space */
+  
+  /* Restore scrolling when visible */
+  overflow-y: auto; /* Allow vertical scrolling for character list */
+  overflow-x: hidden; /* Prevent horizontal overflow */
+}
+
+/* Sidebar hidden state - collapsed width only */
+.sidebar-scroll.hidden {
+  width: 0; /* Collapsed width when hidden */
+  min-width: 0; /* Allow full collapse */
+  padding: 0; /* No padding when collapsed */
+  /* Keep background, border, and shadow for smooth transition */
+}
+
+/* ===== SIDEBAR CONTENT ===== */
+
+/* Sidebar content wrapper - contains all sidebar elements with proper spacing */
+.sidebar-scroll .sidebar-content {
+  padding-right: 0.5rem; /* Space for scrollbar and visual breathing room */
+  width: 280px; /* Fixed width to match sidebar */
+  transform: scale(0.8); /* Start scaled down */
+  opacity: 0; /* Start invisible */
+  transform-origin: left center; /* Scale from left edge to match sidebar expansion */
+  transition: transform 0.3s ease, opacity 0.3s ease; /* Smooth scale and fade animation */
+  will-change: transform, opacity; /* Optimize for transform and opacity animations */
+}
+
+/* Sidebar content visible state - scales up and fades in as sidebar expands */
+.sidebar-scroll.visible .sidebar-content {
+  transform: scale(1); /* Scale to full size */
+  opacity: 1; /* Fade to visible */
+}
+
+/* Hide content completely when sidebar is hidden */
+.sidebar-scroll.hidden .sidebar-content {
+  transform: scale(0.8); /* Scale down */
+  opacity: 0; /* Fade out */
+}
+
+/* Sidebar header section - title and crystal icons */
+.sidebar-header {
+  text-align: center; /* Center-align header content */
+  margin-bottom: 1.5rem; /* Space below header */
+  padding-bottom: 1rem; /* Internal spacing */
+  border-bottom: 1px solid rgba(162, 89, 247, 0.15); /* Separator line */
+}
+
+/* Sidebar main title - "Characters" heading */
+.sidebar-title {
+  font-size: 1.3rem; /* Large, prominent title */
+  font-weight: 700; /* Bold weight for emphasis */
+  margin: 0; /* Remove default margins */
+  margin-bottom: 0.5rem; /* Space below title */
+  color: #e6e0ff; /* Light purple text color */
+}
+
+/* Crystal icons container - decorative boss crystal images */
+.sidebar-crystal-icons {
+  display: flex; /* Horizontal layout */
+  align-items: center; /* Vertical center alignment */
+  justify-content: center; /* Horizontal center alignment */
+  gap: 6px; /* Space between crystal icons */
+}
+
+/* Individual crystal icon styling */
+.sidebar-crystal-icon {
+  width: 20px; /* Fixed icon width */
+  height: 20px; /* Fixed icon height */
+}
+
+/* ===== PROGRESS SECTION ===== */
+
+/* Weekly progress section - current week progress display */
+.sidebar-progress-section {
+  /* Glass-morphism container styling */
+  background: rgba(255, 255, 255, 0.05); /* Semi-transparent white background */
+  backdrop-filter: blur(8px); /* Background blur effect */
+  border-radius: 12px; /* Rounded corners */
+  padding: 1rem; /* Internal spacing */
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border */
+  margin-bottom: 1rem; /* Space below section */
+}
+
+/* Progress section title */
+.sidebar-progress-title {
+  font-size: 0.9rem; /* Smaller title text */
+  font-weight: 600; /* Semi-bold weight */
+  margin-bottom: 0.5rem; /* Space below title */
+  color: #d6b4ff; /* Light purple accent color */
+  text-align: center; /* Center-aligned text */
+}
+
+/* Progress bar track - background container for progress bar */
+.sidebar-progress-track {
+  background: rgba(255, 255, 255, 0.1); /* Semi-transparent background */
+  height: 6px; /* Thin progress bar */
+  border-radius: 3px; /* Rounded ends */
+  overflow: hidden; /* Hide overflow for clean edges */
+  position: relative; /* For absolute positioned fill */
+}
+
+/* Progress bar fill - animated progress indicator */
+.sidebar-progress-fill {
+  background: linear-gradient(90deg, #a259f7, #b47aff); /* Purple gradient fill */
+  height: 100%; /* Full height of track */
+  border-radius: 3px; /* Rounded ends */
+  transition: width 0.3s ease; /* Smooth width animation */
+}
+
+/* Progress numbers container - current/max meso display */
+.sidebar-progress-numbers {
+  display: flex; /* Horizontal layout */
+  justify-content: space-between; /* Space between current and max */
+  align-items: center; /* Vertical center alignment */
+  margin-top: 0.4rem; /* Space above numbers */
+  color: #c4b5d4; /* Muted purple text color */
+  font-size: 0.8rem; /* Small text size */
+}
+
+/* ===== HISTORICAL SECTION ===== */
+
+/* Historical week indicator - shows when viewing past weeks */
+.sidebar-historical-section {
+  /* Purple accent container styling */
+  background: rgba(162, 89, 247, 0.1); /* Light purple background */
+  backdrop-filter: blur(8px); /* Background blur effect */
+  border-radius: 12px; /* Rounded corners */
+  padding: 1rem; /* Internal spacing */
+  border: 1px solid rgba(162, 89, 247, 0.2); /* Purple border */
+  margin-bottom: 1rem; /* Space below section */
+  text-align: center; /* Center-aligned content */
+}
+
+/* Historical week title */
+.sidebar-historical-title {
+  color: #d6b4ff; /* Light purple text */
+  font-size: 0.9rem; /* Medium text size */
+  font-weight: 600; /* Semi-bold weight */
+}
+
+/* Historical week subtitle */
+.sidebar-historical-subtitle {
+  color: #b39ddb; /* Muted purple text */
+  font-size: 0.8rem; /* Small text size */
+}
+
+/* ===== CHECKBOX SECTION ===== */
+
+/* Hide completed checkbox section */
+.sidebar-checkbox-section {
+  margin-bottom: 1rem; /* Space below section */
+  text-align: center; /* Center-aligned content */
+}
+
+/* Hide completed checkbox label */
+.sidebar-checkbox-label {
+  font-size: 0.85rem; /* Small text size */
+  color: #c4b5d4; /* Muted purple text */
+  cursor: pointer; /* Indicate clickable element */
+  user-select: none; /* Prevent text selection */
+  display: inline-flex; /* Inline flexbox for alignment */
+  align-items: center; /* Vertical center alignment */
+  gap: 6px; /* Space between checkbox and text */
+}
+
+/* Hide completed checkbox input */
+.sidebar-checkbox-input {
+  accent-color: #a259f7; /* Purple accent color for checkbox */
+}
+
+/* ===== PAGINATION ===== */
+
+/* Pagination navigation section - page controls when multiple pages exist */
+.sidebar-pagination {
+  display: flex; /* Horizontal layout */
+  align-items: center; /* Vertical center alignment */
+  justify-content: space-between; /* Space between arrows and indicator */
+  margin-bottom: 1rem; /* Space below pagination */
+  padding: 0.5rem 0; /* Vertical padding */
+  border-bottom: 1px solid rgba(162, 89, 247, 0.15); /* Separator line */
+}
+
+/* Pagination arrow buttons - previous/next page navigation */
+.sidebar-pagination-arrow {
+  cursor: pointer; /* Indicate clickable element */
+  transition: all 0.3s ease; /* Smooth hover transitions */
+  /* Default glow effect */
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.4)) drop-shadow(0 0 4px rgba(255, 255, 255, 0.2));
+}
+
+/* Pagination arrow hover effects */
+.sidebar-pagination-arrow:hover {
+  /* Enhanced glow on hover */
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 12px rgba(255, 255, 255, 0.4));
+}
+
+/* Previous arrow specific hover effect */
+.sidebar-pagination-arrow.previous:hover {
+  transform: scale(1.15) translateX(-2px); /* Scale and move left */
+}
+
+/* Next arrow specific hover effect */
+.sidebar-pagination-arrow.next:hover {
+  transform: scale(1.15) translateX(2px); /* Scale and move right */
+}
+
+/* Pagination page indicator - shows current page info */
+.sidebar-pagination-indicator {
+  font-size: 0.85rem; /* Small text size */
+  color: #b39ddb; /* Muted purple text */
+  font-weight: 600; /* Semi-bold weight */
+  text-align: center; /* Center-aligned text */
+}
+
+/* ===== CHARACTER LIST ===== */
+
+/* Character cards container - scrollable list of character cards */
+.sidebar-character-list {
+  display: flex; /* Vertical layout */
+  flex-direction: column; /* Stack cards vertically */
+  gap: 8px; /* Space between character cards */
+  min-height: 320px; /* Minimum height to prevent layout shift */
+}
+
+/* Empty state message - shown when no characters match filters */
+.sidebar-empty-state {
+  color: #9f9fb8; /* Muted gray text */
+  font-size: 0.9rem; /* Medium text size */
+  text-align: center; /* Center-aligned text */
+  padding: 2rem 1rem; /* Generous padding */
+  
+  /* Glass-morphism container styling */
+  background: rgba(255, 255, 255, 0.05); /* Semi-transparent background */
+  backdrop-filter: blur(8px); /* Background blur effect */
+  border-radius: 12px; /* Rounded corners */
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border */
+}
+
+/* ===== CHARACTER CARDS ===== */
+
+/* Individual character card - clickable character summary */
+.sidebar-character-card {
+  /* Glass-morphism container styling */
+  backdrop-filter: blur(12px); /* Background blur effect */
+  -webkit-backdrop-filter: blur(12px); /* Safari compatibility */
+  border-radius: 12px; /* Rounded corners */
+  padding: 0.9rem; /* Internal spacing */
+  cursor: pointer; /* Indicate clickable element */
+  transition: all 0.3s ease; /* Smooth hover and selection transitions */
+  position: relative; /* For absolute positioned elements */
+}
+
+/* Character card default state */
+.sidebar-character-card.default {
+  background: rgba(255, 255, 255, 0.05); /* Semi-transparent background */
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border */
+  transform: translateX(0); /* Default position */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+}
+
+/* Character card hover state */
+.sidebar-character-card.default:hover {
+  background: rgba(255, 255, 255, 0.08); /* Slightly more opaque on hover */
+  transform: translateX(2px); /* Slight right movement */
+  box-shadow: 0 4px 16px rgba(162, 89, 247, 0.1); /* Enhanced purple shadow */
+}
+
+/* Character card selected state - active character */
+.sidebar-character-card.selected {
+  /* Purple gradient background for selected state */
+  background: linear-gradient(135deg, rgba(162, 89, 247, 0.25), rgba(128, 90, 213, 0.2));
+  transform: translateX(3px); /* More pronounced right movement */
+  box-shadow: 0 8px 32px rgba(162, 89, 247, 0.15); /* Strong purple shadow */
+}
+
+/* Selected character card border - different for historical vs current week */
+.sidebar-character-card.selected.current-week {
+  border: 1px solid rgba(162, 89, 247, 0.5); /* Purple border for current week */
+}
+
+.sidebar-character-card.selected.historical-week {
+  border: 1px solid rgba(159, 122, 234, 0.5); /* Lighter purple for historical */
+}
+
+/* Character card status indicator - shows edit/lock status for historical weeks */
+.sidebar-character-status-indicator {
+  position: absolute; /* Positioned relative to card */
+  top: -6px; /* Slightly above card */
+  right: -6px; /* Slightly to the right of card */
+  color: #fff; /* White icon color */
+  border-radius: 50%; /* Circular indicator */
+  width: 18px; /* Fixed width */
+  height: 18px; /* Fixed height */
+  font-size: 0.6rem; /* Small icon size */
+  display: flex; /* Center content */
+  align-items: center; /* Vertical center */
+  justify-content: center; /* Horizontal center */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3); /* Depth shadow */
+  z-index: 5; /* Above card content */
+}
+
+/* Read-only indicator (lock icon) */
+.sidebar-character-status-indicator.readonly {
+  background: #ff6b6b; /* Red background for read-only */
+}
+
+/* Editable indicator (edit icon) */
+.sidebar-character-status-indicator.editable {
+  background: #38a169; /* Green background for editable */
+}
+
+/* Character card header - name and completion status */
+.sidebar-character-header {
+  display: flex; /* Horizontal layout */
+  justify-content: space-between; /* Space between name and status */
+  align-items: center; /* Vertical center alignment */
+  margin-bottom: 0.4rem; /* Space below header */
+}
+
+/* Character name text */
+.sidebar-character-name {
+  font-weight: 700; /* Bold text */
+  font-size: 1rem; /* Medium text size */
+}
+
+/* Character name - default state */
+.sidebar-character-name.default {
+  color: #d0c5ff; /* Light purple for unselected */
+}
+
+/* Character name - selected state */
+.sidebar-character-name.selected {
+  color: #e6e0ff; /* Brighter purple for selected */
+}
+
+/* Character completion checkmark - shown when all bosses cleared */
+.sidebar-character-checkmark {
+  /* Green checkmark circle */
+  width: 16px;
+  height: 16px;
+}
+
+/* Character stats section - boss completion and meso info */
+.sidebar-character-stats {
+  /* Spacing and layout handled by parent container */
+}
+
+/* No bosses configured message */
+.sidebar-character-no-bosses {
+  color: #888; /* Gray text for inactive state */
+  font-weight: 500; /* Medium weight */
+  font-size: 0.85rem; /* Small text size */
+}
+
+/* Boss completion counter */
+.sidebar-character-completion {
+  font-size: 0.85rem; /* Small text size */
+  color: #b39ddb; /* Muted purple text */
+  margin-bottom: 0.3rem; /* Space below completion info */
+}
+
+/* Character meso total */
+.sidebar-character-meso {
+  font-size: 0.9rem; /* Medium text size */
+  font-weight: 600; /* Semi-bold weight */
+  color: #a259f7; /* Purple accent color */
+}
+
+/* ===== SIDEBAR TOGGLE BUTTON ===== */
+
+/* Main toggle button container - floating button to show/hide sidebar */
+.sidebar-toggle {
+  /* Fixed positioning - stays in place during scroll */
+  position: fixed; /* Fixed positioning relative to viewport */
+  top: calc(80px + 20px); /* Position below navbar with margin */
+  z-index: 200; /* Above sidebar but below modals */
+  
+  /* Button styling */
+  width: 44px; /* Fixed button width */
+  height: 44px; /* Fixed button height */
+  cursor: pointer; /* Indicate clickable element */
+  
+  /* Layout and alignment */
+  display: flex; /* Center content */
+  align-items: center; /* Vertical center */
+  justify-content: center; /* Horizontal center */
+  
+  /* User interaction */
+  user-select: none; /* Prevent text selection */
+  -webkit-user-select: none; /* Safari compatibility */
+  
+  /* Animation and performance */
+  transition: all 0.3s ease; /* Smooth position and scale transitions */
+  transform: scale(1) translateZ(0); /* Default scale with GPU acceleration */
+  will-change: transform, opacity; /* Optimize for animations */
+}
+
+/* Toggle button visible state - positioned next to visible sidebar */
+.sidebar-toggle.visible {
+  left: calc(270px - 44px); /* Position to the right of sidebar (280px - 10px margin) */
+}
+
+/* Toggle button hidden state - positioned at left edge */
+.sidebar-toggle.hidden {
+  left: 10px; /* Position at left edge of viewport */
+}
+
+/* Toggle button hover effect */
+.sidebar-toggle:hover {
+  transform: scale(1.15); /* Enlarge button on hover */
+}
+
+/* Close icon (X) - shown when sidebar is visible */
+.sidebar-toggle-close-icon {
+  transition: all 0.3s ease; /* Smooth filter transitions */
+  /* Default glow effect */
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.4)) drop-shadow(0 0 6px rgba(255, 255, 255, 0.2));
+}
+
+/* Close icon hover effect */
+.sidebar-toggle-close-icon:hover {
+  /* Enhanced glow on hover */
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 16px rgba(255, 255, 255, 0.4));
+}
+
+/* Hamburger menu container - shown when sidebar is hidden */
+.sidebar-toggle-hamburger {
+  display: flex; /* Vertical layout */
+  flex-direction: column; /* Stack lines vertically */
+  gap: 4px; /* Space between hamburger lines */
+  transition: all 0.3s ease; /* Smooth transitions */
+}
+
+/* Individual hamburger line */
+.sidebar-toggle-hamburger-line {
+  display: block; /* Block element for proper sizing */
+  width: 22px; /* Fixed line width */
+  height: 3px; /* Thin line height */
+  background: linear-gradient(90deg, #ffffff, #e6e0ff, #d6b4ff); /* Purple gradient */
+  border-radius: 2px; /* Rounded ends */
+  transition: all 0.3s ease; /* Smooth transitions */
+  /* Default glow effect */
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.4)) drop-shadow(0 0 4px rgba(255, 255, 255, 0.2));
+}
+
+/* Hamburger line hover effect */
+.sidebar-toggle-hamburger-line:hover {
+  /* Enhanced glow on hover */
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 12px rgba(255, 255, 255, 0.4));
+} 

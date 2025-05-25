@@ -1,0 +1,133 @@
+/* =====================================================================================
+   RESPONSIVE DESIGN & SCROLLBARS
+   =====================================================================================
+   
+   Responsive breakpoints, mobile adaptations, and scrollbar styling including:
+   - Mobile navigation layouts
+   - Table responsive behavior
+   - Custom scrollbar styling
+   - Reduced motion preferences
+   
+   ===================================================================================== */
+
+/* ===== MOBILE RESPONSIVE NAVIGATION ===== */
+
+@media (max-width: 768px) {
+  .navbar-container {
+    padding: 12px 0;
+  }
+  
+  .navbar-content {
+    flex-direction: column;
+    gap: 12px;
+    padding: 0 1rem;
+  }
+  
+  .navbar-left {
+    order: 1;
+    justify-content: center;
+    gap: 1rem;
+  }
+  
+  .navbar-usercode {
+    order: 2;
+    font-size: 0.9rem;
+    padding: 0.4rem 0.8rem;
+  }
+  
+  .navbar-navigation {
+    position: static;
+    transform: none;
+    order: 2;
+    justify-content: center;
+  }
+  
+  .navbar-actions {
+    order: 3;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  .navbar-timer {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.85rem;
+  }
+  
+  .navbar-btn {
+    padding: 0.3rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  .navbar-nav-btn {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.85rem;
+  }
+}
+
+/* ===== MOBILE TABLE ADJUSTMENTS ===== */
+
+@media (max-width: 600px) {
+  .table-container {
+    padding: 1.2rem 0.5rem 1.5rem 0.5rem;
+    max-width: 98vw;
+  }
+  
+  .table-container.wide {
+    max-width: 99vw;
+  }
+  
+  .table-container:hover {
+    transform: translateY(-1px);
+  }
+}
+
+/* ===== SCROLLBAR CUSTOMIZATION ===== */
+
+/* Hide scrollbars by default for clean appearance */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
+/* Show custom scrollbars when actively scrolling */
+html.scrolling * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(162, 89, 247, 0.4) transparent;
+}
+
+html.scrolling *::-webkit-scrollbar {
+  display: block;
+  width: 8px;
+  height: 8px;
+}
+
+html.scrolling *::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html.scrolling *::-webkit-scrollbar-thumb {
+  background: rgba(162, 89, 247, 0.4);
+  border-radius: 4px;
+  border: none;
+}
+
+html.scrolling *::-webkit-scrollbar-thumb:hover {
+  background: rgba(162, 89, 247, 0.6);
+}
+
+/* Dark theme scrollbar styling */
+html.scrolling .App.dark * {
+  scrollbar-color: rgba(162, 89, 247, 0.5) transparent;
+}
+
+html.scrolling .App.dark *::-webkit-scrollbar-thumb {
+  background: rgba(162, 89, 247, 0.5);
+}
+
+html.scrolling .App.dark *::-webkit-scrollbar-thumb:hover {
+  background: rgba(162, 89, 247, 0.7);
+} 

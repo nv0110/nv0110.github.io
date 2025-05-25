@@ -1,0 +1,198 @@
+/* =====================================================================================
+   LAYOUT & TYPOGRAPHY
+   =====================================================================================
+   
+   Page layouts, containers, and typography including:
+   - Page containers and wrappers
+   - Content sections and spacing
+   - Typography hierarchy
+   - Crystal images and decorative elements
+   
+   ===================================================================================== */
+
+/* ===== PAGE LAYOUTS & CONTAINERS ===== */
+
+/* Main page container - provides proper spacing for fixed navbar */
+.page-container {
+  padding: 80px 0 2rem 0; /* Top padding accounts for fixed navbar height */
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Premium content container - glass-morphism styling for main content areas */
+.premium-content-container {
+  background: linear-gradient(135deg, rgba(24, 22, 34, 0.95) 0%, rgba(28, 25, 40, 0.98) 50%, rgba(20, 18, 30, 0.95) 100%);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 
+    0 1px 0 0 rgba(255, 255, 255, 0.03) inset,
+    0 8px 32px 0 rgba(0, 0, 0, 0.4),
+    0 4px 16px 0 rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(162, 89, 247, 0.1);
+  max-width: 900px;
+  margin: 0 auto;
+  border: 1px solid rgba(162, 89, 247, 0.08);
+  position: relative;
+  overflow: hidden;
+  min-height: 400px; /* Prevent layout shift during transitions */
+}
+
+/* InputPage specific container - smaller max-width for character management */
+.input-page-container {
+  max-width: 800px;
+}
+
+/* Page header container - wraps crystal images, title, description, and action buttons */
+.page-header-container {
+  /* Styling handled by fade-in animation class */
+}
+
+/* Crystal images container - displays boss crystal icons on InputPage */
+.crystal-images-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 1.5rem;
+}
+
+.crystal-images-container img {
+  width: 32px;
+  height: 32px;
+}
+
+/* ===== TYPOGRAPHY & TEXT STYLES ===== */
+
+/* Main page titles - large headings for primary pages */
+.page-title-main {
+  text-align: center;
+  font-weight: 700;
+  font-size: 2.2rem;
+  margin-bottom: 1rem;
+  color: #e6e0ff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  letter-spacing: -0.02em;
+}
+
+/* Secondary page titles - consistent styling for BossTablePage */
+.page-title-secondary {
+  color: #e6e0ff;
+  margin-bottom: 2rem;
+  text-align: center;
+  font-weight: 700;
+  font-size: 2.2rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  letter-spacing: -0.02em;
+}
+
+/* Page descriptions - subtitle text under main titles */
+.page-description {
+  color: #6a11cb;
+  text-align: center;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+/* Empty state messages - shown when no data exists */
+.empty-state-message {
+  padding: 2rem;
+  color: #888;
+  font-size: 1.2rem;
+  text-align: center;
+  background: #23203a;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+/* ===== ERROR PAGES & SPECIAL STATES ===== */
+
+/* Error boundary styling */
+.error-page-title {
+  color: #ff6b6b;
+  margin-bottom: 1rem;
+}
+
+.error-page-description {
+  margin-bottom: 1rem;
+  text-align: center;
+  max-width: 600px;
+}
+
+.error-refresh-btn {
+  background: #a259f7;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.8rem 1.5rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* 404 Not Found page styling */
+.not-found-title {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  color: #a259f7;
+}
+
+.not-found-subtitle {
+  margin-bottom: 1rem;
+}
+
+.not-found-description {
+  margin-bottom: 2rem;
+  text-align: center;
+  max-width: 600px;
+}
+
+/* ===== WEEKLY TRACKER LAYOUT ===== */
+
+/* Weekly tracker main container - main content area with fade-in animation */
+.weekly-tracker-main {
+  width: 100%; /* Full width of the page */
+  display: flex;
+  justify-content: center; /* Center content horizontally */
+  align-items: flex-start;
+}
+
+/* Main layout container - flexbox layout for sidebar and content */
+.weekly-tracker-layout {
+  width: 100%;
+  min-height: calc(100vh - 6.5rem); /* Account for navbar height */
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* Content area wrapper - contains all main content */
+.weekly-tracker-content {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+  width: 100%;
+  flex: 1; /* Take remaining space after sidebar */
+}
+
+/* Header section - page title area */
+.weekly-tracker-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+/* Main page title - "Weekly Boss Tracker" heading */
+.weekly-tracker-title {
+  font-weight: 700;
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  color: #e6e0ff !important; /* Ensure title is visible */
+}
+
+/* Week navigator container - centers the week navigation component */
+.weekly-tracker-week-nav {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+} 

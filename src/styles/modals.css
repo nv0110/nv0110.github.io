@@ -1,0 +1,203 @@
+/* =====================================================================================
+   MODAL SYSTEM
+   =====================================================================================
+   
+   Modal dialogs, overlays, and popup components including:
+   - Modal backdrops and containers
+   - Critical action modals
+   - Modal buttons and interactions
+   - Modal animations and transitions
+   
+   ===================================================================================== */
+
+/* ===== MODAL BACKDROPS ===== */
+
+/* Modal backdrop - dark overlay behind all modals */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(40, 32, 74, 0.92);
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Enhanced backdrop for critical actions */
+.modal-backdrop-critical {
+  background: rgba(40, 32, 74, 0.96);
+}
+
+/* ===== MODAL CONTAINERS ===== */
+
+/* Standard modal content container */
+.modal-content {
+  background: #2d2540;
+  border-radius: 12px;
+  padding: 2.5rem 2rem;
+  max-width: 600px;
+  color: #e6e0ff;
+  box-shadow: 0 4px 24px #0006;
+  position: relative;
+  min-width: 320px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Critical modal content - delete confirmations */
+.modal-content-critical {
+  background: #2d2540;
+  border-radius: 16px;
+  padding: 3rem 2.5rem;
+  max-width: 480px;
+  color: #e6e0ff;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  position: relative;
+  min-width: 360px;
+  text-align: center;
+  border: 2px solid #ff6b6b;
+}
+
+/* ===== MODAL CONTROLS ===== */
+
+/* Modal close button - X in top-right corner */
+.modal-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: transparent;
+  color: #fff;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  outline: none;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: text-shadow 0.2s ease, color 0.2s ease;
+}
+
+/* ===== MODAL TYPOGRAPHY ===== */
+
+/* Modal typography */
+.modal-title {
+  color: #a259f7;
+  font-weight: 700;
+  margin-bottom: 24px;
+}
+
+.modal-section-title {
+  color: #b39ddb;
+  margin-bottom: 12px;
+}
+
+.modal-section-content p {
+  margin-bottom: 8px;
+}
+
+/* ===== CRITICAL MODAL COMPONENTS ===== */
+
+/* Critical modal components */
+.critical-modal-icon {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+  box-shadow: 0 4px 20px rgba(255, 107, 107, 0.4);
+}
+
+.critical-modal-title {
+  color: #ff6b6b;
+  font-weight: 700;
+  margin-bottom: 20px;
+  font-size: 1.5rem;
+}
+
+.critical-modal-warning {
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 28px;
+}
+
+.critical-modal-warning p {
+  margin-bottom: 0;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  color: #ffbaba;
+}
+
+/* ===== MODAL BUTTONS ===== */
+
+/* Modal button containers and styling */
+.modal-button-container {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+.modal-btn-cancel {
+  background: #3a335a;
+  color: #e6e0ff;
+  border: 2px solid #4a4370;
+  border-radius: 12px;
+  padding: 0.8rem 2rem;
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: pointer;
+  min-width: 140px;
+  transition: all 0.2s ease;
+}
+
+.modal-btn-cancel:disabled {
+  background: #2a2540;
+  color: #888;
+  border: 1px solid #2a2540;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.modal-btn-critical {
+  background: linear-gradient(135deg, #ff6b6b, #ff4757);
+  color: #fff;
+  border: 2px solid #ff6b6b;
+  border-radius: 12px;
+  padding: 0.8rem 2rem;
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: pointer;
+  min-width: 140px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 16px rgba(255, 107, 107, 0.3);
+}
+
+.modal-btn-critical:disabled {
+  background: #cc5555;
+  opacity: 0.7;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.modal-error-message {
+  color: #ff6b6b;
+  margin-top: 20px;
+  font-weight: 600;
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  border-radius: 8px;
+  padding: 12px 16px;
+} 
