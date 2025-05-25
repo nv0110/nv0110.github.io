@@ -91,6 +91,8 @@ export function useBossActions({
           const result = await saveBossRun(userCode, bossRunData);
           if (!result.success) {
             console.error('Error saving boss run:', result.error);
+          } else {
+            console.log('✅ Boss run saved successfully');
           }
         } catch (dbError) {
           console.error('Error saving boss state to database:', dbError);
@@ -225,6 +227,8 @@ export function useBossActions({
         }
         
         await Promise.allSettled(databasePromises);
+        
+        console.log('✅ Tick All operations completed');
       }
       
     } catch (err) {
@@ -237,8 +241,49 @@ export function useBossActions({
     }
   };
 
+  // Function to refresh checked state from boss runs in database
+  const refreshCheckedStateFromDatabase = async () => {
+    if (!userCode) return;
+    
+    try {
+      console.log('🔄 Refreshing checked state from boss runs...');
+      
+      const { supabase } = await import('../supabaseClient');
+      const { data, error } = await supabase
+        .from('user_data')
+        .select('data')
+        .eq('id', userCode)
+        .single();
+
+      if (!error && data && data.data && data.data.boss_runs) {
+        const reconstructedChecked = {};
+        
+        data.data.boss_runs.forEach(run => {
+          if (run.cleared) {
+            const charKey = `${run.character}-${run.characterIdx || 0}`;
+            const bossKey = `${run.boss}-${run.difficulty}`;
+            
+            if (!reconstructedChecked[charKey]) {
+              reconstructedChecked[charKey] = {};
+            }
+            reconstructedChecked[charKey][bossKey] = true;
+          }
+        });
+        
+        console.log('✅ Refreshed checked state from boss_runs after boss action');
+        setChecked(reconstructedChecked);
+        return reconstructedChecked;
+      }
+    } catch (error) {
+      console.error('Error refreshing checked state from boss runs:', error);
+    }
+    
+    return null;
+  };
+
   return {
     handleCheck,
-    handleTickAll
+    handleTickAll,
+    refreshCheckedStateFromDatabase
   };
 } 

@@ -285,6 +285,48 @@ export function useAppData() {
     loadData();
   }, [userCode, isLoggedIn]);
 
+  // Function to refresh checked state from latest boss runs in database
+  const refreshCheckedStateFromBossRuns = async () => {
+    if (!userCode || !isLoggedIn) return;
+    
+    try {
+      console.log('🔄 Refreshing checked state from boss runs...');
+      
+      const { supabase } = await import('../supabaseClient');
+      const { data, error } = await supabase
+        .from('user_data')
+        .select('data')
+        .eq('id', userCode)
+        .single();
+
+      if (error) throw error;
+
+      if (data && data.data && data.data.boss_runs && Array.isArray(data.data.boss_runs)) {
+        const reconstructedChecked = {};
+        
+        data.data.boss_runs.forEach(run => {
+          if (run.cleared) {
+            const charKey = `${run.character}-${run.characterIdx || 0}`;
+            const bossKey = `${run.boss}-${run.difficulty}`;
+            
+            if (!reconstructedChecked[charKey]) {
+              reconstructedChecked[charKey] = {};
+            }
+            reconstructedChecked[charKey][bossKey] = true;
+          }
+        });
+        
+        console.log('✅ Refreshed checked state from boss_runs:', Object.keys(reconstructedChecked).length, 'characters');
+        setChecked(reconstructedChecked);
+        return reconstructedChecked;
+      }
+    } catch (error) {
+      console.error('Error refreshing checked state from boss runs:', error);
+    }
+    
+    return null;
+  };
+
   // Save data to cloud
   const saveToCloud = async (updatedData) => {
     if (!userCode || !isLoggedIn) return;
@@ -572,5 +614,6 @@ export function useAppData() {
     updateCharacterName,
     updatePartySize,
     batchSetBosses,
+    refreshCheckedStateFromBossRuns,
   };
 } 

@@ -1,15 +1,54 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getCurrentWeekKey } from '../utils/weekUtils';
 import { getPitchedKey } from '../utils/stringUtils';
-import { getPitchedItems } from '../pitched-data-service';
+import { getPitchedItems, getAllPitchedItems } from '../pitched-data-service';
 
 export function usePitchedItems(userCode, characters, checked, setChecked, weekKey) {
   const [pitchedChecked, setPitchedChecked] = useState({});
   const [cloudPitchedItems, setCloudPitchedItems] = useState([]);
+  const [isRefreshingPitchedItems, setIsRefreshingPitchedItems] = useState(false);
+  const [loadingPitchedItems, setLoadingPitchedItems] = useState({});
   const userInteractionRef = useRef(false);
 
+  // Function to refresh pitched items from database
+  const refreshPitchedItems = async (userCodeValue) => {
+    if (isRefreshingPitchedItems) return;
+    
+    try {
+      setIsRefreshingPitchedItems(true);
+      const codeToUse = userCodeValue || userCode;
+      
+      if (!codeToUse) return;
+      
+      const result = await getAllPitchedItems(codeToUse);
+      
+      if (result.success) {
+        setCloudPitchedItems(result.items || []);
+        const currentWeekItems = (result.items || []).filter(item => item.weekKey === weekKey);
+        
+        // Update pitched checked state based on current week
+        const newPitchedChecked = {};
+        currentWeekItems.forEach(item => {
+          const charIdx = characters.findIndex(c => c.name === item.character);
+          if (charIdx !== -1) {
+            const key = getPitchedKey(item.character, charIdx, item.boss, item.item, weekKey);
+            newPitchedChecked[key] = true;
+          }
+        });
+        
+        setPitchedChecked(newPitchedChecked);
+      } else {
+        console.error('Error refreshing pitched items:', result.error);
+      }
+    } catch (error) {
+      console.error('Error in refreshPitchedItems:', error);
+    } finally {
+      setIsRefreshingPitchedItems(false);
+    }
+  };
+
   // Load pitched items from cloud
-  const refreshPitchedItems = useCallback(async () => {
+  const loadPitchedItems = useCallback(async () => {
     if (!userCode) return;
     
     try {
@@ -56,6 +95,8 @@ export function usePitchedItems(userCode, characters, checked, setChecked, weekK
         
         if (data && data.pitched_items && Array.isArray(data.pitched_items)) {
           setCloudPitchedItems(data.pitched_items);
+        } else {
+          setCloudPitchedItems([]);
         }
       } catch (error) {
         console.error('Error in fetchPitchedItemsFromDatabase:', error);
@@ -133,6 +174,9 @@ export function usePitchedItems(userCode, characters, checked, setChecked, weekK
     cloudPitchedItems,
     setCloudPitchedItems,
     userInteractionRef,
-    refreshPitchedItems
+    refreshPitchedItems,
+    loadingPitchedItems,
+    setLoadingPitchedItems,
+    isRefreshingPitchedItems
   };
 } 

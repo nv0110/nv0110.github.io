@@ -37,6 +37,7 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
   const [crystalAnimation, setCrystalAnimation] = useState(null);
   const [selectedCharIdx, setSelectedCharIdx] = useState(0);
   const [error, setError] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [progressData, setProgressData] = useState({
     weeklyTotal: 0,
     lastReset: new Date().toISOString(),
@@ -148,6 +149,90 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
 
   const visibleCharSummaries = hideCompleted ? charSummaries.filter(cs => !cs.allCleared) : charSummaries;
   const showCharacterDetails = charBosses.length > 0;
+
+  // Refresh data function
+  const refreshData = async () => {
+    if (!userCode) return;
+    
+    try {
+      setIsRefreshing(true);
+      console.log('🔄 Refreshing all data from database...');
+      
+      const { supabase } = await import('./supabaseClient');
+      const { data, error } = await supabase
+        .from('user_data')
+        .select('data, pitched_items')
+        .eq('id', userCode)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        // Refresh checked state from boss_runs
+        if (data.data && data.data.boss_runs) {
+          const reconstructedChecked = {};
+          data.data.boss_runs.forEach(run => {
+            if (run.cleared) {
+              const charKey = `${run.character}-${run.characterIdx || 0}`;
+              const bossKey = `${run.boss}-${run.difficulty}`;
+              
+              if (!reconstructedChecked[charKey]) {
+                reconstructedChecked[charKey] = {};
+              }
+              reconstructedChecked[charKey][bossKey] = true;
+            }
+          });
+          
+          console.log('🔄 About to update checked state:', reconstructedChecked);
+          // Force update by using functional state update
+          setChecked(prevChecked => {
+            console.log('🔄 Previous checked state:', prevChecked);
+            console.log('🔄 New checked state:', reconstructedChecked);
+            return { ...reconstructedChecked };
+          });
+        }
+
+        // Refresh pitched items
+        if (data.pitched_items) {
+          pitchedItems.setCloudPitchedItems(data.pitched_items);
+          
+          // Update pitched checked state using the correct getPitchedKey function
+          const { getPitchedKey } = await import('./utils/stringUtils');
+          const currentWeekItems = data.pitched_items.filter(item => 
+            item.weekKey === weekNavigation.selectedWeekKey
+          );
+          const newPitchedChecked = {};
+          
+          currentWeekItems.forEach(item => {
+            const charIdx = characters.findIndex(c => c.name === item.character);
+            if (charIdx !== -1) {
+              const key = getPitchedKey(item.character, charIdx, item.boss, item.item, item.weekKey);
+              newPitchedChecked[key] = true;
+            }
+          });
+          
+          console.log('🔄 About to update pitched checked state:', newPitchedChecked);
+          // Force update by using functional state update
+          pitchedItems.setPitchedChecked(prevPitched => {
+            console.log('🔄 Previous pitched state:', prevPitched);
+            console.log('🔄 New pitched state:', newPitchedChecked);
+            return { ...newPitchedChecked };
+          });
+        }
+      }
+
+      console.log('✅ Data refresh completed successfully');
+      
+      // Force a small delay to ensure state updates have processed
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+    } catch (error) {
+      console.error('❌ Error refreshing data:', error);
+      setError('Failed to refresh data. Please try again.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   if (error) {
     return (
@@ -278,22 +363,27 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
                   sortedBosses={sortedBosses}
                   bossData={bossData}
                   checked={checked}
+                  setChecked={setChecked}
                   charKey={charKey}
                   getBossPrice={getBossPrice}
                   isReadOnlyMode={weekNavigation.isReadOnlyMode}
                   pitchedChecked={pitchedItems.pitchedChecked}
+                  setPitchedChecked={pitchedItems.setPitchedChecked}
                   weekKey={weekNavigation.selectedWeekKey}
                   handleCheck={bossActions.handleCheck}
+                  refreshCheckedStateFromDatabase={bossActions.refreshCheckedStateFromDatabase}
+                  refreshData={refreshData}
                   userInteractionRef={pitchedItems.userInteractionRef}
                   userCode={userCode}
                   savePitchedItem={savePitchedItem}
                   removeManyPitchedItems={removeManyPitchedItems}
-                  setPitchedChecked={pitchedItems.setPitchedChecked}
                   setError={setError}
                   startStatsTrackingIfNeeded={statsManagement.startStatsTrackingIfNeeded}
                   setHistoricalPitchedData={statsManagement.setHistoricalPitchedData}
                   setShowHistoricalPitchedModal={statsManagement.setShowHistoricalPitchedModal}
                   readOnlyOverride={weekNavigation.readOnlyOverride}
+                  loadingPitchedItems={pitchedItems.loadingPitchedItems}
+                  setLoadingPitchedItems={pitchedItems.setLoadingPitchedItems}
                 />
               </div>
             )}
@@ -317,6 +407,28 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
                 onClick={() => statsManagement.setShowStats(true)}
               >
                 View Stats
+              </button>
+            </div>
+            
+            {/* Debug: Manual Refresh Button */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+              <button
+                style={{
+                  background: 'linear-gradient(135deg, #48bb78, #38a169)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '0.6rem 1.5rem',
+                  fontWeight: 600,
+                  fontSize: '0.9em',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(72, 187, 120, 0.4)',
+                  transition: 'all 0.3s ease'
+                }}
+                onClick={refreshData}
+                disabled={isRefreshing}
+              >
+                {isRefreshing ? 'Refreshing...' : '🔄 Manual Refresh (Debug)'}
               </button>
             </div>
           </div>
@@ -395,6 +507,45 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
               statsManagement.setShowHistoricalPitchedModal(false);
             }}
           />
+        </div>
+      )}
+
+      {/* Refresh Animation Overlay */}
+      {isRefreshing && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(40, 32, 74, 0.8)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backdropFilter: 'blur(2px)'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #805ad5, #9f7aea)',
+            color: '#fff',
+            padding: '2rem 3rem',
+            borderRadius: 12,
+            textAlign: 'center',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+          }}>
+            <div style={{
+              width: 40,
+              height: 40,
+              border: '4px solid rgba(255, 255, 255, 0.3)',
+              borderTop: '4px solid #fff',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+              margin: '0 auto 1rem'
+            }}></div>
+            <div style={{ fontWeight: 600, fontSize: '1.1em' }}>
+              Refreshing Data...
+            </div>
+          </div>
         </div>
       )}
     </div>

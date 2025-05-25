@@ -472,6 +472,23 @@ export async function getPitchedItems(userCode) {
   }
 }
 
+// Function to get all pitched items from the pitched_items column
+export async function getAllPitchedItems(userCode) {
+  try {
+    const { data, error } = await supabase
+      .from('user_data')
+      .select('pitched_items')
+      .eq('id', userCode)
+      .single();
+      
+    if (error) throw error;
+    return { success: true, items: data?.pitched_items || [] };
+  } catch (error) {
+    console.error('Error fetching all pitched items:', error);
+    return { success: false, error, items: [] };
+  }
+}
+
 // Function to get yearly stats for pitched items
 export async function getYearlyPitchedStats(userCode, year = null) {
   try {

@@ -1263,3 +1263,10 @@ body.dark th, body.dark thead th {
     font-size: 0.85rem;
   }
 }
+
+/* Pitched Item Loading Spinner Animation */
+@keyframes pitched-spinner {
+  to { 
+    transform: rotate(360deg);
+  }
+}
