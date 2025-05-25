@@ -54,7 +54,7 @@ function WeeklyTrackerPage() {
       
       {/* Main content container - properly centered */}
       <ViewTransitionWrapper>
-        <div className="weekly-tracker-main-container fade-in">
+        <div className="weekly-tracker-main-container">
           <div className="weekly-tracker-content-wrapper">
             <WeeklyTracker 
               characters={characters}

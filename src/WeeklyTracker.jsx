@@ -330,7 +330,7 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
         />
 
         {/* Main Content */}
-        <div className="weekly-tracker-main" style={{
+        <div className="weekly-tracker-main fade-in" style={{
           margin: '0 auto'
         }}>
           <div style={{
