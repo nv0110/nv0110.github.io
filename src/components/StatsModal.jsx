@@ -135,7 +135,7 @@ function StatsModal({
                     e.currentTarget.style.boxShadow = hasCloudItems ? '0 0 8px #805ad5' : '0 1px 4px #0002';
                   }}
                 >
-                  <img src={p.image} alt={p.name} style={{ width: 22, height: 22, borderRadius: 4, marginRight: 2, transition: 'box-shadow 0.18s cubic-bezier(.4,2,.6,1)' }} />
+                  <img src={p.image} alt={p.name} style={{ width: 22, borderRadius: 4, marginRight: 2, transition: 'box-shadow 0.18s cubic-bezier(.4,2,.6,1)' }} />
                   {p.name}
                   <span className="pitched-count-white" style={{ color: '#fff', marginLeft: 6, fontWeight: 700, fontSize: '1.1em' }}>×{p.count}</span>
                   {hasCloudItems && (
