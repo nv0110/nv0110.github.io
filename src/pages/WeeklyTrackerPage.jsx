@@ -10,13 +10,27 @@ import ViewTransitionWrapper from '../components/ViewTransitionWrapper';
 function WeeklyTrackerPage() {
   const { navigate } = useViewTransition();
   const { userCode, isLoggedIn, handleDeleteAccount } = useAuth();
-  const { characters, checked, setChecked, fullUserData, weekKey } = useAppData();
+  const { 
+    characters, 
+    checked, 
+    setChecked, 
+    fullUserData, 
+    weekKey,
+    preserveCheckedStateOnBossChange,
+    preservingCheckedStateRef
+  } = useAppData();
 
   // Modal states
   const [showHelp, setShowHelp] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [showDeleteLoading, setShowDeleteLoading] = useState(false);
+
+  // Note: We don't call preserveCheckedStateOnBossChange on load
+  // because we want to preserve the database state when first loading.
+  // The preservation function is only called when boss selections change.
+
+
 
   // Redirect if not logged in
   if (!isLoggedIn) {
@@ -62,6 +76,7 @@ function WeeklyTrackerPage() {
           userCode={userCode}
           fullUserData={fullUserData}
           weekKey={weekKey}
+          preservingCheckedStateRef={preservingCheckedStateRef}
         />
       </ViewTransitionWrapper>
 

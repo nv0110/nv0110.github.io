@@ -23,7 +23,7 @@ import { usePitchedItems } from './hooks/usePitchedItems';
 import { useBossActions } from './hooks/useBossActions';
 import { useStatsManagement } from './hooks/useStatsManagement';
 
-function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) {
+function WeeklyTracker({ characters, bossData, checked, setChecked, userCode, preservingCheckedStateRef }) {
   // Helper function to get boss price
   function getBossPrice(bossName, difficulty) {
     const boss = bossData.find(b => b.name === bossName);
@@ -75,7 +75,8 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
     characters, 
     checked, 
     setChecked, 
-    weekNavigation.selectedWeekKey
+    weekNavigation.selectedWeekKey,
+    preservingCheckedStateRef
   );
   
   const bossActions = useBossActions({

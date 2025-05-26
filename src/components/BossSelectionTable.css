@@ -1,0 +1,478 @@
+/* ===================================================================
+   BOSS SELECTION TABLE STYLES - INPUT PAGE
+   ===================================================================
+   
+   This stylesheet contains all styles for the BossSelectionTable component
+   used in the InputPage for character boss configuration.
+   
+   Structure:
+   1. Container & Layout
+   2. Table Structure
+   3. Table Header
+   4. Table Body & Rows
+   5. Table Cells & Content
+   6. Form Controls (Selects, Checkboxes)
+   7. Interactive States & Animations
+   8. Responsive Design
+   
+   ================================================================= */
+
+/* ===================================================================
+   1. CONTAINER & LAYOUT
+   ================================================================= */
+
+/* Main container for the boss selection table */
+.boss-selection-container {
+  margin-top: 1rem;
+}
+
+/* Empty state message when no character is selected */
+.boss-selection-empty-state {
+  padding: 2rem;
+  color: #cebbe4;
+  font-size: 1.1rem;
+  text-align: center;
+}
+
+/* ===================================================================
+   2. TABLE STRUCTURE
+   ================================================================= */
+
+/* Main table styling with dark theme - 4 equal columns */
+.boss-selection-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 700px;
+  border: 1px solid #2d2540;
+  border-radius: 12px;
+  overflow: hidden;
+  table-layout: fixed; /* Fixed layout for equal column widths */
+  color: #cebbe4; /* Base color for all table text */
+}
+
+/* ===================================================================
+   3. TABLE HEADER
+   ================================================================= */
+
+/* Header row styling */
+.boss-selection-table thead tr {
+  background: #3a2a5d;
+  color: #cebbe4;
+}
+
+/* Base header cell styling - adjusted widths for boss names */
+.boss-selection-table th {
+  padding: 8px 12px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.9em;
+  vertical-align: middle;
+}
+
+/* Boss name column header - wider for long names */
+.boss-selection-table th.boss-header {
+  text-align: left; /* Keep boss names left-aligned */
+  width: 35%; /* Wider for boss names */
+}
+
+/* Difficulty column header */
+.boss-selection-table th.difficulty-header {
+  text-align: center;
+  width: 15%; /* Narrower */
+}
+
+/* Mesos/Price column header */
+.boss-selection-table th.mesos-header {
+  text-align: center;
+  width: 20%; /* Medium width */
+}
+
+/* Controls column header (character name) */
+.boss-selection-table th.controls-header {
+  text-align: center;
+  width: 30%; /* Space for controls */
+}
+
+/* ===================================================================
+   4. TABLE BODY & ROWS
+   ================================================================= */
+
+/* Table body base styling */
+.boss-selection-table tbody {
+  color: #cebbe4;
+}
+
+/* Row styling with alternating colors */
+.boss-selection-table tbody tr {
+  border: 1px solid #3a335a;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+  cursor: pointer;
+}
+
+/* Even rows (zebra striping) */
+.boss-selection-table tbody tr:nth-child(even) {
+  background: #23203a;
+}
+
+/* Odd rows (zebra striping) */
+.boss-selection-table tbody tr:nth-child(odd) {
+  background: #201c32;
+}
+
+/* Row hover state */
+.boss-selection-table tbody tr:hover {
+  background: #2a2540;
+}
+
+/* ===================================================================
+   5. TABLE CELLS & CONTENT
+   ================================================================= */
+
+/* Base table cell styling - adjusted widths */
+.boss-selection-table td {
+  padding: 12px 8px;
+  vertical-align: middle;
+  text-align: center;
+}
+
+/* Specific cell widths to match headers */
+.boss-selection-table td.boss-name-cell {
+  width: 35%;
+}
+
+.boss-selection-table td.difficulty-cell {
+  width: 15%;
+}
+
+.boss-selection-table td.mesos-cell {
+  width: 20%;
+}
+
+.boss-selection-table td.controls-cell {
+  width: 30%;
+}
+
+/* Boss name cell with image and text */
+.boss-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left; /* Override center alignment for boss names */
+  padding-left: 12px;
+  white-space: nowrap;
+}
+
+/* Boss image styling */
+.boss-image {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  transition: transform 0.2s ease;
+  flex-shrink: 0; /* Prevent image from shrinking */
+}
+
+/* Boss image hover effect */
+.boss-image:hover {
+  transform: scale(1.1);
+}
+
+/* Boss name text styling */
+.boss-name-text {
+  font-weight: 600;
+  font-size: 1em;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0; /* Allow flex item to shrink if needed */
+}
+
+/* Difficulty cell styling */
+.difficulty-cell {
+  text-align: center;
+}
+
+/* Difficulty text styling */
+.difficulty-text {
+  font-weight: 500;
+  font-size: 0.95em;
+}
+
+/* Mesos/Price cell styling */
+.mesos-cell {
+  text-align: center;
+}
+
+/* Mesos amount text styling */
+.mesos-amount {
+  color: #cebbe4;
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+/* Controls cell (checkboxes and selects) */
+.controls-cell {
+  text-align: center;
+  background: inherit;
+  vertical-align: middle;
+}
+
+/* Controls container for centered layout */
+.controls-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+/* ===================================================================
+   6. FORM CONTROLS (SELECTS, CHECKBOXES)
+   ================================================================= */
+
+/* Base select styling for both difficulty and party size */
+.boss-selection-table select {
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid #3a335a;
+  background: #3a335a;
+  color: #cebbe4;
+  font-weight: 600;
+  cursor: pointer;
+  box-sizing: border-box;
+  font-size: 0.9rem;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+/* Difficulty dropdown specific styling - no dropdown arrow */
+.boss-selection-table .boss-table-difficulty {
+  padding: 0 8px;
+  min-width: 80px;
+  max-width: 100px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  text-align: center;
+}
+
+/* Party size dropdown specific styling */
+.boss-selection-table .boss-table-party-size {
+  text-align: center;
+  width: 40px;
+  min-width: 40px;
+  padding: 0 6px;
+}
+
+/* Select focus states for better accessibility */
+.boss-selection-table select:focus {
+  outline: 2px solid #6a11cb;
+  outline-offset: 2px;
+}
+
+/* Select hover states */
+.boss-selection-table select:hover {
+  background: #4a4066;
+  border-color: #4a4066;
+}
+
+/* ===================================================================
+   7. INTERACTIVE STATES & ANIMATIONS
+   ================================================================= */
+
+/* Smooth transitions for all interactive elements */
+.boss-selection-table * {
+  transition: all 0.2s ease;
+}
+
+/* Prevent text selection on clickable rows */
+.boss-selection-table tbody tr {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Re-enable text selection for form controls */
+.boss-selection-table select,
+.boss-selection-table input {
+  user-select: auto;
+  -webkit-user-select: auto;
+  -moz-user-select: auto;
+  -ms-user-select: auto;
+}
+
+/* ===================================================================
+   8. RESPONSIVE DESIGN
+   ================================================================= */
+
+/* Tablet and smaller screens */
+@media (max-width: 768px) {
+  .boss-selection-table {
+    min-width: 600px;
+    font-size: 0.85rem;
+  }
+  
+  .boss-image {
+    width: 30px;
+    height: 30px;
+  }
+  
+  .boss-selection-table th,
+  .boss-selection-table td {
+    padding: 8px 4px;
+  }
+  
+  .controls-container {
+    gap: 4px;
+    flex-wrap: nowrap;
+  }
+  
+  .boss-table-difficulty {
+    min-width: 60px;
+    max-width: 70px;
+    font-size: 0.75rem;
+  }
+  
+  .boss-table-party-size {
+    width: 30px;
+    min-width: 30px;
+    font-size: 0.75rem;
+  }
+}
+
+/* Mobile screens */
+@media (max-width: 480px) {
+  .boss-selection-table {
+    min-width: 480px;
+    font-size: 0.75rem;
+  }
+  
+  .boss-image {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .boss-selection-table select {
+    height: 26px;
+    font-size: 0.7rem;
+  }
+  
+  .boss-selection-table th,
+  .boss-selection-table td {
+    padding: 6px 2px;
+  }
+  
+  .controls-container {
+    gap: 3px;
+  }
+  
+  .boss-table-difficulty {
+    min-width: 50px;
+    max-width: 60px;
+  }
+  
+  .boss-table-party-size {
+    width: 26px;
+    min-width: 26px;
+  }
+  
+  .boss-name-text {
+    font-size: 0.85em;
+  }
+}
+
+/* ===================================================================
+   9. ACCESSIBILITY IMPROVEMENTS
+   ================================================================= */
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .boss-selection-table {
+    border: 2px solid #fff;
+  }
+  
+  .boss-selection-table tbody tr {
+    border: 1px solid #fff;
+  }
+  
+  .boss-selection-table select {
+    border: 2px solid #fff;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .boss-selection-table *,
+  .boss-image {
+    transition: none;
+  }
+  
+  .boss-image:hover {
+    transform: none;
+  }
+}
+
+/* Focus visible for keyboard navigation */
+.boss-selection-table tbody tr:focus-visible {
+  outline: 2px solid #6a11cb;
+  outline-offset: 2px;
+}
+
+/* ===================================================================
+   10. OVERRIDE PROTECTION & SPECIFICITY
+   ================================================================= */
+
+/* Ensure our table styles take precedence over global table styles */
+.boss-selection-container .boss-selection-table {
+  border-collapse: collapse;
+}
+
+/* Protect our select styling from global overrides */
+.boss-selection-container .boss-selection-table select {
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid #3a335a;
+  background: #3a335a;
+  color: #cebbe4;
+  font-weight: 600;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+/* Ensure row hover states work correctly */
+.boss-selection-container .boss-selection-table tbody tr:hover {
+  background: #2a2540;
+}
+
+/* Protect image styling */
+.boss-selection-container .boss-image {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+/* Ensure column widths are maintained */
+.boss-selection-container .boss-selection-table th.boss-header,
+.boss-selection-container .boss-selection-table td.boss-name-cell {
+  width: 35%;
+}
+
+.boss-selection-container .boss-selection-table th.difficulty-header,
+.boss-selection-container .boss-selection-table td.difficulty-cell {
+  width: 15%;
+}
+
+.boss-selection-container .boss-selection-table th.mesos-header,
+.boss-selection-container .boss-selection-table td.mesos-cell {
+  width: 20%;
+}
+
+.boss-selection-container .boss-selection-table th.controls-header,
+.boss-selection-container .boss-selection-table td.controls-cell {
+  width: 30%;
+} 

@@ -3,7 +3,7 @@ import { getCurrentWeekKey } from '../utils/weekUtils';
 import { getPitchedKey } from '../utils/stringUtils';
 import { getPitchedItems, getAllPitchedItems } from '../pitched-data-service';
 
-export function usePitchedItems(userCode, characters, checked, setChecked, weekKey) {
+export function usePitchedItems(userCode, characters, checked, setChecked, weekKey, preservingCheckedStateRef = null) {
   const [pitchedChecked, setPitchedChecked] = useState({});
   const [cloudPitchedItems, setCloudPitchedItems] = useState([]);
   const [isRefreshingPitchedItems, setIsRefreshingPitchedItems] = useState(false);
@@ -158,9 +158,16 @@ export function usePitchedItems(userCode, characters, checked, setChecked, weekK
           // Always update pitched checked state from database
           setPitchedChecked(newPitchedChecked);
           
-          // Only update boss checked state if needed
-          if (updatedChecks) {
+          // Only update boss checked state if needed and not during preservation
+          if (updatedChecks && (!preservingCheckedStateRef || !preservingCheckedStateRef.current)) {
+            console.log('🔄 PITCHED: Updating checked state from pitched items sync');
+            console.log('🔄 PITCHED: New checked state being set:', JSON.stringify(newChecked, null, 2));
             setChecked(newChecked);
+          } else if (updatedChecks && preservingCheckedStateRef?.current) {
+            console.log('🚫 PITCHED: Skipping checked state update - preservation in progress');
+            console.log('🚫 PITCHED: Would have set:', JSON.stringify(newChecked, null, 2));
+          } else if (!updatedChecks) {
+            console.log('ℹ️ PITCHED: No boss checks needed updating');
           }
         }
       } catch (error) {
