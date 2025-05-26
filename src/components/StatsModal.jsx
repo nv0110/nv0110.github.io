@@ -83,14 +83,14 @@ function StatsModal({
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
-          {yearlyPitchedSummary.length === 0 && (
-            <div style={{ marginTop: 8, fontSize: '0.9rem', color: '#b39ddb', textAlign: 'center' }}>
-              No pitched items were found for {selectedYear}
-            </div>
-          )}
         </div>
         
-        <div style={{ marginBottom: 8 }}>Pitched Items Obtained:</div>
+        <div style={{ marginBottom: 8, textAlign: 'center' }}>
+          {yearlyPitchedSummary.length === 0 ? 
+            `No pitched items were found for ${selectedYear}` : 
+            'Pitched Items Obtained:'
+          }
+        </div>
         
         {isLoadingCloudStats ? (
           <div style={{ textAlign: 'center', padding: '15px', color: '#b39ddb' }}>

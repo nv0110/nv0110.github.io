@@ -94,7 +94,8 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
     userInteractionRef: pitchedItems.userInteractionRef,
     setCrystalAnimation,
     setError,
-    startStatsTrackingIfNeeded: () => {}
+    startStatsTrackingIfNeeded: () => {},
+    refreshHistoricalAnalysis: weekNavigation.refreshHistoricalAnalysis
   });
 
   const statsManagement = useStatsManagement(userCode, pitchedItems.refreshPitchedItems);
@@ -268,6 +269,13 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
                 availableWeeks={weekNavigation.availableWeeks}
                 isReadOnlyMode={weekNavigation.isReadOnlyMode}
                 isHistoricalWeek={weekNavigation.isHistoricalWeek}
+                historicalAnalysis={weekNavigation.historicalAnalysis}
+                characters={characters}
+                checked={checked}
+                selectedCharIdx={selectedCharIdx}
+                totalMeso={totalMeso}
+                obtainableMeso={obtainableMeso}
+                charSummaries={charSummaries}
               />
             </div>
 
@@ -335,6 +343,8 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
                   readOnlyOverride={weekNavigation.readOnlyOverride}
                   loadingPitchedItems={pitchedItems.loadingPitchedItems}
                   setLoadingPitchedItems={pitchedItems.setLoadingPitchedItems}
+                  refreshPitchedItems={pitchedItems.refreshPitchedItems}
+                  refreshHistoricalAnalysis={weekNavigation.refreshHistoricalAnalysis}
                 />
               </div>
             )}
@@ -478,6 +488,9 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
 
                   // Refresh pitched items to sync with database
                   await pitchedItems.refreshPitchedItems(userCode);
+                  
+                  // Refresh historical analysis to update navigation
+                  await weekNavigation.refreshHistoricalAnalysis();
                   
               statsManagement.setShowHistoricalPitchedModal(false);
                 } else {

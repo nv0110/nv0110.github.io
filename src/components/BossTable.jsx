@@ -29,7 +29,9 @@ function BossTable({
   setShowHistoricalPitchedModal,
   readOnlyOverride,
   loadingPitchedItems,
-  setLoadingPitchedItems
+  setLoadingPitchedItems,
+  refreshPitchedItems,
+  refreshHistoricalAnalysis
 }) {
   // Historical week card layout
   if (isHistoricalWeek) {
@@ -97,7 +99,9 @@ function BossTable({
                         className={`historical-pitched-item ${hasPitchedItem ? 'obtained' : ''}`}
                             title={isReadOnlyMode 
                               ? (hasPitchedItem ? `${item.name} (obtained by ${characterWithItem})` : item.name)
-                              : `Click to track: ${item.name}${hasPitchedItem ? ` (obtained by ${characterWithItem})` : ''}`
+                              : hasPitchedItem 
+                                ? `Click to remove: ${item.name} (obtained by ${characterWithItem})`
+                                : `Click to track: ${item.name}`
                             }
                             onClick={async (e) => {
                               e.stopPropagation();
@@ -108,18 +112,50 @@ function BossTable({
                                 return;
                               }
 
-                              // For historical weeks in edit mode, show historical logging modal
+                              // For historical weeks in edit mode
                               if (isHistoricalWeek && readOnlyOverride) {
-                                console.log('Opening historical pitched item modal for:', item.name);
-                                setHistoricalPitchedData({
-                                  character: '', // Will be selected in modal
-                                  characterIdx: -1,
-                                  bossName: bossObj.name,
-                                  itemName: item.name,
-                                  itemImage: item.image,
-                                  weekKey: weekKey
-                                });
-                                setShowHistoricalPitchedModal(true);
+                                if (hasPitchedItem) {
+                                  // Remove the historical pitched item
+                                  console.log('Removing historical pitched item:', item.name);
+                                  try {
+                                    const result = await savePitchedItem(userCode, {
+                                      character: characterWithItem,
+                                      characterIdx: characters.findIndex(c => c.name === characterWithItem),
+                                      bossName: bossObj.name,
+                                      itemName: item.name,
+                                      itemImage: item.image,
+                                      date: new Date().toISOString()
+                                    }, true, weekKey); // true = remove
+                                    
+                                    if (result.success) {
+                                      console.log('✅ Historical pitched item removed successfully');
+                                      // Refresh pitched items to sync with database
+                                      await refreshPitchedItems(userCode);
+                                      // Refresh historical analysis to update navigation
+                                      if (refreshHistoricalAnalysis) {
+                                        await refreshHistoricalAnalysis();
+                                      }
+                                    } else {
+                                      console.error('❌ Failed to remove historical pitched item:', result.error);
+                                      setError('Failed to remove historical pitched item: ' + (result.error || 'Unknown error'));
+                                    }
+                                  } catch (error) {
+                                    console.error('❌ Error removing historical pitched item:', error);
+                                    setError('Error removing historical pitched item: ' + error.message);
+                                  }
+                                } else {
+                                  // Show historical logging modal for adding
+                                  console.log('Opening historical pitched item modal for:', item.name);
+                                  setHistoricalPitchedData({
+                                    character: '', // Will be selected in modal
+                                    characterIdx: -1,
+                                    bossName: bossObj.name,
+                                    itemName: item.name,
+                                    itemImage: item.image,
+                                    weekKey: weekKey
+                                  });
+                                  setShowHistoricalPitchedModal(true);
+                                }
                                 return;
                               }
                             }}
@@ -203,7 +239,7 @@ function BossTable({
                             <span
                               key={item.name}
                               className={`pitched-item-icon inline ${got ? 'obtained' : ''} ${isReadOnlyMode ? 'read-only' : ''}`}
-                              title={`Track: ${item.name}`}
+                              title={got ? `Click to remove: ${item.name}` : `Click to track: ${item.name}`}
                               onClick={async (e) => {
                                 e.stopPropagation();
                                 
@@ -315,6 +351,13 @@ function BossTable({
                                     console.log('🖱️ USER: Cloud save successful');
                                     // Note: We removed refreshPitchedItems to prevent sync conflicts!
                                     // The periodic background sync will handle consistency
+                                    
+                                    // Refresh historical analysis to update navigation
+                                    if (refreshHistoricalAnalysis) {
+                                      refreshHistoricalAnalysis().catch(err => {
+                                        console.error('Error refreshing historical analysis:', err);
+                                      });
+                                    }
                                   }
                                 } catch (error) {
                                   console.error('❌ Error in pitched item click handler:', error);

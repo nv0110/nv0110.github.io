@@ -18,7 +18,8 @@ export function useBossActions({
   userInteractionRef,
   setCrystalAnimation,
   setError,
-  startStatsTrackingIfNeeded
+  startStatsTrackingIfNeeded,
+  refreshHistoricalAnalysis
 }) {
   const currentWeekKey = getCurrentWeekKey();
 
@@ -123,7 +124,12 @@ export function useBossActions({
           }));
           
           if (itemsToRemove.length > 0 && userCode) {
-            removeManyPitchedItems(userCode, itemsToRemove).catch(err => {
+            removeManyPitchedItems(userCode, itemsToRemove).then(async () => {
+              // Refresh historical analysis after removing pitched items
+              if (refreshHistoricalAnalysis) {
+                await refreshHistoricalAnalysis();
+              }
+            }).catch(err => {
               console.error('Error removing pitched items:', err);
             });
           }
@@ -231,6 +237,10 @@ export function useBossActions({
             
             if (itemsToRemove.length > 0) {
               await removeManyPitchedItems(userCode, itemsToRemove);
+              // Refresh historical analysis after removing pitched items
+              if (refreshHistoricalAnalysis) {
+                await refreshHistoricalAnalysis();
+              }
             }
           }
           

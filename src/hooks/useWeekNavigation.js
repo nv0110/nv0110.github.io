@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getCurrentWeekKey } from '../utils/weekUtils';
-import { getAvailableWeeks, getWeekData } from '../pitched-data-service';
+import { getAvailableWeeks, getWeekData, getHistoricalWeekAnalysis } from '../pitched-data-service';
 
 export function useWeekNavigation(userCode) {
   const currentWeekKey = getCurrentWeekKey();
@@ -8,9 +8,48 @@ export function useWeekNavigation(userCode) {
   const [availableWeeks, setAvailableWeeks] = useState([]);
   const [weekDataCache, setWeekDataCache] = useState({});
   const [readOnlyOverride, setReadOnlyOverride] = useState(false);
+  
+  // New state for sophisticated navigation
+  const [historicalAnalysis, setHistoricalAnalysis] = useState({
+    hasHistoricalData: false,
+    oldestHistoricalWeek: null,
+    userType: 'new',
+    adaptiveWeekLimit: 8,
+    historicalWeeks: []
+  });
 
   const isHistoricalWeek = selectedWeekKey !== currentWeekKey;
   const isReadOnlyMode = isHistoricalWeek && !readOnlyOverride;
+
+  // Function to refresh historical analysis - can be called when pitched items change
+  const refreshHistoricalAnalysis = useCallback(async () => {
+    if (!userCode) return;
+    
+    try {
+      console.log('🔄 Refreshing historical analysis...');
+      const analysisResult = await getHistoricalWeekAnalysis(userCode);
+      
+      if (analysisResult.success) {
+        setHistoricalAnalysis({
+          hasHistoricalData: analysisResult.hasHistoricalData,
+          oldestHistoricalWeek: analysisResult.oldestHistoricalWeek,
+          userType: analysisResult.userType,
+          adaptiveWeekLimit: analysisResult.adaptiveWeekLimit,
+          historicalWeeks: analysisResult.historicalWeeks,
+          analysis: analysisResult.analysis
+        });
+        
+        console.log('✅ Historical analysis refreshed:', {
+          userType: analysisResult.userType,
+          hasData: analysisResult.hasHistoricalData,
+          oldestWeek: analysisResult.oldestHistoricalWeek,
+          adaptiveLimit: analysisResult.adaptiveWeekLimit
+        });
+      }
+    } catch (error) {
+      console.error('Error refreshing historical analysis:', error);
+    }
+  }, [userCode]);
 
   // Week change handler - now takes optional parameters for caching
   const handleWeekChange = async (newWeekKey, checked = {}, cloudPitchedItems = [], pitchedChecked = {}) => {
@@ -35,22 +74,45 @@ export function useWeekNavigation(userCode) {
     setSelectedWeekKey(newWeekKey);
   };
 
-  // Fetch available weeks
+  // Fetch available weeks and historical analysis
   useEffect(() => {
-    const fetchAvailableWeeks = async () => {
+    const fetchWeekData = async () => {
       if (!userCode) return;
       
       try {
-        const result = await getAvailableWeeks(userCode);
-        if (result.success) {
-          setAvailableWeeks(result.weeks);
+        // Fetch both available weeks and historical analysis
+        const [availableResult, analysisResult] = await Promise.all([
+          getAvailableWeeks(userCode),
+          getHistoricalWeekAnalysis(userCode)
+        ]);
+        
+        if (availableResult.success) {
+          setAvailableWeeks(availableResult.weeks);
+        }
+        
+        if (analysisResult.success) {
+          setHistoricalAnalysis({
+            hasHistoricalData: analysisResult.hasHistoricalData,
+            oldestHistoricalWeek: analysisResult.oldestHistoricalWeek,
+            userType: analysisResult.userType,
+            adaptiveWeekLimit: analysisResult.adaptiveWeekLimit,
+            historicalWeeks: analysisResult.historicalWeeks,
+            analysis: analysisResult.analysis
+          });
+          
+          console.log('📊 Week navigation updated with historical analysis:', {
+            userType: analysisResult.userType,
+            hasData: analysisResult.hasHistoricalData,
+            oldestWeek: analysisResult.oldestHistoricalWeek,
+            adaptiveLimit: analysisResult.adaptiveWeekLimit
+          });
         }
       } catch (error) {
-        console.error('Error fetching available weeks:', error);
+        console.error('Error fetching week navigation data:', error);
       }
     };
     
-    fetchAvailableWeeks();
+    fetchWeekData();
   }, [userCode]);
 
   return {
@@ -62,6 +124,10 @@ export function useWeekNavigation(userCode) {
     isReadOnlyMode,
     readOnlyOverride,
     setReadOnlyOverride,
-    handleWeekChange
+    handleWeekChange,
+    // New sophisticated navigation data
+    historicalAnalysis,
+    // Function to refresh historical analysis when data changes
+    refreshHistoricalAnalysis
   };
 } 

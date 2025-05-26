@@ -1,12 +1,9 @@
 import { supabase } from './supabaseClient';
+import { getCurrentWeekKey as getWeekKeyFromUtils } from './utils/weekUtils';
 
-// Helper: get current week key (YYYY-WW)
+// Helper: get current week key - now imports from weekUtils for consistency
 export function getCurrentWeekKey() {
-  const now = new Date();
-  const utcNow = new Date(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  const onejan = new Date(utcNow.getUTCFullYear(), 0, 1);
-  const week = Math.ceil((((utcNow - onejan) / 86400000) + onejan.getUTCDay() + 1) / 7);
-  return `${utcNow.getUTCFullYear()}-${week}`;
+  return getWeekKeyFromUtils();
 }
 
 // Helper: get week key from a date string
@@ -1502,6 +1499,163 @@ export async function saveBatchBossRuns(userCode, bossRunsArray) {
     
   } catch (error) {
     console.error('Error in saveBatchBossRuns:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get historical week analysis for sophisticated navigation
+ * Implements adaptive week limits and finds oldest historical data
+ * @param {string} userCode - User code
+ * @returns {Object} - Analysis with oldest historical week, adaptive limits, and user type
+ */
+export async function getHistoricalWeekAnalysis(userCode) {
+  try {
+    if (!userCode) {
+      console.log('No user code provided for getHistoricalWeekAnalysis');
+      return { success: false, error: 'No user code provided' };
+    }
+
+    console.log('🔍 Analyzing historical week data for user:', userCode);
+
+    // Query the user_data table in Supabase
+    const { data: userData, error } = await supabase
+      .from('user_data')
+      .select('data, pitched_items')
+      .eq('id', userCode)
+      .single();
+
+    if (error) {
+      console.error('Error fetching user data for historical analysis:', error);
+      return { success: false, error: error.message };
+    }
+
+    const currentWeek = getCurrentWeekKey();
+    console.log('📅 Current week:', currentWeek);
+    console.log('📊 Raw user data:', {
+      pitchedItemsCount: userData.pitched_items ? userData.pitched_items.length : 0,
+      bossRunsCount: userData.data && userData.data.boss_runs ? userData.data.boss_runs.length : 0
+    });
+
+    const historicalWeeks = new Set();
+
+    // Check for existing weekKey entries in the pitched_items column that are NOT from the current week
+    if (userData.pitched_items && Array.isArray(userData.pitched_items)) {
+      console.log('🔍 Checking pitched_items for historical weeks...');
+      userData.pitched_items.forEach((item, index) => {
+        console.log(`  Item ${index}:`, {
+          weekKey: item.weekKey,
+          character: item.character,
+          boss: item.boss,
+          item: item.item,
+          isCurrentWeek: item.weekKey === currentWeek
+        });
+        if (item.weekKey && item.weekKey !== currentWeek) {
+          historicalWeeks.add(item.weekKey);
+          console.log(`    ✅ Added historical week: ${item.weekKey}`);
+        }
+      });
+    } else {
+      console.log('❌ No pitched_items found or not an array');
+    }
+
+    // Also check boss_runs for historical weeks
+    if (userData.data && userData.data.boss_runs && Array.isArray(userData.data.boss_runs)) {
+      console.log('🔍 Checking boss_runs for historical weeks...');
+      userData.data.boss_runs.forEach((run, index) => {
+        console.log(`  Run ${index}:`, {
+          weekKey: run.weekKey,
+          character: run.character,
+          boss: run.boss,
+          isCurrentWeek: run.weekKey === currentWeek
+        });
+        if (run.weekKey && run.weekKey !== currentWeek) {
+          historicalWeeks.add(run.weekKey);
+          console.log(`    ✅ Added historical week: ${run.weekKey}`);
+        }
+      });
+    } else {
+      console.log('❌ No boss_runs found or not an array');
+    }
+
+    console.log('📋 Found historical weeks:', Array.from(historicalWeeks));
+
+    // Convert to sorted array (oldest to newest)
+    const historicalWeeksList = Array.from(historicalWeeks).sort((a, b) => {
+      // Handle both legacy (YYYY-WW) and new (YYYY-MW-CW) formats
+      const parseWeekForSort = (weekKey) => {
+        const parts = weekKey.split('-');
+        if (parts.length === 2) {
+          // Legacy format
+          return { year: parseInt(parts[0]), week: parseInt(parts[1]) };
+        } else if (parts.length === 3) {
+          // New format - use MapleStory week for sorting
+          return { year: parseInt(parts[0]), week: parseInt(parts[1]) };
+        }
+        return { year: 0, week: 0 };
+      };
+
+      const weekA = parseWeekForSort(a);
+      const weekB = parseWeekForSort(b);
+      
+      if (weekA.year !== weekB.year) return weekA.year - weekB.year;
+      return weekA.week - weekB.week;
+    });
+
+    // Determine user type and adaptive limits
+    const hasHistoricalData = historicalWeeksList.length > 0;
+    let oldestHistoricalWeek = null;
+    let userType = 'new';
+    let adaptiveWeekLimit = 8; // Default 8-week limit
+
+    if (hasHistoricalData) {
+      // Select the oldest entry first (this ensures we're working with the earliest available data)
+      oldestHistoricalWeek = historicalWeeksList[0];
+      
+      // Calculate how many weeks back the oldest data goes
+      const { getWeekOffset } = await import('./utils/weekUtils');
+      const oldestOffset = getWeekOffset(oldestHistoricalWeek);
+      const weeksOfHistory = Math.abs(oldestOffset);
+
+      if (weeksOfHistory > 8) {
+        userType = 'existing';
+        // Dynamic limit: extend the limit to match their tracking history
+        adaptiveWeekLimit = weeksOfHistory;
+        console.log(`📊 Existing user detected: ${weeksOfHistory} weeks of history, adaptive limit: ${adaptiveWeekLimit}`);
+      } else {
+        userType = 'new';
+        console.log(`📊 New user detected: ${weeksOfHistory} weeks of history, standard limit: ${adaptiveWeekLimit}`);
+      }
+    }
+
+    const result = {
+      success: true,
+      hasHistoricalData,
+      oldestHistoricalWeek,
+      historicalWeeks: historicalWeeksList,
+      totalHistoricalWeeks: historicalWeeksList.length,
+      userType,
+      adaptiveWeekLimit,
+      currentWeek,
+      analysis: {
+        pitchedItemsCount: userData.pitched_items ? userData.pitched_items.length : 0,
+        bossRunsCount: userData.data && userData.data.boss_runs ? userData.data.boss_runs.length : 0,
+        weeksWithData: historicalWeeksList.length + 1 // +1 for current week
+      }
+    };
+
+    console.log('📈 Historical week analysis result:', {
+      userType: result.userType,
+      hasHistoricalData: result.hasHistoricalData,
+      oldestWeek: result.oldestHistoricalWeek,
+      adaptiveLimit: result.adaptiveWeekLimit,
+      totalWeeks: result.totalHistoricalWeeks
+    });
+
+    return result;
+
+  } catch (error) {
+    console.error('Error in getHistoricalWeekAnalysis:', error);
     return { success: false, error: error.message };
   }
 }

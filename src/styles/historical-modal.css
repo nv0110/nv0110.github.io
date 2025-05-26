@@ -73,11 +73,9 @@
   margin-bottom: 24px;
   width: 80px;
   height: 80px;
-  margin: 0 auto 24px;
-  background: linear-gradient(135deg, #a259f7, #9f7aea);
+  margin: 0 auto 14px;
   border-radius: 50%;
   align-items: center;
-  box-shadow: 0 4px 20px rgba(162, 89, 247, 0.4);
 }
 
 .historical-modal-header-image {
