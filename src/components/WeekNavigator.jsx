@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   getCurrentWeekKey, 
   getWeekKeyOffset, 
@@ -7,44 +7,59 @@ import {
   parseWeekKey,
   getWeekDateRange
 } from '../utils/weekUtils';
+import '../styles/week-navigator.css';
 
 function WeekNavigator({
   selectedWeekKey,
   onWeekChange,
   availableWeeks = [],
   isReadOnlyMode = false,
-  isHistoricalWeek = false
+  isHistoricalWeek = false,
+  historicalAnalysis = {
+    hasHistoricalData: false,
+    oldestHistoricalWeek: null,
+    userType: 'new',
+    adaptiveWeekLimit: 8,
+    historicalWeeks: []
+  },
+  // Progress data for current week
+  characters = [],
+  checked = {},
+  selectedCharIdx = 0,
+  totalMeso = 0,
+  obtainableMeso = 0,
+  charSummaries = []
 }) {
   const currentWeekKey = getCurrentWeekKey();
+  
+  // Debug: Log what historicalAnalysis we're receiving
+  console.log('🎯 WeekNavigator received historicalAnalysis:', historicalAnalysis);
 
-  // Calculate navigation boundaries
+  // Calculate navigation boundaries using adaptive limits
   const navigationLimits = useMemo(() => {
     const currentOffset = 0;
-    const maxFutureOffset = 4; // Up to 4 weeks ahead
+    const adaptiveLimit = historicalAnalysis.adaptiveWeekLimit || 8;
     
-    // Find oldest available week offset
-    let minPastOffset = -52; // Default to 1 year back
-    if (availableWeeks.length > 0) {
-      const oldestWeek = availableWeeks[0];
-      const oldestOffset = getWeekOffset(oldestWeek);
-      minPastOffset = Math.min(oldestOffset, minPastOffset);
-    }
+    // Always allow navigation to the full adaptive limit range
+    // This ensures users can navigate to weeks 6, 7, 8 even if they only have data from week 5
+    const minPastOffset = -adaptiveLimit;
 
     return {
       min: minPastOffset,
-      max: maxFutureOffset,
-      current: currentOffset
+      max: currentOffset,
+      current: currentOffset,
+      adaptiveLimit
     };
-  }, [availableWeeks]);
+  }, [historicalAnalysis]);
 
   // Current selected week offset from current week
   const selectedOffset = getWeekOffset(selectedWeekKey);
   
   // Navigation functions
-  const goToWeek = (weekKey) => {
+  const goToWeek = useCallback((weekKey) => {
     if (weekKey === selectedWeekKey) return;
     onWeekChange(weekKey);
-  };
+  }, [selectedWeekKey, onWeekChange]);
 
   const goToPreviousWeek = () => {
     const newOffset = selectedOffset - 1;
@@ -52,6 +67,7 @@ function WeekNavigator({
       const newWeekKey = getWeekKeyOffset(newOffset);
       goToWeek(newWeekKey);
     }
+    // Don't wrap around - just stop at the limit
   };
 
   const goToNextWeek = () => {
@@ -62,21 +78,45 @@ function WeekNavigator({
     }
   };
 
+  const goToOldestOrFallback = useCallback(() => {
+    // Debug logging
+    console.log('🔍 goToOldestOrFallback called with analysis:', {
+      hasHistoricalData: historicalAnalysis.hasHistoricalData,
+      oldestHistoricalWeek: historicalAnalysis.oldestHistoricalWeek,
+      userType: historicalAnalysis.userType,
+      adaptiveLimit: navigationLimits.adaptiveLimit
+    });
+    
+    // Use sophisticated historical analysis for navigation
+    if (historicalAnalysis.hasHistoricalData && historicalAnalysis.oldestHistoricalWeek) {
+      // Jump to the oldest registered historical data
+      console.log(`🎯 Jumping to oldest historical data: ${historicalAnalysis.oldestHistoricalWeek} (${historicalAnalysis.userType} user)`);
+      goToWeek(historicalAnalysis.oldestHistoricalWeek);
+    } else {
+      // Jump to adaptive limit weeks back if no historical data
+      const fallbackWeekKey = getWeekKeyOffset(-navigationLimits.adaptiveLimit);
+      console.log(`🎯 No historical data found, jumping to ${navigationLimits.adaptiveLimit} weeks back: ${fallbackWeekKey}`);
+      goToWeek(fallbackWeekKey);
+    }
+  }, [historicalAnalysis, navigationLimits.adaptiveLimit, goToWeek]);
+
   const goToCurrentWeek = () => {
     goToWeek(currentWeekKey);
   };
 
   const goToOldestWeek = () => {
-    if (availableWeeks.length > 0) {
-      goToWeek(availableWeeks[0]);
+    if (historicalAnalysis.hasHistoricalData && historicalAnalysis.oldestHistoricalWeek) {
+      goToWeek(historicalAnalysis.oldestHistoricalWeek);
     }
   };
 
-  // Check if navigation is possible
-  const canGoPrevious = selectedOffset > navigationLimits.min;
-  const canGoNext = selectedOffset < navigationLimits.max;
+  // Check if navigation is possible using sophisticated analysis
+  const canGoPrevious = selectedOffset > navigationLimits.min; // Can go to previous week within limits
+  const canGoNext = selectedOffset < navigationLimits.max; // Can go to next week (towards current)
+  const canGoToOldest = historicalAnalysis.hasHistoricalData || selectedOffset > -navigationLimits.adaptiveLimit;
   const isCurrentWeek = selectedWeekKey === currentWeekKey;
-  const hasOlderData = availableWeeks.length > 0 && availableWeeks[0] !== currentWeekKey;
+  const hasOlderData = historicalAnalysis.hasHistoricalData;
+  const isAtOldestWeek = selectedOffset <= navigationLimits.min;
 
   // Get week display info
   const weekInfo = useMemo(() => {
@@ -92,105 +132,49 @@ function WeekNavigator({
     };
   }, [selectedWeekKey, isCurrentWeek, selectedOffset]);
 
-  return (
-    <div className="week-navigator-container" style={{
-      background: 'linear-gradient(135deg, #3a2a5d, #28204a)',
-      borderRadius: 12,
-      padding: '1.5rem',
-      margin: '0 auto 1.5rem auto',
-      maxWidth: 700,
-      boxShadow: '0 4px 16px rgba(40, 20, 60, 0.25)',
-      border: '2px solid #805ad5',
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
+  // Calculate progress data for current week
+  const currentChar = characters[selectedCharIdx];
+  const currentCharBosses = currentChar?.bosses || [];
+  const currentCharKey = `${currentChar?.name || ''}-${selectedCharIdx}`;
+  const completedBosses = currentCharBosses.filter(b => checked[currentCharKey]?.[b.name + '-' + b.difficulty]).length;
+  const totalBosses = currentCharBosses.length;
+  const progressPercentage = totalBosses > 0 ? (completedBosses / totalBosses) * 100 : 0;
 
-      {/* Week display */}
-      <div style={{
-        textAlign: 'center',
-        marginBottom: '1.5rem'
-      }}>
-        <div style={{
-          fontSize: '1.3rem',
-          fontWeight: 700,
-          color: isCurrentWeek ? '#a259f7' : '#e6e0ff',
-          marginBottom: '0.5rem',
-          textShadow: isCurrentWeek ? '0 0 10px rgba(162, 89, 247, 0.5)' : 'none',
-          transition: 'all 0.3s ease'
-        }}>
+  return (
+    <div key={selectedWeekKey} className="week-navigator-container">
+      {/* Header section - fixed height */}
+      <div className="week-navigator-header">
+        <div className={`week-navigator-title ${isCurrentWeek ? 'current-week' : 'historical-week'}`}>
           {weekInfo.label.replace(/\s*\(Current\)/i, '')}
+          {/* Subtle current week indicator */}
+          {isCurrentWeek && (
+            <span className="week-navigator-current-dot">
+              <span className="week-navigator-current-dot-inner"></span>
+            </span>
+          )}
         </div>
         
-        {/* Current week indicator */}
-        {isCurrentWeek && (
-          <div style={{
-            fontSize: '0.9rem',
-            color: '#a259f7',
-            fontWeight: 600,
-            marginBottom: '0.5rem',
-            textShadow: '0 0 8px rgba(162, 89, 247, 0.4)',
-            opacity: 0.9
-          }}>
-            (Current)
-          </div>
-        )}
-        
-        {/* Date range for non-current weeks only */}
-        {weekInfo.dateRange && !isCurrentWeek && (
-          <div style={{
-            fontSize: '0.95rem',
-            color: '#b39ddb',
-            marginBottom: '0.5rem'
-          }}>
-            {weekInfo.dateRange.start.toLocaleDateString()} - {weekInfo.dateRange.end.toLocaleDateString()}
+        {/* User type and adaptive limit indicator */}
+        {historicalAnalysis.userType === 'existing' && (
+          <div className="week-navigator-extended-history">
+            Extended History ({navigationLimits.adaptiveLimit} weeks)
           </div>
         )}
       </div>
 
-      {/* Navigation controls */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '1rem'
-      }}>
+      {/* Navigation controls - FIXED POSITION */}
+      <div className="week-navigator-navigation">
         {/* Previous week SVG icon */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          minWidth: 60
-        }}>
+        <div className="week-navigator-arrow-container">
           <svg
-            width="32"
-            height="32"
+            width="24"
+            height="24"
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
             onClick={canGoPrevious ? goToPreviousWeek : undefined}
-            className="nav-arrow-icon nav-arrow-left"
-            style={{
-              cursor: canGoPrevious ? 'pointer' : 'not-allowed',
-              opacity: canGoPrevious ? 1 : 0.3,
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              color: canGoPrevious ? '#a259f7' : '#64748b',
-              filter: canGoPrevious ? 'drop-shadow(0 2px 4px rgba(162, 89, 247, 0.3))' : 'none'
-            }}
-            title={canGoPrevious ? 'Previous Week' : 'Cannot go further back'}
-            onMouseOver={e => {
-              if (canGoPrevious) {
-                e.currentTarget.style.transform = 'scale(1.2) translateX(-3px)';
-                e.currentTarget.style.filter = 'drop-shadow(0 0 12px rgba(162, 89, 247, 0.8))';
-                e.currentTarget.style.color = '#c084fc';
-              }
-            }}
-            onMouseOut={e => {
-              if (canGoPrevious) {
-                e.currentTarget.style.transform = 'scale(1) translateX(0)';
-                e.currentTarget.style.filter = 'drop-shadow(0 2px 4px rgba(162, 89, 247, 0.3))';
-                e.currentTarget.style.color = '#a259f7';
-              }
-            }}
+            className={`week-navigator-arrow arrow-left ${canGoPrevious ? 'enabled' : 'disabled'}`}
+            title={canGoPrevious ? 'Previous Week' : `Already at oldest week (${navigationLimits.adaptiveLimit} weeks back)`}
           >
             <path
               d="M20.3284 11.0001V13.0001L7.50011 13.0001L10.7426 16.2426L9.32842 17.6568L3.67157 12L9.32842 6.34314L10.7426 7.75735L7.49988 11.0001L20.3284 11.0001Z"
@@ -199,119 +183,31 @@ function WeekNavigator({
           </svg>
         </div>
 
-        {/* Center content: date range for current week, buttons for others */}
-        <div style={{
-          display: 'flex',
-          gap: '0.5rem',
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center'
-        }}>
-          {isCurrentWeek && weekInfo.dateRange ? (
-            // Date range for current week
-            <div style={{
-              fontSize: '0.9rem',
-              color: '#b39ddb',
-              fontWeight: 600,
-              textAlign: 'center',
-              opacity: 0.9
-            }}>
-              {weekInfo.dateRange.start.toLocaleDateString()} - {weekInfo.dateRange.end.toLocaleDateString()}
-            </div>
-          ) : (
-            // Navigation buttons for other weeks
-            <>
-              {!isCurrentWeek && (
-                <button
-                  onClick={goToCurrentWeek}
-                  style={{
-                    background: 'linear-gradient(135deg, #a259f7, #805ad5)',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 6,
-                    padding: '0.5rem 1rem',
-                    fontWeight: 600,
-                    fontSize: '0.9rem',
-                    cursor: 'pointer',
-                    transition: 'transform 0.2s ease',
-                    boxShadow: '0 2px 8px rgba(162, 89, 247, 0.3)'
-                  }}
-                  onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'}
-                  onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
-                  title="Jump to current week"
-                >
-                  Current Week
-                </button>
-              )}
-
-              {hasOlderData && (
-                <button
-                  onClick={goToOldestWeek}
-                  style={{
-                    background: '#3a335a',
-                    color: '#e6e0ff',
-                    border: '1px solid #805ad5',
-                    borderRadius: 6,
-                    padding: '0.5rem 1rem',
-                    fontWeight: 600,
-                    fontSize: '0.9rem',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseOver={e => {
-                    e.currentTarget.style.background = '#4a4570';
-                    e.currentTarget.style.transform = 'scale(1.05)';
-                  }}
-                  onMouseOut={e => {
-                    e.currentTarget.style.background = '#3a335a';
-                    e.currentTarget.style.transform = 'scale(1)';
-                  }}
-                  title="Jump to oldest data"
-                >
-                  Oldest Data
-                </button>
-              )}
-            </>
-          )}
-        </div>
+        {/* Date range - always shown */}
+        {weekInfo.dateRange && (
+          <div className="week-navigator-date-range">
+            {weekInfo.dateRange.start.toLocaleDateString()} - {weekInfo.dateRange.end.toLocaleDateString()}
+          </div>
+        )}
 
         {/* Next week SVG icon */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          minWidth: 60
-        }}>
+        <div className="week-navigator-arrow-container">
           <svg
-            width="32"
-            height="32"
+            width="24"
+            height="24"
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
-            onClick={canGoNext ? goToNextWeek : undefined}
-            className="nav-arrow-icon nav-arrow-right"
-            style={{
-              cursor: canGoNext ? 'pointer' : 'not-allowed',
-              opacity: canGoNext ? 1 : 0.3,
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              color: canGoNext ? '#a259f7' : '#64748b',
-              filter: canGoNext ? 'drop-shadow(0 2px 4px rgba(162, 89, 247, 0.3))' : 'none'
-            }}
-            title={canGoNext ? 'Next Week' : 'Cannot go further forward (max +4 weeks)'}
-            onMouseOver={e => {
-              if (canGoNext) {
-                e.currentTarget.style.transform = 'scale(1.2) translateX(3px)';
-                e.currentTarget.style.filter = 'drop-shadow(0 0 12px rgba(162, 89, 247, 0.8))';
-                e.currentTarget.style.color = '#c084fc';
-              }
-            }}
-            onMouseOut={e => {
-              if (canGoNext) {
-                e.currentTarget.style.transform = 'scale(1) translateX(0)';
-                e.currentTarget.style.filter = 'drop-shadow(0 2px 4px rgba(162, 89, 247, 0.3))';
-                e.currentTarget.style.color = '#a259f7';
-              }
-            }}
+            onClick={isCurrentWeek ? (canGoToOldest ? goToOldestOrFallback : undefined) : (canGoNext ? goToNextWeek : undefined)}
+            className={`week-navigator-arrow arrow-right ${(isCurrentWeek ? canGoToOldest : canGoNext) ? 'enabled' : 'disabled'}`}
+            title={isCurrentWeek 
+              ? (canGoToOldest 
+                  ? (historicalAnalysis.hasHistoricalData 
+                      ? `Jump to oldest data (${historicalAnalysis.oldestHistoricalWeek})` 
+                      : `Jump to ${navigationLimits.adaptiveLimit} weeks back`)
+                  : 'No historical data available')
+              : (canGoNext ? 'Next Week' : 'Already at current week')
+            }
           >
             <path
               d="M15.0378 6.34317L13.6269 7.76069L16.8972 11.0157L3.29211 11.0293L3.29413 13.0293L16.8619 13.0157L13.6467 16.2459L15.0643 17.6568L20.7079 11.9868L15.0378 6.34317Z"
@@ -321,90 +217,71 @@ function WeekNavigator({
         </div>
       </div>
 
-      {/* Week offset indicator */}
-      {selectedOffset !== 0 && (
-        <div style={{
-          textAlign: 'center',
-          marginTop: '1rem',
-          fontSize: '0.85rem',
-          color: '#b39ddb',
-          background: 'rgba(162, 89, 247, 0.1)',
-          borderRadius: 6,
-          padding: '0.4rem 0.8rem',
-          display: 'block',
-          width: '50%',
-          margin: '1rem auto 0 auto'
-        }}>
-          {selectedOffset > 0 
-            ? `${selectedOffset} week${selectedOffset === 1 ? '' : 's'} ahead`
-            : `${Math.abs(selectedOffset)} week${Math.abs(selectedOffset) === 1 ? '' : 's'} ago`
-          }
-        </div>
-      )}
+      {/* Content area - flexible height */}
+      <div className="week-navigator-content">
+        {/* Current week progress section */}
+        {isCurrentWeek && currentChar && (
+          <div className="week-navigator-progress">
+            <div className="week-navigator-progress-header">
+              <div className="week-navigator-progress-character">
+                {currentChar.name} Progress
+              </div>
+              <div className="week-navigator-progress-count">
+                {completedBosses}/{totalBosses} bosses
+              </div>
+            </div>
+            
+            {/* Animated progress bar */}
+            <div className="week-navigator-progress-bar-container">
+              <div
+                className="week-navigator-progress-bar"
+                style={{ width: `${progressPercentage}%` }}
+              >
+                {/* Animated shimmer effect */}
+                {progressPercentage > 0 && (
+                  <div className="week-navigator-progress-shimmer" />
+                )}
+              </div>
+            </div>
+            
+            {/* Meso progress */}
+            <div className="week-navigator-progress-meso">
+              <span>{Math.floor(totalMeso).toLocaleString()} mesos earned</span>
+              <span>{Math.floor((totalMeso / obtainableMeso) * 100)}% of potential</span>
+            </div>
+          </div>
+        )}
+      </div>
 
-      {/* CSS for animations */}
-      <style jsx>{`
-        .week-navigator-container::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: linear-gradient(45deg, 
-            rgba(162, 89, 247, 0.08) 0%,
-            rgba(128, 90, 213, 0.05) 25%,
-            rgba(162, 89, 247, 0.03) 50%,
-            rgba(128, 90, 213, 0.08) 100%
-          );
-          border-radius: 12px;
-          opacity: 0.5;
-          animation: smoothBreathe 6s ease-in-out infinite;
-          pointer-events: none;
-          z-index: 1;
-        }
-        
-        .week-navigator-container > * {
-          position: relative;
-          z-index: 2;
-        }
-        
-        @keyframes smoothBreathe {
-          0%, 100% {
-            opacity: 0.3;
-            background-position: 0% 0%;
-            transform: scale(1);
-          }
-          50% {
-            opacity: 0.7;
-            background-position: 100% 100%;
-            transform: scale(1.02);
-          }
-        }
-        
-        .nav-arrow-icon {
-          user-select: none;
-          -webkit-user-select: none;
-        }
-        
-        .nav-arrow-icon:active {
-          transform: scale(0.95) !important;
-        }
-        
-        @keyframes pulse-glow {
-          0%, 100% {
-            filter: drop-shadow(0 2px 4px rgba(162, 89, 247, 0.3));
-          }
-          50% {
-            filter: drop-shadow(0 0 16px rgba(162, 89, 247, 0.9));
-          }
-        }
-        
-        .nav-arrow-icon:focus {
-          outline: none;
-          animation: pulse-glow 1.5s infinite;
-        }
-      `}</style>
+      {/* Navigation buttons section - for historical weeks, spacer for current week */}
+      <div className="week-navigator-buttons">
+        {!isCurrentWeek ? (
+          <>
+            <button
+              onClick={goToCurrentWeek}
+              className="week-navigator-button current-week-btn"
+              title="Jump to current week"
+            >
+              Current Week
+            </button>
+
+            {hasOlderData && (
+              <button
+                onClick={goToOldestWeek}
+                className="week-navigator-button oldest-data-btn"
+                title={`Jump to oldest data (${historicalAnalysis.oldestHistoricalWeek})`}
+              >
+                Oldest Data
+              </button>
+            )}
+          </>
+        ) : (
+          // Empty spacer for current week to maintain consistent layout
+          <div className="week-navigator-spacer" />
+        )}
+      </div>
+
+
     </div>
   );
 }
