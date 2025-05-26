@@ -103,8 +103,6 @@ function StatsModal({
         ) : (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 8, justifyContent: 'center' }}>
             {yearlyPitchedSummary.map((p, i) => {
-              const hasCloudItems = p.history && p.history.some(h => h.cloud);
-              
               return (
                 <span
                   key={i}
@@ -119,42 +117,25 @@ function StatsModal({
                     fontSize: '1em',
                     fontWeight: 600,
                     cursor: 'pointer',
-                    boxShadow: hasCloudItems ? '0 0 8px #805ad5' : '0 1px 4px #0002',
-                    border: hasCloudItems ? '1px solid #805ad5' : 'none',
+                    boxShadow: '0 0 8px #805ad5',
+                    border: '1px solid #805ad5',
                     transition: 'transform 0.18s cubic-bezier(.4,2,.6,1), box-shadow 0.18s cubic-bezier(.4,2,.6,1)',
                     position: 'relative',
                   }}
                   onClick={() => { setPitchedModalItem(p); setShowPitchedModal(true); }}
-                  title={`Click for details${hasCloudItems ? ' (includes cloud data)' : ''}`}
+                  title={'Click for details'}
                   onMouseOver={e => {
                     e.currentTarget.style.transform = 'scale(1.08)';
                     e.currentTarget.style.boxShadow = '0 4px 16px #a259f7cc';
                   }}
                   onMouseOut={e => {
                     e.currentTarget.style.transform = 'scale(1)';
-                    e.currentTarget.style.boxShadow = hasCloudItems ? '0 0 8px #805ad5' : '0 1px 4px #0002';
+                    e.currentTarget.style.boxShadow = '0 0 8px #805ad5';
                   }}
                 >
                   <img src={p.image} alt={p.name} style={{ width: 22, borderRadius: 4, marginRight: 2, transition: 'box-shadow 0.18s cubic-bezier(.4,2,.6,1)' }} />
                   {p.name}
                   <span className="pitched-count-white" style={{ color: '#fff', marginLeft: 6, fontWeight: 700, fontSize: '1.1em' }}>×{p.count}</span>
-                  {hasCloudItems && (
-                    <span style={{ 
-                      position: 'absolute',
-                      top: -5, 
-                      right: -5,
-                      background: '#805ad5', 
-                      color: 'white', 
-                      borderRadius: '50%',
-                      width: 16,
-                      height: 16,
-                      fontSize: '0.6rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: '0 0 4px #0004'
-                    }}>☁️</span>
-                  )}
                 </span>
               );
             })}

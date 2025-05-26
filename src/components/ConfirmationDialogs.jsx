@@ -316,7 +316,7 @@ export function PitchedItemDetailsModal({
           ×
         </button>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 16 }}>
-          <img src={pitchedModalItem.image} alt={pitchedModalItem.name} style={{ width: 32, height: 32, borderRadius: 6 }} />
+          <img src={pitchedModalItem.image} alt={pitchedModalItem.name} style={{ width: 32, borderRadius: 6 }} />
           <span style={{ fontWeight: 700, fontSize: '1.1em', color: '#a259f7' }}>{pitchedModalItem.name}</span>
         </div>
         <div style={{ marginBottom: 10, color: '#b39ddb', fontWeight: 600 }}>Obtained by:</div>
@@ -329,7 +329,6 @@ export function PitchedItemDetailsModal({
                 <tr style={{ color: '#b39ddb', background: 'none' }}>
                   <th style={{ padding: '4px 8px', fontWeight: 700 }}>Character</th>
                   <th style={{ padding: '4px 8px', fontWeight: 700 }}>Date</th>
-                  <th style={{ padding: '4px 8px', fontWeight: 700 }}>Source</th>
                 </tr>
               </thead>
               <tbody>
@@ -337,28 +336,6 @@ export function PitchedItemDetailsModal({
                   <tr key={i} style={{ background: i % 2 === 0 ? '#23203a' : '#201c32' }}>
                     <td style={{ padding: '4px 8px', fontWeight: 600 }}>{d.char}</td>
                     <td style={{ padding: '4px 8px', color: '#b39ddb' }}>{d.date}</td>
-                    <td style={{ padding: '4px 8px', textAlign: 'center' }}>
-                      {d.cloud && (
-                        <span style={{ 
-                          background: '#805ad5', 
-                          color: 'white', 
-                          padding: '1px 4px', 
-                          borderRadius: 4, 
-                          fontSize: '0.7rem',
-                          display: 'inline-block'
-                        }}>☁️</span>
-                      )}
-                      {d.local && (
-                        <span style={{ 
-                          background: '#38a169', 
-                          color: 'white', 
-                          padding: '1px 4px', 
-                          borderRadius: 4, 
-                          fontSize: '0.7rem',
-                          display: 'inline-block'
-                        }}>💻</span>
-                      )}
-                    </td>
                   </tr>
                 ))}
               </tbody>
