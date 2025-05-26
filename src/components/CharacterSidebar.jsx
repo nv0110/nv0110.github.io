@@ -76,7 +76,7 @@ function CharacterSidebar({
       <div
         className={`sidebar-scroll fade-in-no-slide ${sidebarVisible ? 'visible' : 'hidden'}`}
       >
-        <div className="sidebar-content">
+          <div className="sidebar-content">
             {/* Sidebar Header */}
             <div className="sidebar-header">
               <h3 className="sidebar-title">

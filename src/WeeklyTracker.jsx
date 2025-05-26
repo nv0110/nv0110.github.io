@@ -479,7 +479,7 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
                   // Refresh pitched items to sync with database
                   await pitchedItems.refreshPitchedItems(userCode);
                   
-                  statsManagement.setShowHistoricalPitchedModal(false);
+              statsManagement.setShowHistoricalPitchedModal(false);
                 } else {
                   console.error('❌ Failed to save historical pitched item:', result.error);
                   setError('Failed to save historical pitched item: ' + (result.error || 'Unknown error'));

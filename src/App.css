@@ -26,6 +26,7 @@
 /* Feature-specific styles */
 @import './styles/characters.css';
 @import './styles/weekly-tracker.css';
+@import './styles/historical-modal.css';
 
 /* Responsive design and scrollbars */
 @import './styles/responsive.css';

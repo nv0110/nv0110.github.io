@@ -33,25 +33,25 @@ function BossTable({
 }) {
   // Historical week card layout
   if (isHistoricalWeek) {
-    // Get all unique bosses across all characters
-    const allBosses = new Map();
-    characters.forEach(char => {
-      char.bosses?.forEach(boss => {
-        const bossObj = bossData.find(bd => bd.name === boss.name);
-        if (bossObj && bossObj.pitchedItems && bossObj.pitchedItems.length > 0) {
-          allBosses.set(boss.name, bossObj);
-        }
-      });
-    });
+              // Get all unique bosses across all characters
+              const allBosses = new Map();
+              characters.forEach(char => {
+                char.bosses?.forEach(boss => {
+                  const bossObj = bossData.find(bd => bd.name === boss.name);
+                  if (bossObj && bossObj.pitchedItems && bossObj.pitchedItems.length > 0) {
+                    allBosses.set(boss.name, bossObj);
+                  }
+                });
+              });
 
     return (
       <div className="historical-week-cards-container">
         {Array.from(allBosses.values()).map((bossObj) => (
           <div key={bossObj.name} className="historical-boss-card">
             <div className="historical-boss-header">
-              <img
-                src={bossObj.image}
-                alt={bossObj.name}
+                      <img
+                        src={bossObj.image}
+                        alt={bossObj.name}
                 className="historical-boss-image"
               />
               <div className="historical-boss-info">
@@ -77,65 +77,65 @@ function BossTable({
               <div className="historical-pitched-label">Pitched Items</div>
               {(bossObj.pitchedItems || []).length > 0 ? (
                 <div className="historical-pitched-grid">
-                  {(bossObj.pitchedItems || []).map(item => {
-                    // Check if any character has this pitched item for this boss in this week
-                    let hasPitchedItem = false;
-                    let characterWithItem = null;
+                      {(bossObj.pitchedItems || []).map(item => {
+                        // Check if any character has this pitched item for this boss in this week
+                        let hasPitchedItem = false;
+                        let characterWithItem = null;
 
-                    // Check across all characters
-                    characters.forEach((char, charIdx) => {
-                      const key = getPitchedKey(char.name, charIdx, bossObj.name, item.name, weekKey);
-                      if (pitchedChecked[key]) {
-                        hasPitchedItem = true;
-                        characterWithItem = char.name;
-                      }
-                    });
+                        // Check across all characters
+                        characters.forEach((char, charIdx) => {
+                          const key = getPitchedKey(char.name, charIdx, bossObj.name, item.name, weekKey);
+                          if (pitchedChecked[key]) {
+                            hasPitchedItem = true;
+                            characterWithItem = char.name;
+                          }
+                        });
 
-                    return (
-                      <div
-                        key={item.name}
+                        return (
+                          <div
+                            key={item.name}
                         className={`historical-pitched-item ${hasPitchedItem ? 'obtained' : ''}`}
-                        title={isReadOnlyMode 
-                          ? (hasPitchedItem ? `${item.name} (obtained by ${characterWithItem})` : item.name)
-                          : `Click to track: ${item.name}${hasPitchedItem ? ` (obtained by ${characterWithItem})` : ''}`
-                        }
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          
-                          // For historical weeks in read-only mode, block interaction
-                          if (isReadOnlyMode) {
-                            console.log('Historical pitched item click blocked - read-only mode');
-                            return;
-                          }
+                            title={isReadOnlyMode 
+                              ? (hasPitchedItem ? `${item.name} (obtained by ${characterWithItem})` : item.name)
+                              : `Click to track: ${item.name}${hasPitchedItem ? ` (obtained by ${characterWithItem})` : ''}`
+                            }
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              
+                              // For historical weeks in read-only mode, block interaction
+                              if (isReadOnlyMode) {
+                                console.log('Historical pitched item click blocked - read-only mode');
+                                return;
+                              }
 
-                          // For historical weeks in edit mode, show historical logging modal
-                          if (isHistoricalWeek && readOnlyOverride) {
-                            console.log('Opening historical pitched item modal for:', item.name);
-                            setHistoricalPitchedData({
-                              character: '', // Will be selected in modal
-                              characterIdx: -1,
-                              bossName: bossObj.name,
-                              itemName: item.name,
-                              itemImage: item.image,
-                              weekKey: weekKey
-                            });
-                            setShowHistoricalPitchedModal(true);
-                            return;
-                          }
-                        }}
-                      >
-                        <img
-                          src={item.image}
-                          alt={item.name}
+                              // For historical weeks in edit mode, show historical logging modal
+                              if (isHistoricalWeek && readOnlyOverride) {
+                                console.log('Opening historical pitched item modal for:', item.name);
+                                setHistoricalPitchedData({
+                                  character: '', // Will be selected in modal
+                                  characterIdx: -1,
+                                  bossName: bossObj.name,
+                                  itemName: item.name,
+                                  itemImage: item.image,
+                                  weekKey: weekKey
+                                });
+                                setShowHistoricalPitchedModal(true);
+                                return;
+                              }
+                            }}
+                          >
+                            <img
+                              src={item.image}
+                              alt={item.name}
                           className={`historical-pitched-item-image ${hasPitchedItem ? 'obtained' : 'not-obtained'}`}
-                        />
-                        {hasPitchedItem && (
+                            />
+                            {hasPitchedItem && (
                           <span className="historical-pitched-checkmark">✓</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
               ) : (
                 <div className="historical-no-pitched">
                   No pitched items available
@@ -157,7 +157,7 @@ function BossTable({
             <th className="boss-table-header-cell-difficulty">Difficulty</th>
             <th className="boss-table-header-cell-mesos">Mesos</th>
             <th className="boss-table-header-cell-cleared">Cleared</th>
-          </tr>
+                </tr>
         </thead>
         <tbody>
           {/* Current week view - show detailed boss information */}

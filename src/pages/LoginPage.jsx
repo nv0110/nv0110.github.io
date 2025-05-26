@@ -194,6 +194,7 @@ function LoginPage() {
               padding: '0.5rem 1rem', 
               fontSize: '1.1rem', 
               width: '100%', 
+              boxSizing: 'border-box',
               outline: 'none', 
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               boxShadow: loginInputFocused ? '0 0 0 3px rgba(162, 89, 247, 0.1), 0 0 20px rgba(162, 89, 247, 0.1)' : 'none',

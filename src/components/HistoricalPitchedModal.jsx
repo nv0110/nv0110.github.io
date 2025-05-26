@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { getWeekDateRange } from '../utils/weekUtils'; // Adjusted path
+import '../styles/historical-modal.css';
 
 // Historical Pitched Item Modal Component
 function HistoricalPitchedModal({ data, characters, onClose, onConfirm }) {
@@ -59,94 +60,46 @@ function HistoricalPitchedModal({ data, characters, onClose, onConfirm }) {
 
   return (
     <div 
-      className="modal-fade" 
-      style={{
-        background: '#2d2540',
-        borderRadius: 16,
-        padding: '2.5rem',
-        maxWidth: 480,
-        color: '#e6e0ff',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-        position: 'relative',
-        minWidth: 360,
-        textAlign: 'center',
-        border: '2px solid #a259f7'
-      }}
+      className="historical-modal-container"
       onClick={e => e.stopPropagation()}
     >
-      {/* Header */}
-      <div style={{ 
-        width: 80, 
-        height: 80, 
-        background: 'linear-gradient(135deg, #a259f7, #9f7aea)', 
-        borderRadius: '50%', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        margin: '0 auto 24px',
-        boxShadow: '0 4px 20px rgba(162, 89, 247, 0.4)'
-      }}>
+      {/* Premium Item Header */}
+      <div className="historical-modal-header">
         <img 
           src={data.itemImage} 
           alt={data.itemName}
-          style={{
-            width: 48,
-            height: 48,
-            objectFit: 'contain',
-            borderRadius: 8
-          }}
+          className="historical-modal-header-image"
         />
       </div>
       
-      <h2 style={{ color: '#a259f7', fontWeight: 700, marginBottom: 16, fontSize: '1.4rem' }}>
+      <h2 className="historical-modal-title">
         Log Historical Pitched Item
       </h2>
       
-      <div style={{ 
-        background: 'rgba(162, 89, 247, 0.1)', 
-        border: '1px solid rgba(162, 89, 247, 0.3)',
-        borderRadius: 12, 
-        padding: '20px', 
-        marginBottom: 24,
-        textAlign: 'left'
-      }}>
-        <div style={{ marginBottom: 12 }}>
-          <strong style={{ color: '#b39ddb' }}>Character:</strong> {selectedCharacter || data.character}
+      <div className="historical-modal-info-box">
+        <div className="historical-modal-info-item">
+          <span className="historical-modal-info-label">Character:</span> {selectedCharacter || data.character}
         </div>
-        <div style={{ marginBottom: 12 }}>
-          <strong style={{ color: '#b39ddb' }}>Boss:</strong> {data.bossName}
+        <div className="historical-modal-info-item">
+          <span className="historical-modal-info-label">Boss:</span> {data.bossName}
         </div>
-        <div style={{ marginBottom: 12 }}>
-          <strong style={{ color: '#b39ddb' }}>Item:</strong> {data.itemName}
+        <div className="historical-modal-info-item">
+          <span className="historical-modal-info-label">Item:</span> {data.itemName}
         </div>
-        <div>
-          <strong style={{ color: '#b39ddb' }}>Week:</strong> {data.weekKey}
+        <div className="historical-modal-info-item">
+          <span className="historical-modal-info-label">Week:</span> {data.weekKey}
         </div>
       </div>
 
       {/* Character Selection */}
-      <div style={{ marginBottom: 24 }}>
-        <label style={{ 
-          display: 'block', 
-          marginBottom: 8, 
-          color: '#b39ddb', 
-          fontWeight: 600 
-        }}>
+      <div className="historical-modal-form-section">
+        <label className="historical-modal-label">
           Select Character:
         </label>
         <select
           value={selectedCharacter}
           onChange={e => setSelectedCharacter(e.target.value)}
-          style={{
-            background: '#3a335a',
-            color: '#e6e0ff',
-            border: '2px solid #805ad5',
-            borderRadius: 8,
-            padding: '0.8rem 1rem',
-            fontSize: '1rem',
-            width: '100%',
-            outline: 'none'
-          }}
+          className="historical-modal-select"
         >
           {characters.map(char => (
             <option key={char.name} value={char.name}>
@@ -157,13 +110,8 @@ function HistoricalPitchedModal({ data, characters, onClose, onConfirm }) {
       </div>
 
       {/* Date Selection */}
-      <div style={{ marginBottom: 24 }}>
-        <label style={{ 
-          display: 'block', 
-          marginBottom: 8, 
-          color: '#b39ddb', 
-          fontWeight: 600 
-        }}>
+      <div className="historical-modal-form-section">
+        <label className="historical-modal-label">
           Select Date:
         </label>
         <input
@@ -172,85 +120,35 @@ function HistoricalPitchedModal({ data, characters, onClose, onConfirm }) {
           onChange={e => setSelectedDate(e.target.value)}
           min={weekDates.start ? formatDateForInput(weekDates.start) : ''}
           max={weekDates.end ? formatDateForInput(weekDates.end) : ''}
-          style={{
-            background: '#3a335a',
-            color: '#e6e0ff',
-            border: '2px solid #805ad5',
-            borderRadius: 8,
-            padding: '0.8rem 1rem',
-            fontSize: '1rem',
-            width: '100%',
-            outline: 'none'
-          }}
+          className="historical-modal-date-input"
         />
         {weekDates.start && weekDates.end && (
-          <div style={{ 
-            fontSize: '0.85rem', 
-            color: '#9f7aea', 
-            marginTop: 8 
-          }}>
+          <div className="historical-modal-helper-text">
             Valid range: {formatDateForInput(weekDates.start)} to {formatDateForInput(weekDates.end)}
           </div>
         )}
       </div>
 
       {/* Buttons */}
-      <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+      <div className="historical-modal-buttons">
         <button
           onClick={onClose}
           disabled={isLoading}
-          style={{
-            background: '#3a335a',
-            color: '#e6e0ff',
-            border: '2px solid #4a4370',
-            borderRadius: 12,
-            padding: '0.8rem 2rem',
-            fontWeight: 700,
-            fontSize: '1.1rem',
-            cursor: isLoading ? 'not-allowed' : 'pointer',
-            minWidth: 120,
-            transition: 'all 0.2s ease',
-            opacity: isLoading ? 0.5 : 1
-          }}
+          className="historical-modal-button historical-modal-button-cancel"
         >
           Cancel
         </button>
         <button
           onClick={handleConfirm}
           disabled={isLoading || !selectedDate || !selectedCharacter}
-          style={{
-            background: isLoading ? '#9f7aea' : 'linear-gradient(135deg, #a259f7, #805ad5)',
-            color: '#fff',
-            border: '2px solid #a259f7',
-            borderRadius: 12,
-            padding: '0.8rem 2rem',
-            fontWeight: 700,
-            fontSize: '1.1rem',
-            cursor: isLoading || !selectedDate || !selectedCharacter ? 'not-allowed' : 'pointer',
-            opacity: isLoading || !selectedDate || !selectedCharacter ? 0.7 : 1,
-            minWidth: 120,
-            transition: 'all 0.2s ease',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            boxShadow: isLoading ? 'none' : '0 4px 16px rgba(162, 89, 247, 0.3)'
-          }}
+          className="historical-modal-button historical-modal-button-confirm"
         >
           {isLoading && (
-            <div style={{
-              width: 16,
-              height: 16,
-              border: '2px solid rgba(255, 255, 255, 0.3)',
-              borderTopColor: '#fff',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite'
-            }} />
+            <div className="historical-modal-spinner" />
           )}
           {isLoading ? 'Logging...' : 'Log Item'}
         </button>
       </div>
-
     </div>
   );
 }

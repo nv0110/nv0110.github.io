@@ -29,6 +29,9 @@ export function useBossActions({
         return;
       }
       
+      // Set user interaction flag to prevent sync conflicts
+      userInteractionRef.current = true;
+      
       let boss, checkedVal, e;
       
       if (bossOrEvent && bossOrEvent.name) {
@@ -131,6 +134,12 @@ export function useBossActions({
     } catch (err) {
       console.error('Error in handleCheck:', err);
       setError('Failed to update boss status. Please try again.');
+    } finally {
+      // Clear user interaction flag after a delay to allow UI to settle
+      setTimeout(() => {
+        userInteractionRef.current = false;
+        console.log('🖱️ USER: Boss interaction flag cleared, sync can resume');
+      }, 1000);
     }
   };
 
@@ -174,61 +183,61 @@ export function useBossActions({
         setPitchedChecked(newPitchedChecked);
       }
       
-      // Process database operations in background
+      // Process database operations in a single batch
       if (userCode) {
-        const databasePromises = charBosses.map(async (boss, index) => {
-          const bossKey = `${boss.name}-${boss.difficulty}`;
-          const wasChecked = currentState[bossKey] || false;
+        try {
+          console.log(`🔄 Batch updating ${charBosses.length} bosses to ${targetState ? 'checked' : 'unchecked'}`);
           
-          if (wasChecked !== targetState) {
-            try {
-              await new Promise(resolve => setTimeout(resolve, index * 25));
-              
-              const { saveBossRun } = await import('../pitched-data-service');
-              const bossRunData = {
-                character: characters[selectedCharIdx].name,
-                characterIdx: selectedCharIdx,
-                bossName: boss.name,
-                bossDifficulty: boss.difficulty,
-                isCleared: targetState,
-                date: new Date().toISOString()
-              };
-              
-              await saveBossRun(userCode, bossRunData);
-            } catch (error) {
-              console.error(`Database error for ${boss.name}:`, error);
+          // Create a single batch update function
+          const { saveBatchBossRuns } = await import('../pitched-data-service');
+          
+          const bossRunsData = charBosses.map(boss => ({
+            character: characters[selectedCharIdx].name,
+            characterIdx: selectedCharIdx,
+            bossName: boss.name,
+            bossDifficulty: boss.difficulty,
+            isCleared: targetState,
+            date: new Date().toISOString()
+          }));
+          
+          const result = await saveBatchBossRuns(userCode, bossRunsData);
+          
+          if (result.success) {
+            console.log(`✅ Batch update successful: ${charBosses.length} bosses updated`);
+          } else {
+            console.error('Batch update failed:', result.error);
+            setError('Failed to save all boss updates. Please try again.');
+          }
+          
+          // Handle pitched items removal if unticking
+          if (!targetState) {
+            const itemsToRemove = [];
+            charBosses.forEach(boss => {
+              const bossObj = bossData.find(bd => bd.name === boss.name);
+              if (bossObj?.pitchedItems) {
+                bossObj.pitchedItems.forEach(item => {
+                  const key = getPitchedKey(characters[selectedCharIdx].name, selectedCharIdx, boss.name, item.name, weekKey);
+                  if (pitchedChecked[key]) {
+                    itemsToRemove.push({
+                      character: characters[selectedCharIdx].name,
+                      bossName: boss.name,
+                      itemName: item.name,
+                      weekKey,
+                    });
+                  }
+                });
+              }
+            });
+            
+            if (itemsToRemove.length > 0) {
+              await removeManyPitchedItems(userCode, itemsToRemove);
             }
           }
-        });
-        
-        // Handle pitched items removal if unticking
-        if (!targetState) {
-          const itemsToRemove = [];
-          charBosses.forEach(boss => {
-            const bossObj = bossData.find(bd => bd.name === boss.name);
-            if (bossObj?.pitchedItems) {
-              bossObj.pitchedItems.forEach(item => {
-                const key = getPitchedKey(characters[selectedCharIdx].name, selectedCharIdx, boss.name, item.name, weekKey);
-                if (pitchedChecked[key]) {
-                  itemsToRemove.push({
-                    character: characters[selectedCharIdx].name,
-                    bossName: boss.name,
-                    itemName: item.name,
-                    weekKey,
-                  });
-                }
-              });
-            }
-          });
           
-          if (itemsToRemove.length > 0) {
-            databasePromises.push(removeManyPitchedItems(userCode, itemsToRemove));
-          }
+        } catch (error) {
+          console.error('Error in batch boss update:', error);
+          setError('Failed to update all bosses. Please try again.');
         }
-        
-        await Promise.allSettled(databasePromises);
-        
-        console.log('✅ Tick All operations completed');
       }
       
     } catch (err) {

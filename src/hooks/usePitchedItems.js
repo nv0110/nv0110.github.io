@@ -24,19 +24,23 @@ export function usePitchedItems(userCode, characters, checked, setChecked, weekK
       
       if (result.success) {
         setCloudPitchedItems(result.items || []);
-        const currentWeekItems = (result.items || []).filter(item => item.weekKey === weekKey);
         
-        // Update pitched checked state based on current week
-        const newPitchedChecked = {};
-        currentWeekItems.forEach(item => {
-          const charIdx = characters.findIndex(c => c.name === item.character);
-          if (charIdx !== -1) {
-            const key = getPitchedKey(item.character, charIdx, item.boss, item.item, weekKey);
-            newPitchedChecked[key] = true;
-          }
-        });
-        
-        setPitchedChecked(newPitchedChecked);
+        // Only update local state if not during user interaction
+        if (!userInteractionRef.current) {
+          const currentWeekItems = (result.items || []).filter(item => item.weekKey === weekKey);
+          
+          // Update pitched checked state based on current week
+          const newPitchedChecked = {};
+          currentWeekItems.forEach(item => {
+            const charIdx = characters.findIndex(c => c.name === item.character);
+            if (charIdx !== -1) {
+              const key = getPitchedKey(item.character, charIdx, item.boss, item.item, weekKey);
+              newPitchedChecked[key] = true;
+            }
+          });
+          
+          setPitchedChecked(newPitchedChecked);
+        }
       } else {
         console.error('Error refreshing pitched items:', result.error);
       }
@@ -106,21 +110,21 @@ export function usePitchedItems(userCode, characters, checked, setChecked, weekK
     fetchPitchedItemsFromDatabase();
   }, [userCode]);
 
-  // Sync pitched items with boss checks
+  // Sync pitched items with boss checks - only on initial load
   useEffect(() => {
     if (cloudPitchedItems.length === 0) return;
     
     const syncPitchedWithBossChecks = async () => {
       try {
+        // Skip sync during user interactions to prevent conflicts
         if (userInteractionRef.current) return;
         
         const currentWeekItems = cloudPitchedItems.filter(item => item.weekKey === weekKey);
         
         if (currentWeekItems.length > 0) {
           const newChecked = { ...checked };
-          const newPitchedChecked = { ...pitchedChecked };
+          const newPitchedChecked = {};
           let updatedChecks = false;
-          let updatedPitched = false;
           
           currentWeekItems.forEach(item => {
             const charIdx = characters.findIndex(c => c.name === item.character);
@@ -139,25 +143,24 @@ export function usePitchedItems(userCode, characters, checked, setChecked, weekK
             if (!boss) return;
             
             const bossKey = `${boss.name}-${boss.difficulty}`;
+            const pitchedKey = getPitchedKey(item.character, charIdx, item.boss, item.item, weekKey);
             
+            // Always add pitched items from database to the pitched checked state
+            newPitchedChecked[pitchedKey] = true;
+            
+            // Auto-check boss if it's not already checked (for initial sync only)
             if (!newChecked[charInfo][bossKey]) {
               newChecked[charInfo][bossKey] = true;
               updatedChecks = true;
             }
-            
-            const pitchedKey = getPitchedKey(item.character, charIdx, item.boss, item.item, weekKey);
-            if (!newPitchedChecked[pitchedKey]) {
-              newPitchedChecked[pitchedKey] = true;
-              updatedPitched = true;
-            }
           });
           
+          // Always update pitched checked state from database
+          setPitchedChecked(newPitchedChecked);
+          
+          // Only update boss checked state if needed
           if (updatedChecks) {
             setChecked(newChecked);
-          }
-          
-          if (updatedPitched) {
-            setPitchedChecked(newPitchedChecked);
           }
         }
       } catch (error) {
@@ -166,7 +169,7 @@ export function usePitchedItems(userCode, characters, checked, setChecked, weekK
     };
     
     syncPitchedWithBossChecks();
-  }, [cloudPitchedItems, weekKey, characters, checked, pitchedChecked, setChecked]);
+  }, [cloudPitchedItems, weekKey, characters]); // Removed checked and pitchedChecked from dependencies
 
   return {
     pitchedChecked,

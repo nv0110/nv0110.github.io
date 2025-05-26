@@ -100,19 +100,7 @@ export async function saveBossRun(userCode, data) {
     console.log(`Current boss runs count: ${currentBossRuns.length}`);
     console.log('Current data structure:', JSON.stringify(currentData, null, 2));
     
-    // 6. Construct the boss run object with a unique ID
-    const bossRun = {
-      id: `${character}-${bossName}-${bossDifficulty}-${currentWeekKey}-${Date.now()}`,
-      character,
-      characterIdx: characterIdx || 0,
-      boss: bossName,
-      difficulty: bossDifficulty,
-      cleared: isCleared,
-      date: date || new Date().toISOString(),
-      weekKey: currentWeekKey,
-    };
-    
-    // 7. Check for existing run entry for this character-boss-difficulty-week combination
+    // 6. Check for existing run entry for this character-boss-difficulty-week combination
     const existingRunIndex = currentBossRuns.findIndex(run => 
       run.character === character && 
       run.boss === bossName && 
@@ -122,23 +110,47 @@ export async function saveBossRun(userCode, data) {
     
     let updatedBossRuns;
     
-    if (existingRunIndex !== -1) {
-      // Update existing entry
-      updatedBossRuns = [...currentBossRuns];
-      updatedBossRuns[existingRunIndex] = {
-        ...updatedBossRuns[existingRunIndex],
-        cleared: isCleared,
-        date: date || new Date().toISOString(), // Update the timestamp
-        lastUpdated: new Date().toISOString()
+    if (isCleared) {
+      // Boss is being checked - add or update entry
+      const bossRun = {
+        id: `${character}-${bossName}-${bossDifficulty}-${currentWeekKey}-${Date.now()}`,
+        character,
+        characterIdx: characterIdx || 0,
+        boss: bossName,
+        difficulty: bossDifficulty,
+        cleared: true,
+        date: date || new Date().toISOString(),
+        weekKey: currentWeekKey,
       };
-      console.log(`Updating existing boss run at index ${existingRunIndex}`);
+      
+      if (existingRunIndex !== -1) {
+        // Update existing entry
+        updatedBossRuns = [...currentBossRuns];
+        updatedBossRuns[existingRunIndex] = {
+          ...updatedBossRuns[existingRunIndex],
+          cleared: true,
+          date: date || new Date().toISOString(), // Update the timestamp
+          lastUpdated: new Date().toISOString()
+        };
+        console.log(`Updating existing boss run at index ${existingRunIndex}`);
+      } else {
+        // Add new entry
+        updatedBossRuns = [...currentBossRuns, bossRun];
+        console.log(`Adding new boss run, total count will be ${updatedBossRuns.length}`);
+      }
     } else {
-      // Add new entry
-      updatedBossRuns = [...currentBossRuns, bossRun];
-      console.log(`Adding new boss run, total count will be ${updatedBossRuns.length}`);
+      // Boss is being unchecked - remove entry completely
+      if (existingRunIndex !== -1) {
+        updatedBossRuns = currentBossRuns.filter((run, index) => index !== existingRunIndex);
+        console.log(`Removing boss run at index ${existingRunIndex}, total count will be ${updatedBossRuns.length}`);
+      } else {
+        // No existing entry to remove
+        updatedBossRuns = [...currentBossRuns];
+        console.log('No existing boss run found to remove');
+      }
     }
     
-    // 8. Create the updated data object, ensuring we preserve all existing properties
+    // 7. Create the updated data object, ensuring we preserve all existing properties
     // IMPORTANT: We explicitly set boss_runs to make sure it's included
     const updatedData = {
       ...currentData,
@@ -152,7 +164,7 @@ export async function saveBossRun(userCode, data) {
       boss_runs_count: updatedBossRuns.length // Just for logging
     }, null, 2).substring(0, 200) + '...');
     
-    // 9. First try with a simpler approach - just add the boss_runs field directly
+    // 8. First try with a simpler approach - just add the boss_runs field directly
     // We'll avoid any complex structures and just make sure boss_runs is in the data
     const simplifiedData = {
       ...currentData,
@@ -178,10 +190,10 @@ export async function saveBossRun(userCode, data) {
       throw updateError;
     }
     
-    // 10. Verify the update actually worked by checking the returned data
-    console.log(`Successfully saved boss run for ${character} - ${bossName} ${bossDifficulty}. Cleared: ${isCleared}`);
+    // 9. Verify the update actually worked by checking the returned data
+    console.log(`Successfully ${isCleared ? 'saved' : 'removed'} boss run for ${character} - ${bossName} ${bossDifficulty}. Cleared: ${isCleared}`);
     
-    // 11. IMPORTANT: Do a separate fetch to see what's ACTUALLY in the database
+    // 10. IMPORTANT: Do a separate fetch to see what's ACTUALLY in the database
     console.log('🔍 VERIFYING DATABASE STATE WITH SEPARATE FETCH');
     const { data: verifyData, error: verifyError } = await supabase
       .from('user_data')
@@ -280,6 +292,8 @@ export async function savePitchedItem(userCode, data, remove = false, weekKey = 
     const currentBossRuns = currentData.boss_runs || [];
     // Use provided weekKey or derive from date or fall back to current week
     const targetWeekKey = weekKey || getWeekKeyFromDate(date) || getCurrentWeekKey();
+    const currentWeekKey = getCurrentWeekKey();
+    const isCurrentWeek = targetWeekKey === currentWeekKey;
     
     if (remove) {
       // Remove the pitched item (filter it out)
@@ -291,9 +305,35 @@ export async function savePitchedItem(userCode, data, remove = false, weekKey = 
                item.weekKey === targetWeekKey);
       });
       
+      // For current week, also remove from boss_runs if it has hasPitchedItem flag
+      let updatedData = currentData;
+      if (isCurrentWeek) {
+        const updatedBossRuns = currentBossRuns.filter(run => {
+          const matches = run.character === character && 
+                         run.boss === bossName && 
+                         run.weekKey === targetWeekKey &&
+                         run.hasPitchedItem === true;
+          
+          if (matches) {
+            console.log(`Removing boss run with hasPitchedItem flag: ${run.boss} ${run.difficulty} for ${character}`);
+            return false;
+          }
+          return true;
+        });
+        
+        updatedData = {
+          ...currentData,
+          boss_runs: updatedBossRuns,
+          lastUpdated: new Date().toISOString()
+        };
+      }
+      
       const { error: updateError } = await supabase
         .from('user_data')
-        .update({ pitched_items: updatedPitched })
+        .update({ 
+          pitched_items: updatedPitched,
+          ...(isCurrentWeek && { data: updatedData })
+        })
         .eq('id', userCode);
       
       if (updateError) throw updateError;
@@ -328,116 +368,126 @@ export async function savePitchedItem(userCode, data, remove = false, weekKey = 
       // Add the new pitched item
       const updatedPitched = [...currentPitched, pitchedItem];
       
-      // Also make sure there's a boss run entry for this
-      let updatedBossRuns = [...currentBossRuns];
-      
-      // Check for existing run entry for this character-boss-week combination
-      const existingRunIndex = currentBossRuns.findIndex(run => 
-        run.character === character && 
-        run.boss === bossName && 
-        run.weekKey === targetWeekKey
-      );
-      
-      // If no existing run for this boss (which is unlikely since we're getting a pitched item),
-      // create a boss run entry
-      if (existingRunIndex === -1) {
-        // Find the most likely difficulty for this boss
-        const possibleBossKeys = generateBossKeysForAllDifficulties(bossName);
-        const sortedKeys = possibleBossKeys.sort((a, b) => {
-          const difficultyOrder = {
-            'Extreme': 5, 'Hard': 4, 'Chaos': 3, 'Normal': 2, 'Easy': 1
+      // Only modify boss_runs for current week items
+      let updatedData = currentData;
+      if (isCurrentWeek) {
+        // Also make sure there's a boss run entry for this
+        let updatedBossRuns = [...currentBossRuns];
+        
+        // Check for existing run entry for this character-boss-week combination
+        const existingRunIndex = currentBossRuns.findIndex(run => 
+          run.character === character && 
+          run.boss === bossName && 
+          run.weekKey === targetWeekKey
+        );
+        
+        // If no existing run for this boss (which is unlikely since we're getting a pitched item),
+        // create a boss run entry
+        if (existingRunIndex === -1) {
+          // Find the most likely difficulty for this boss
+          const possibleBossKeys = generateBossKeysForAllDifficulties(bossName);
+          const sortedKeys = possibleBossKeys.sort((a, b) => {
+            const difficultyOrder = {
+              'Extreme': 5, 'Hard': 4, 'Chaos': 3, 'Normal': 2, 'Easy': 1
+            };
+            // Extract difficulty from "BossName-Difficulty" format
+            const diffA = a.split('-')[1];
+            const diffB = b.split('-')[1];
+            return (difficultyOrder[diffB] || 0) - (difficultyOrder[diffA] || 0);
+          });
+          
+          // Use the highest difficulty
+          const highestKey = sortedKeys[0];
+          const bossDifficulty = highestKey.split('-')[1];
+          
+          // Add a new boss run entry
+          updatedBossRuns.push({
+            character,
+            characterIdx: characterIdx || 0,
+            boss: bossName,
+            difficulty: bossDifficulty,
+            cleared: true,
+            date: date || new Date().toISOString(),
+            weekKey: targetWeekKey,
+            hasPitchedItem: true
+          });
+        } else {
+          // Update existing boss run to indicate it has a pitched item
+          updatedBossRuns[existingRunIndex] = {
+            ...updatedBossRuns[existingRunIndex],
+            hasPitchedItem: true,
+            date: date || new Date().toISOString() // Update the timestamp
           };
-          // Extract difficulty from "BossName-Difficulty" format
-          const diffA = a.split('-')[1];
-          const diffB = b.split('-')[1];
-          return (difficultyOrder[diffB] || 0) - (difficultyOrder[diffA] || 0);
-        });
+        }
         
-        // Use the highest difficulty
-        const highestKey = sortedKeys[0];
-        const bossDifficulty = highestKey.split('-')[1];
-        
-        // Add a new boss run entry
-        updatedBossRuns.push({
-          character,
-          characterIdx: characterIdx || 0,
-          boss: bossName,
-          difficulty: bossDifficulty,
-          cleared: true,
-          date: date || new Date().toISOString(),
-          weekKey: targetWeekKey,
-          hasPitchedItem: true
-        });
-      } else {
-        // Update existing boss run to indicate it has a pitched item
-        updatedBossRuns[existingRunIndex] = {
-          ...updatedBossRuns[existingRunIndex],
-          hasPitchedItem: true,
-          date: date || new Date().toISOString() // Update the timestamp
+        // Update data object with boss runs tracking
+        updatedData = {
+          ...currentData,
+          boss_runs: updatedBossRuns,
+          lastUpdated: new Date().toISOString()
         };
+      } else {
+        // For historical weeks, don't modify boss_runs at all
+        console.log(`Historical pitched item for week ${targetWeekKey} - not modifying boss_runs`);
       }
-      
-      // Update data object with boss runs tracking
-      const updatedData = {
-        ...currentData,
-        boss_runs: updatedBossRuns,
-        lastUpdated: new Date().toISOString()
-      };
       
       // Update both pitched items and data in the database
       const { error: updateError } = await supabase
         .from('user_data')
         .update({ 
           pitched_items: updatedPitched,
-          data: updatedData
+          ...(isCurrentWeek && { data: updatedData })
         })
         .eq('id', userCode);
         
       if (updateError) throw updateError;
-      console.log(`Successfully saved pitched item for ${character} from ${bossName}`);
+      console.log(`Successfully saved pitched item for ${character} from ${bossName} (week: ${targetWeekKey})`);
       
-      // Get the current checked state from userData
-      let userDataObj = updatedData; // Use the already updated data object
-      const checkedState = userDataObj.checked || {};
-      
-      // Make sure the boss is marked as checked too
-      // This is needed to ensure pitched items and boss clears are in sync
-      const charKey = `${character}-${characterIdx || 0}`;
-      const possibleBossKeys = generateBossKeysForAllDifficulties(bossName);
-      
-      // Check if any of the difficulties is already checked
-      let anyDifficultyChecked = false;
-      if (checkedState[charKey]) {
-        for (const bossKey of possibleBossKeys) {
-          if (checkedState[charKey][bossKey]) {
-            anyDifficultyChecked = true;
-            break;
+      // Only handle checked state for current week
+      if (isCurrentWeek) {
+        // Get the current checked state from userData
+        let userDataObj = updatedData; // Use the already updated data object
+        const checkedState = userDataObj.checked || {};
+        
+        // Make sure the boss is marked as checked too
+        // This is needed to ensure pitched items and boss clears are in sync
+        const charKey = `${character}-${characterIdx || 0}`;
+        const possibleBossKeys = generateBossKeysForAllDifficulties(bossName);
+        
+        // Check if any of the difficulties is already checked
+        let anyDifficultyChecked = false;
+        if (checkedState[charKey]) {
+          for (const bossKey of possibleBossKeys) {
+            if (checkedState[charKey][bossKey]) {
+              anyDifficultyChecked = true;
+              break;
+            }
           }
         }
-      }
-      
-      // If no difficulty is checked, mark the highest one
-      if (!anyDifficultyChecked && possibleBossKeys.length > 0) {
-        // Sort by probable difficulty - typically hardest is more valuable
-        const sortedKeys = possibleBossKeys.sort((a, b) => {
-          const difficultyOrder = {
-            'Extreme': 5, 'Hard': 4, 'Chaos': 3, 'Normal': 2, 'Easy': 1
-          };
-          // Extract difficulty from "BossName-Difficulty" format
-          const diffA = a.split('-')[1];
-          const diffB = b.split('-')[1];
-          return (difficultyOrder[diffB] || 0) - (difficultyOrder[diffA] || 0);
-        });
         
-        // Use the highest difficulty
-        const highestKey = sortedKeys[0];
-        if (!checkedState[charKey]) {
-          checkedState[charKey] = {};
+        // If no difficulty is checked, mark the highest one
+        if (!anyDifficultyChecked && possibleBossKeys.length > 0) {
+          // Sort by probable difficulty - typically hardest is more valuable
+          const sortedKeys = possibleBossKeys.sort((a, b) => {
+            const difficultyOrder = {
+              'Extreme': 5, 'Hard': 4, 'Chaos': 3, 'Normal': 2, 'Easy': 1
+            };
+            // Extract difficulty from "BossName-Difficulty" format
+            const diffA = a.split('-')[1];
+            const diffB = b.split('-')[1];
+            return (difficultyOrder[diffB] || 0) - (difficultyOrder[diffA] || 0);
+          });
+          
+          // Use the highest difficulty
+          const highestKey = sortedKeys[0];
+          if (!checkedState[charKey]) {
+            checkedState[charKey] = {};
+          }
+          checkedState[charKey][highestKey] = true;
+          
+          // Note: Boss checked state is now handled by boss_runs array only
+          // No need to update legacy checked field - boss_runs is the single source of truth
         }
-        checkedState[charKey][highestKey] = true;
-        
-        // Note: Boss checked state is now handled by boss_runs array only
-        // No need to update legacy checked field - boss_runs is the single source of truth
       }
       
       return { success: true };
@@ -577,13 +627,17 @@ export async function removeManyPitchedItems(userCode, itemsToRemove) {
   try {
     const { data: userData, error: fetchError } = await supabase
       .from('user_data')
-      .select('pitched_items')
+      .select('pitched_items, data')
       .eq('id', userCode)
       .single();
 
     if (fetchError) throw fetchError;
 
     const currentPitched = userData.pitched_items || [];
+    const currentData = userData.data || {};
+    const currentBossRuns = currentData.boss_runs || [];
+    const currentWeekKey = getCurrentWeekKey();
+    
     const updatedPitched = currentPitched.filter(item =>
       !itemsToRemove.some(rem =>
         item.character === rem.character &&
@@ -593,9 +647,39 @@ export async function removeManyPitchedItems(userCode, itemsToRemove) {
       )
     );
 
+    // For current week items, also remove corresponding boss_runs with hasPitchedItem flag
+    const currentWeekItemsToRemove = itemsToRemove.filter(item => item.weekKey === currentWeekKey);
+    let updatedData = currentData;
+    
+    if (currentWeekItemsToRemove.length > 0) {
+      const updatedBossRuns = currentBossRuns.filter(run => {
+        const shouldRemove = currentWeekItemsToRemove.some(item => 
+          run.character === item.character &&
+          run.boss === item.bossName &&
+          run.weekKey === item.weekKey &&
+          run.hasPitchedItem === true
+        );
+        
+        if (shouldRemove) {
+          console.log(`[Batch Removal] Removing boss run with hasPitchedItem flag: ${run.boss} ${run.difficulty} for ${run.character}`);
+          return false;
+        }
+        return true;
+      });
+      
+      updatedData = {
+        ...currentData,
+        boss_runs: updatedBossRuns,
+        lastUpdated: new Date().toISOString()
+      };
+    }
+
     const { error: updateError } = await supabase
       .from('user_data')
-      .update({ pitched_items: updatedPitched })
+      .update({ 
+        pitched_items: updatedPitched,
+        ...(currentWeekItemsToRemove.length > 0 && { data: updatedData })
+      })
       .eq('id', userCode);
 
     if (updateError) throw updateError;
@@ -1284,5 +1368,140 @@ export async function purgeAllStatsData(userCode) {
   } catch (error) {
     console.error('Error in complete stats reset:', error);
     return { success: false, error: error.message || 'Unknown error occurred' };
+  }
+}
+
+// Function to save multiple boss runs in a single batch operation
+export async function saveBatchBossRuns(userCode, bossRunsArray) {
+  try {
+    console.log('saveBatchBossRuns called with:', { userCode, count: bossRunsArray.length });
+    
+    if (!userCode || !Array.isArray(bossRunsArray) || bossRunsArray.length === 0) {
+      console.error('Invalid parameters for batch boss runs');
+      return { success: false, error: 'Invalid parameters' };
+    }
+
+    // Validate all entries
+    for (const data of bossRunsArray) {
+      const { character, characterIdx, bossName, bossDifficulty, isCleared, date } = data;
+      if (!character || !bossName || !bossDifficulty || isCleared === undefined) {
+        console.error('Missing required fields in batch entry:', data);
+        return { success: false, error: 'Missing required fields in batch entry' };
+      }
+    }
+
+    // Get current user data
+    const { data: userData, error: fetchError } = await supabase
+      .from('user_data')
+      .select('*')
+      .eq('id', userCode)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching user data for batch update:', fetchError);
+      throw fetchError;
+    }
+
+    if (!userData) {
+      console.error('No user data found for batch update');
+      throw new Error('No user data found');
+    }
+
+    // Create a proper copy of the data object
+    const currentData = userData.data ? JSON.parse(JSON.stringify(userData.data)) : {};
+    
+    // Initialize boss_runs if it doesn't exist
+    if (!currentData.boss_runs || !Array.isArray(currentData.boss_runs)) {
+      currentData.boss_runs = [];
+      console.log('Initializing boss_runs array for batch update');
+    }
+    
+    const currentBossRuns = [...currentData.boss_runs];
+    const currentWeekKey = getCurrentWeekKey();
+    
+    console.log(`Starting batch update with ${currentBossRuns.length} existing boss runs`);
+    
+    // Process all boss runs in the batch
+    let updatedBossRuns = [...currentBossRuns];
+    
+    for (const bossRunData of bossRunsArray) {
+      const { character, characterIdx, bossName, bossDifficulty, isCleared, date } = bossRunData;
+      
+      // Find existing run for this character-boss-difficulty-week combination
+      const existingRunIndex = updatedBossRuns.findIndex(run => 
+        run.character === character && 
+        run.boss === bossName && 
+        run.difficulty === bossDifficulty && 
+        run.weekKey === currentWeekKey
+      );
+      
+      if (isCleared) {
+        // Boss is being checked - add or update entry
+        const bossRun = {
+          id: `${character}-${bossName}-${bossDifficulty}-${currentWeekKey}-${Date.now()}`,
+          character,
+          characterIdx: characterIdx || 0,
+          boss: bossName,
+          difficulty: bossDifficulty,
+          cleared: true,
+          date: date || new Date().toISOString(),
+          weekKey: currentWeekKey,
+        };
+        
+        if (existingRunIndex !== -1) {
+          // Update existing entry
+          updatedBossRuns[existingRunIndex] = {
+            ...updatedBossRuns[existingRunIndex],
+            cleared: true,
+            date: date || new Date().toISOString(),
+            lastUpdated: new Date().toISOString()
+          };
+          console.log(`Batch: Updating existing boss run for ${bossName} ${bossDifficulty}`);
+        } else {
+          // Add new entry
+          updatedBossRuns.push(bossRun);
+          console.log(`Batch: Adding new boss run for ${bossName} ${bossDifficulty}`);
+        }
+      } else {
+        // Boss is being unchecked - remove entry completely
+        if (existingRunIndex !== -1) {
+          updatedBossRuns = updatedBossRuns.filter((run, index) => index !== existingRunIndex);
+          console.log(`Batch: Removing boss run for ${bossName} ${bossDifficulty}`);
+        }
+      }
+    }
+    
+    // Create the updated data object
+    const updatedData = {
+      ...currentData,
+      boss_runs: updatedBossRuns,
+      lastUpdated: new Date().toISOString()
+    };
+    
+    console.log(`Batch update: ${currentBossRuns.length} → ${updatedBossRuns.length} boss runs`);
+    
+    // Perform single database update
+    const { data: updateResult, error: updateError } = await supabase
+      .from('user_data')
+      .update({ data: updatedData })
+      .eq('id', userCode)
+      .select();
+      
+    if (updateError) {
+      console.error('Batch database update error:', updateError);
+      throw updateError;
+    }
+    
+    console.log(`✅ Batch boss runs update successful: ${bossRunsArray.length} operations completed`);
+    
+    return { 
+      success: true, 
+      updatedCount: bossRunsArray.length,
+      totalBossRuns: updatedBossRuns.length
+    };
+    
+  } catch (error) {
+    console.error('Error in saveBatchBossRuns:', error);
+    return { success: false, error: error.message };
   }
 }
