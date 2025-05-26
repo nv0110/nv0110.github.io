@@ -7,6 +7,7 @@
    - Table headers and cells
    - Table hover effects
    - Responsive table behavior
+   - BossTable component styles
    
    ===================================================================================== */
 
@@ -47,6 +48,324 @@
 
 .table-container:hover::before {
   opacity: 0.25;
+}
+
+/* ===== BOSS TABLE COMPONENT ===== */
+
+/* BossTable main container */
+.boss-table-scroll {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+/* BossTable main table */
+.boss-table {
+  border-collapse: collapse;
+  min-width: 700px;
+  max-width: 800px;
+  width: 100%;
+  border: 1px solid #e0e0ef;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* BossTable header row */
+.boss-table-header-row {
+  background: #3a2a5d;
+  color: #e6e0ff;
+}
+
+/* BossTable header cells */
+.boss-table-header-cell {
+  padding: 6px 14px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.9em;
+  min-width: 180px;
+}
+
+.boss-table-header-cell-difficulty {
+  padding: 6px 4px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.9em;
+  min-width: 110px;
+}
+
+.boss-table-header-cell-mesos {
+  padding: 6px 24px;
+  text-align: right;
+  font-weight: 600;
+  font-size: 0.9em;
+  min-width: 110px;
+}
+
+.boss-table-header-cell-cleared {
+  padding: 6px 4px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.9em;
+  min-width: 90px;
+}
+
+.boss-table-header-cell-pitched {
+  padding: 6px 14px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.9em;
+  min-width: 200px;
+}
+
+/* BossTable data rows */
+.boss-table-row {
+  border: 1px solid #3a335a;
+  color: #e6e0ff;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.boss-table-row.even {
+  background: #23203a;
+}
+
+.boss-table-row.odd {
+  background: #201c32;
+}
+
+.boss-table-row.historical {
+  opacity: 0.9;
+}
+
+.boss-table-row.read-only {
+  opacity: 0.8;
+  cursor: default;
+}
+
+.boss-table-row:not(.read-only):hover {
+  background: #2a2540;
+}
+
+/* BossTable data cells */
+.boss-table-cell-boss {
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.boss-table-cell-difficulty {
+  padding: 8px;
+  text-align: left;
+}
+
+.boss-table-cell-mesos {
+  padding: 8px;
+  text-align: right;
+  font-weight: 600;
+}
+
+.boss-table-cell-cleared {
+  padding: 8px;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.boss-table-cell-pitched {
+  padding: 8px;
+  text-align: center;
+}
+
+/* Boss images in BossTable */
+.boss-table-boss-image {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #fff2;
+  margin-right: 8px;
+  transition: transform 0.2s ease;
+}
+
+.boss-table-boss-image:hover {
+  transform: scale(1.1);
+}
+
+/* Boss name text */
+.boss-table-boss-name {
+  font-weight: 600;
+}
+
+/* ===== PITCHED ITEMS IN BOSS TABLE ===== */
+
+/* Pitched items container */
+.boss-table-pitched-container {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.boss-table-pitched-container.inline {
+  gap: 6px;
+  margin-left: 8px;
+}
+
+/* Pitched item icons - FIXED CENTERING */
+.pitched-item-icon {
+  position: relative;
+  display: inline-flex; /* Changed from inline-block to inline-flex */
+  align-items: center; /* Center vertically */
+  justify-content: center; /* Center horizontally */
+  border-radius: 6px;
+  border: 2px solid #3a335a;
+  background: #23203a;
+  transition: box-shadow 0.2s, border 0.2s, background 0.2s, transform 0.2s;
+  transform-origin: center; /* Ensure all transforms happen from center */
+  cursor: pointer;
+}
+
+/* Pitched item icon sizes */
+.pitched-item-icon.historical {
+  width: 36px;
+  height: 36px;
+}
+
+.pitched-item-icon.inline {
+  width: 32px;
+  height: 32px;
+  margin-left: 2px;
+}
+
+/* Pitched item icon states */
+.pitched-item-icon.obtained {
+  border: 2px solid #a259f7;
+  background: #3a335a;
+  box-shadow: 0 0 8px #a259f7;
+}
+
+.pitched-item-icon.read-only {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.pitched-item-icon:not(.read-only):hover {
+  transform: scale(1.1);
+  transform-origin: center; /* Ensure scaling happens from center to prevent shifting */
+}
+
+.pitched-item-icon.obtained:not(.read-only):hover {
+  box-shadow: 0 0 12px #a259f7;
+}
+
+.pitched-item-icon:not(.obtained):not(.read-only):hover {
+  box-shadow: 0 0 8px rgba(162, 89, 247, 0.5);
+}
+
+/* Pitched item images - FIXED CENTERING */
+.pitched-item-image {
+  object-fit: contain;
+  border-radius: 4px;
+  transition: opacity 0.2s, filter 0.2s;
+  display: block; /* Ensures proper block behavior within flex container */
+}
+
+/* Pitched item image sizes */
+.pitched-item-image.historical {
+  width: 32px;
+  height: 32px;
+}
+
+.pitched-item-image.inline {
+  width: 28px;
+  height: 28px;
+}
+
+/* Pitched item image states */
+.pitched-item-image.obtained {
+  opacity: 1;
+  filter: drop-shadow(0 0 6px #a259f7);
+}
+
+.pitched-item-image.not-obtained {
+  opacity: 0.4;
+}
+
+.pitched-item-image.inline.not-obtained {
+  opacity: 0.7;
+}
+
+/* Pitched item checkmarks */
+.pitched-item-checkmark {
+  position: absolute;
+  background: #a259f7;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  box-shadow: 0 1px 4px #0004;
+}
+
+.pitched-item-checkmark.historical {
+  top: -2px;
+  right: -2px;
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
+}
+
+.pitched-item-checkmark.inline {
+  top: 2px;
+  right: 2px;
+  width: 14px;
+  height: 14px;
+  font-size: 12px;
+}
+
+/* Pitched item loading states */
+.pitched-item-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.pitched-item-loading.historical {
+  width: 32px;
+  height: 32px;
+}
+
+.pitched-item-loading.inline {
+  width: 28px;
+  height: 28px;
+}
+
+.pitched-item-spinner {
+  border-radius: 50%;
+  border: 3px solid rgba(162, 89, 247, 0.2);
+  border-top-color: #a259f7;
+  animation: pitched-spinner 1s linear infinite;
+  position: absolute;
+}
+
+.pitched-item-spinner.historical {
+  width: 22px;
+  height: 22px;
+}
+
+.pitched-item-spinner.inline {
+  width: 22px;
+  height: 22px;
+}
+
+/* Pitched item spinner animation */
+@keyframes pitched-spinner {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ===== BOSS PRICE TABLES ===== */

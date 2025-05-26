@@ -33,32 +33,20 @@ function BossTable({
   setLoadingPitchedItems
 }) {
   return (
-    <div className="table-scroll" style={{ 
-      display: 'flex', 
-      justifyContent: 'center',
-      width: '100%'
-    }}>
-      <table style={{ 
-        borderCollapse: 'collapse', 
-        minWidth: 700,
-        maxWidth: 800,
-        width: '100%',
-        border: '1px solid #e0e0ef', 
-        borderRadius: 12, 
-        overflow: 'hidden' 
-      }}>
+    <div className="boss-table-scroll">
+      <table className="boss-table">
         <thead>
-          <tr style={{ background: '#3a2a5d', color: '#e6e0ff' }}>
-            <th style={{ padding: '6px 14px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 180 }}>Boss</th>
+          <tr className="boss-table-header-row">
+            <th className="boss-table-header-cell">Boss</th>
             {!isHistoricalWeek && (
               <>
-                <th style={{ padding: '6px 4px', textAlign: 'left', fontWeight: 600, fontSize: '0.9em', minWidth: 110 }}>Difficulty</th>
-                <th style={{ padding: '6px 24px', textAlign: 'right', fontWeight: 600, fontSize: '0.9em', minWidth: 110 }}>Mesos</th>
-                <th style={{ padding: '6px 4px', textAlign: 'center', fontWeight: 600, fontSize: '0.9em', minWidth: 90 }}>Cleared</th>
+                <th className="boss-table-header-cell-difficulty">Difficulty</th>
+                <th className="boss-table-header-cell-mesos">Mesos</th>
+                <th className="boss-table-header-cell-cleared">Cleared</th>
               </>
             )}
             {isHistoricalWeek && (
-              <th style={{ padding: '6px 14px', textAlign: 'center', fontWeight: 600, fontSize: '0.9em', minWidth: 200 }}>Pitched Items</th>
+              <th className="boss-table-header-cell-pitched">Pitched Items</th>
             )}
           </tr>
         </thead>
@@ -80,35 +68,23 @@ function BossTable({
               return Array.from(allBosses.values()).map((bossObj, idx) => (
                 <tr
                   key={bossObj.name}
-                  style={{
-                    background: idx % 2 === 0 ? '#23203a' : '#201c32',
-                    border: '1px solid #3a335a',
-                    color: '#e6e0ff',
-                    opacity: 0.9
-                  }}
+                  className={`boss-table-row historical ${idx % 2 === 0 ? 'even' : 'odd'}`}
                 >
                   {/* Boss Column */}
-                  <td style={{ padding: '8px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <td className="boss-table-cell-boss">
                     {bossObj.image && (
                       <img
                         src={bossObj.image}
                         alt={bossObj.name}
-                        style={{
-                          width: 40,
-                          height: 40,
-                          objectFit: 'contain',
-                          borderRadius: 6,
-                          background: '#fff2',
-                          marginRight: 8
-                        }}
+                        className="boss-table-boss-image"
                       />
                     )}
-                    <span style={{ fontWeight: 600 }}>{bossObj.name}</span>
+                    <span className="boss-table-boss-name">{bossObj.name}</span>
                   </td>
 
                   {/* Pitched Items Column */}
-                  <td style={{ padding: '8px', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <td className="boss-table-cell-pitched">
+                    <div className="boss-table-pitched-container">
                       {(bossObj.pitchedItems || []).map(item => {
                         // Check if any character has this pitched item for this boss in this week
                         let hasPitchedItem = false;
@@ -126,20 +102,7 @@ function BossTable({
                         return (
                           <div
                             key={item.name}
-                            className="pitched-item-icon"
-                            style={{
-                              position: 'relative',
-                              display: 'inline-block',
-                              borderRadius: 6,
-                              boxShadow: hasPitchedItem ? '0 0 8px #a259f7' : 'none',
-                              border: hasPitchedItem ? '2px solid #a259f7' : '2px solid #3a335a',
-                              background: hasPitchedItem ? '#3a335a' : '#23203a',
-                              transition: 'box-shadow 0.2s, border 0.2s, background 0.2s',
-                              width: 36,
-                              height: 36,
-                              cursor: isReadOnlyMode ? 'default' : 'pointer',
-                              opacity: isReadOnlyMode ? 0.6 : 1
-                            }}
+                            className={`pitched-item-icon historical ${hasPitchedItem ? 'obtained' : ''} ${isReadOnlyMode ? 'read-only' : ''}`}
                             title={isReadOnlyMode 
                               ? (hasPitchedItem ? `${item.name} (obtained by ${characterWithItem})` : item.name)
                               : `Click to track: ${item.name}${hasPitchedItem ? ` (obtained by ${characterWithItem})` : ''}`
@@ -168,48 +131,14 @@ function BossTable({
                                 return;
                               }
                             }}
-                            onMouseOver={e => {
-                              if (!isReadOnlyMode) {
-                                e.currentTarget.style.transform = 'scale(1.1)';
-                                e.currentTarget.style.boxShadow = hasPitchedItem ? '0 0 12px #a259f7' : '0 0 8px rgba(162, 89, 247, 0.5)';
-                              }
-                            }}
-                            onMouseOut={e => {
-                              if (!isReadOnlyMode) {
-                                e.currentTarget.style.transform = 'scale(1)';
-                                e.currentTarget.style.boxShadow = hasPitchedItem ? '0 0 8px #a259f7' : 'none';
-                              }
-                            }}
                           >
                             <img
                               src={item.image}
                               alt={item.name}
-                              style={{
-                                width: 32,
-                                height: 32,
-                                objectFit: 'contain',
-                                borderRadius: 4,
-                                opacity: hasPitchedItem ? 1 : 0.4,
-                                filter: hasPitchedItem ? 'drop-shadow(0 0 6px #a259f7)' : 'none'
-                              }}
+                              className={`pitched-item-image historical ${hasPitchedItem ? 'obtained' : 'not-obtained'}`}
                             />
                             {hasPitchedItem && (
-                              <span style={{
-                                position: 'absolute',
-                                top: -2,
-                                right: -2,
-                                background: '#a259f7',
-                                color: '#fff',
-                                borderRadius: '50%',
-                                width: 16,
-                                height: 16,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: 10,
-                                fontWeight: 700,
-                                boxShadow: '0 1px 4px #0004'
-                              }}>✓</span>
+                              <span className="pitched-item-checkmark historical">✓</span>
                             )}
                           </div>
                         );
@@ -228,16 +157,7 @@ function BossTable({
               return (
                 <tr
                   key={b.name + '-' + b.difficulty}
-                  style={{
-                    background: idx % 2 === 0 ? '#23203a' : '#201c32',
-                    border: '1px solid #3a335a',
-                    transition: 'background-color 0.2s ease, transform 0.2s ease',
-                    cursor: isReadOnlyMode ? 'default' : 'pointer',
-                    color: '#e6e0ff',
-                    ...(isReadOnlyMode && { opacity: 0.8 })
-                  }}
-                  onMouseOver={e => !isReadOnlyMode && (e.currentTarget.style.background = '#2a2540')}
-                  onMouseOut={e => !isReadOnlyMode && (e.currentTarget.style.background = idx % 2 === 0 ? '#23203a' : '#201c32')}
+                  className={`boss-table-row ${idx % 2 === 0 ? 'even' : 'odd'} ${isReadOnlyMode ? 'read-only' : ''}`}
                   onClick={(e) => {
                     // Only trigger if the click wasn't on the checkbox or pitched item
                     // Also check if it's read-only mode
@@ -246,30 +166,20 @@ function BossTable({
                     }
                   }}
                 >
-                  <td style={{ padding: '8px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <td className="boss-table-cell-boss">
                     {bossObj?.image && (
                       <img
                         src={bossObj.image}
                         alt={b.name}
-                        style={{
-                          width: 40,
-                          height: 40,
-                          objectFit: 'contain',
-                          borderRadius: 6,
-                          background: '#fff2',
-                          marginRight: 8,
-                          transition: 'transform 0.2s ease'
-                        }}
-                        onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1)'}
-                        onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
+                        className="boss-table-boss-image"
                       />
                     )}
-                    <span style={{ fontWeight: 600 }}>{b.name}</span>
+                    <span className="boss-table-boss-name">{b.name}</span>
                     {pitched.length > 0 && (
                       (b.name === 'Lotus' && (b.difficulty === 'Hard' || b.difficulty === 'Extreme')) ||
                       (b.name !== 'Lotus' && ['Hard', 'Chaos', 'Extreme', 'Hell'].includes(b.difficulty))
                     ) && (
-                      <div style={{ display: 'flex', gap: 6, marginLeft: 8 }}>
+                      <div className="boss-table-pitched-container inline">
                         {pitched.map(item => {
                           // For Lotus, TC only on Extreme, others on Hard/Extreme
                           if (b.name === 'Lotus') {
@@ -281,22 +191,8 @@ function BossTable({
                           return (
                             <span
                               key={item.name}
-                              className="pitched-item-icon"
+                              className={`pitched-item-icon inline ${got ? 'obtained' : ''} ${isReadOnlyMode ? 'read-only' : ''}`}
                               title={`Track: ${item.name}`}
-                              style={{
-                                position: 'relative',
-                                display: 'inline-block',
-                                cursor: isReadOnlyMode ? 'not-allowed' : 'pointer',
-                                borderRadius: 6,
-                                boxShadow: got ? '0 0 8px #a259f7' : 'none',
-                                border: got ? '2px solid #a259f7' : '2px solid #3a335a',
-                                background: got ? '#3a335a' : '#23203a',
-                                transition: 'box-shadow 0.2s, border 0.2s, background 0.2s',
-                                width: 32,
-                                height: 32,
-                                marginLeft: 2,
-                                opacity: isReadOnlyMode ? 0.6 : 1
-                              }}
                               onClick={async (e) => {
                                 e.stopPropagation();
                                 
@@ -441,56 +337,18 @@ function BossTable({
                               }}
                             >
                               {loadingPitchedItems[key] ? (
-                                <div style={{
-                                  width: 28,
-                                  height: 28,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  position: 'relative'
-                                }}>
-                                  <div style={{
-                                    width: 22,
-                                    height: 22,
-                                    borderRadius: '50%',
-                                    border: '3px solid rgba(162, 89, 247, 0.2)',
-                                    borderTopColor: '#a259f7',
-                                    animation: 'pitched-spinner 1s linear infinite',
-                                    position: 'absolute'
-                                  }} />
+                                <div className="pitched-item-loading inline">
+                                  <div className="pitched-item-spinner inline" />
                                 </div>
                               ) : (
                                 <img
                                   src={item.image}
                                   alt={item.name}
-                                  style={{
-                                    width: 28,
-                                    height: 28,
-                                    objectFit: 'contain',
-                                    borderRadius: 4,
-                                    opacity: got ? 1 : 0.7,
-                                    filter: got ? 'drop-shadow(0 0 6px #a259f7)' : 'none',
-                                    transition: 'opacity 0.2s, filter 0.2s'
-                                  }}
+                                  className={`pitched-item-image inline ${got ? 'obtained' : 'not-obtained'}`}
                                 />
                               )}
                               {got && !loadingPitchedItems[key] && (
-                                <span style={{
-                                  position: 'absolute',
-                                  top: 2,
-                                  right: 2,
-                                  background: '#a259f7',
-                                  color: '#fff',
-                                  borderRadius: '50%',
-                                  width: 14,
-                                  height: 14,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: 12,
-                                  fontWeight: 700,
-                                  boxShadow: '0 1px 4px #0004'
-                                }}>✓</span>
+                                <span className="pitched-item-checkmark inline">✓</span>
                               )}
                             </span>
                           );
@@ -498,13 +356,13 @@ function BossTable({
                       </div>
                     )}
                   </td>
-                  <td style={{ padding: '8px', textAlign: 'left' }}>
+                  <td className="boss-table-cell-difficulty">
                     <span>{b.difficulty}</span>
                   </td>
-                  <td style={{ padding: '8px', textAlign: 'right', fontWeight: 600 }}>
+                  <td className="boss-table-cell-mesos">
                     <span>{Math.floor(getBossPrice(b.name, b.difficulty) / (b.partySize || 1)).toLocaleString()}</span>
                   </td>
-                  <td style={{ padding: '8px', textAlign: 'center', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                  <td className="boss-table-cell-cleared">
                     <span onClick={e => e.stopPropagation()}>
                       <CustomCheckbox
                         checked={isChecked}
