@@ -7,7 +7,7 @@ import HistoricalPitchedModal from './components/HistoricalPitchedModal';
 import CrystalAnimation from './components/CrystalAnimation';
 import CharacterSidebar from './components/CharacterSidebar';
 import SidebarToggle from './components/SidebarToggle';
-import ReadOnlyModeIndicator from './components/ReadOnlyModeIndicator';
+import ModeIndicator from './components/ModeIndicator';
 import BossTable from './components/BossTable';
 import StatsModal from './components/StatsModal';
 import { 
@@ -37,7 +37,7 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
   const [crystalAnimation, setCrystalAnimation] = useState(null);
   const [selectedCharIdx, setSelectedCharIdx] = useState(0);
   const [error, setError] = useState(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+
   const [showNoCharactersMessage, setShowNoCharactersMessage] = useState(false);
   const [progressData, setProgressData] = useState({
     weeklyTotal: 0,
@@ -164,89 +164,7 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
   const visibleCharSummaries = hideCompleted ? charSummaries.filter(cs => !cs.allCleared) : charSummaries;
   const showCharacterDetails = charBosses.length > 0;
 
-  // Refresh data function
-  const refreshData = async () => {
-    if (!userCode) return;
-    
-    try {
-      setIsRefreshing(true);
-      console.log('🔄 Refreshing all data from database...');
-      
-      const { supabase } = await import('./supabaseClient');
-      const { data, error } = await supabase
-        .from('user_data')
-        .select('data, pitched_items')
-        .eq('id', userCode)
-        .single();
 
-      if (error) throw error;
-
-      if (data) {
-        // Refresh checked state from boss_runs
-        if (data.data && data.data.boss_runs) {
-          const reconstructedChecked = {};
-          data.data.boss_runs.forEach(run => {
-            if (run.cleared) {
-              const charKey = `${run.character}-${run.characterIdx || 0}`;
-              const bossKey = `${run.boss}-${run.difficulty}`;
-              
-              if (!reconstructedChecked[charKey]) {
-                reconstructedChecked[charKey] = {};
-              }
-              reconstructedChecked[charKey][bossKey] = true;
-            }
-          });
-          
-          console.log('🔄 About to update checked state:', reconstructedChecked);
-          // Force update by using functional state update
-          setChecked(prevChecked => {
-            console.log('🔄 Previous checked state:', prevChecked);
-            console.log('🔄 New checked state:', reconstructedChecked);
-            return { ...reconstructedChecked };
-          });
-        }
-
-        // Refresh pitched items
-        if (data.pitched_items) {
-          pitchedItems.setCloudPitchedItems(data.pitched_items);
-          
-          // Update pitched checked state using the correct getPitchedKey function
-          const { getPitchedKey } = await import('./utils/stringUtils');
-          const currentWeekItems = data.pitched_items.filter(item => 
-            item.weekKey === weekNavigation.selectedWeekKey
-          );
-          const newPitchedChecked = {};
-          
-          currentWeekItems.forEach(item => {
-            const charIdx = characters.findIndex(c => c.name === item.character);
-            if (charIdx !== -1) {
-              const key = getPitchedKey(item.character, charIdx, item.boss, item.item, item.weekKey);
-              newPitchedChecked[key] = true;
-            }
-          });
-          
-          console.log('🔄 About to update pitched checked state:', newPitchedChecked);
-          // Force update by using functional state update
-          pitchedItems.setPitchedChecked(prevPitched => {
-            console.log('🔄 Previous pitched state:', prevPitched);
-            console.log('🔄 New pitched state:', newPitchedChecked);
-            return { ...newPitchedChecked };
-          });
-        }
-      }
-
-      console.log('✅ Data refresh completed successfully');
-      
-      // Force a small delay to ensure state updates have processed
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-    } catch (error) {
-      console.error('❌ Error refreshing data:', error);
-      setError('Failed to refresh data. Please try again.');
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
 
   if (error) {
     return (
@@ -353,7 +271,7 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
               />
             </div>
 
-            <ReadOnlyModeIndicator
+            <ModeIndicator
               isHistoricalWeek={weekNavigation.isHistoricalWeek}
               isReadOnlyMode={weekNavigation.isReadOnlyMode}
               readOnlyOverride={weekNavigation.readOnlyOverride}
@@ -406,7 +324,6 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
                   weekKey={weekNavigation.selectedWeekKey}
                   handleCheck={bossActions.handleCheck}
                   refreshCheckedStateFromDatabase={bossActions.refreshCheckedStateFromDatabase}
-                  refreshData={refreshData}
                   userInteractionRef={pitchedItems.userInteractionRef}
                   userCode={userCode}
                   savePitchedItem={savePitchedItem}
@@ -444,27 +361,7 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
               </button>
             </div>
             
-            {/* Debug: Manual Refresh Button */}
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-              <button
-                style={{
-                  background: 'linear-gradient(135deg, #48bb78, #38a169)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 8,
-                  padding: '0.6rem 1.5rem',
-                  fontWeight: 600,
-                  fontSize: '0.9em',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 8px rgba(72, 187, 120, 0.4)',
-                  transition: 'all 0.3s ease'
-                }}
-                onClick={refreshData}
-                disabled={isRefreshing}
-              >
-                {isRefreshing ? 'Refreshing...' : '🔄 Manual Refresh (Debug)'}
-              </button>
-            </div>
+
           </div>
         </div>
 
@@ -536,51 +433,67 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode }) 
             characters={characters}
             onClose={() => statsManagement.setShowHistoricalPitchedModal(false)}
             onConfirm={async (dateStr, selectedCharacter) => {
-              // Historical pitched item save logic here
-              statsManagement.setShowHistoricalPitchedModal(false);
+              try {
+                console.log('🏛️ Historical pitched item logging:', {
+                  character: selectedCharacter,
+                  boss: statsManagement.historicalPitchedData.bossName,
+                  item: statsManagement.historicalPitchedData.itemName,
+                  date: dateStr,
+                  weekKey: statsManagement.historicalPitchedData.weekKey
+                });
+
+                // Find character index
+                const characterIdx = characters.findIndex(c => c.name === selectedCharacter);
+                if (characterIdx === -1) {
+                  setError('Selected character not found');
+                  return;
+                }
+
+                // Save the historical pitched item
+                const result = await savePitchedItem(userCode, {
+                  character: selectedCharacter,
+                  characterIdx: characterIdx,
+                  bossName: statsManagement.historicalPitchedData.bossName,
+                  itemName: statsManagement.historicalPitchedData.itemName,
+                  itemImage: statsManagement.historicalPitchedData.itemImage,
+                  date: dateStr
+                }, false, statsManagement.historicalPitchedData.weekKey);
+
+                if (result.success) {
+                  console.log('✅ Historical pitched item saved successfully');
+                  
+                  // Update the local pitched checked state using the proper key format
+                  const { getPitchedKey } = await import('./utils/stringUtils');
+                  const key = getPitchedKey(
+                    selectedCharacter, 
+                    characterIdx, 
+                    statsManagement.historicalPitchedData.bossName, 
+                    statsManagement.historicalPitchedData.itemName, 
+                    statsManagement.historicalPitchedData.weekKey
+                  );
+                  pitchedItems.setPitchedChecked(prev => ({
+                    ...prev,
+                    [key]: true
+                  }));
+
+                  // Refresh pitched items to sync with database
+                  await pitchedItems.refreshPitchedItems(userCode);
+                  
+                  statsManagement.setShowHistoricalPitchedModal(false);
+                } else {
+                  console.error('❌ Failed to save historical pitched item:', result.error);
+                  setError('Failed to save historical pitched item: ' + (result.error || 'Unknown error'));
+                }
+              } catch (error) {
+                console.error('❌ Error in historical pitched item save:', error);
+                setError('Error saving historical pitched item: ' + error.message);
+              }
             }}
           />
         </div>
       )}
 
-      {/* Refresh Animation Overlay */}
-      {isRefreshing && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(40, 32, 74, 0.8)',
-          zIndex: 9999,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backdropFilter: 'blur(2px)'
-        }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #805ad5, #9f7aea)',
-            color: '#fff',
-            padding: '2rem 3rem',
-            borderRadius: 12,
-            textAlign: 'center',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
-          }}>
-            <div style={{
-              width: 40,
-              height: 40,
-              border: '4px solid rgba(255, 255, 255, 0.3)',
-              borderTop: '4px solid #fff',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
-              margin: '0 auto 1rem'
-            }}></div>
-            <div style={{ fontWeight: 600, fontSize: '1.1em' }}>
-              Refreshing Data...
-            </div>
-          </div>
-        </div>
-      )}
+
       </div>
     </div>
   );

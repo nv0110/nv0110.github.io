@@ -64,26 +64,7 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Debug refresh button container - centers the debug refresh button */
-.weekly-tracker-debug-container {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 12px;
-}
 
-/* Debug refresh button - green gradient button for manual refresh */
-.weekly-tracker-debug-btn {
-  background: linear-gradient(135deg, #48bb78, #38a169); /* Green gradient */
-  color: #fff !important; /* Ensure button text is white */
-  border: none;
-  border-radius: 8px;
-  padding: 0.6rem 1.5rem;
-  font-weight: 600;
-  font-size: 0.9em;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(72, 187, 120, 0.4); /* Green shadow */
-  transition: all 0.3s ease;
-}
 
 /* ===== ERROR & LOADING STATES ===== */
 
@@ -141,47 +122,7 @@
   justify-content: center;
 }
 
-/* Refresh overlay - loading overlay during data refresh */
-.weekly-tracker-refresh-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(40, 32, 74, 0.8); /* Semi-transparent dark overlay */
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(2px);
-}
 
-/* Refresh modal - centered loading modal */
-.weekly-tracker-refresh-modal {
-  background: linear-gradient(135deg, #805ad5, #9f7aea); /* Purple gradient */
-  color: #fff;
-  padding: 2rem 3rem;
-  border-radius: 12px;
-  text-align: center;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-}
-
-/* Refresh spinner - animated loading spinner */
-.weekly-tracker-refresh-spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  border-top: 4px solid #fff;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
-}
-
-/* Refresh text - loading message text */
-.weekly-tracker-refresh-text {
-  font-weight: 600;
-  font-size: 1.1em;
-}
 
 /* ===== LAYOUT OVERRIDES ===== */
 
