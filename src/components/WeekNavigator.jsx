@@ -8,12 +8,13 @@ import {
   getWeekDateRange
 } from '../utils/weekUtils';
 import '../styles/week-navigator.css';
+import { formatMesoBillions } from '../utils/formatUtils';
 
 function WeekNavigator({
   selectedWeekKey,
   onWeekChange,
   // Progress data for current week
-  characters = [],
+  characterBossSelections = [],
   checked = {},
   selectedCharIdx = 0,
   totalMeso = 0,
@@ -126,7 +127,7 @@ function WeekNavigator({
   }, [selectedWeekKey, isCurrentWeek, selectedOffset]);
 
   // Calculate progress data for current week
-  const currentChar = characters[selectedCharIdx];
+  const currentChar = characterBossSelections[selectedCharIdx];
   const currentCharBosses = currentChar?.bosses || [];
   const currentCharKey = `${currentChar?.name || ''}-${selectedCharIdx}`;
   
@@ -181,13 +182,6 @@ function WeekNavigator({
             </span>
           )}
         </div>
-        
-        {/* User type and adaptive limit indicator */}
-        {historicalAnalysis?.userType === 'existing' && (
-          <div className="week-navigator-extended-history">
-            Extended History ({navigationLimits.adaptiveLimit} weeks)
-          </div>
-        )}
       </div>
 
       {/* Navigation controls - FIXED POSITION */}
@@ -250,31 +244,6 @@ function WeekNavigator({
         {/* Current week progress section */}
         {isCurrentWeek && (
           <div className="week-navigator-progress">
-            {/* Character progress section */}
-            {currentChar && (
-              <>
-                <div className="week-navigator-progress-header">
-                  <div className="week-navigator-progress-character">
-                    {currentChar.name} Progress
-                  </div>
-                  <div className="week-navigator-progress-count">
-                    {completedBosses}/{totalBosses} bosses
-                  </div>
-                </div>
-                
-                <div className="week-navigator-progress-bar-container">
-                  <div
-                    className="week-navigator-progress-bar"
-                    style={{ width: `${progressPercentage}%` }}
-                  >
-                    {progressPercentage > 0 && (
-                      <div className="week-navigator-progress-shimmer" />
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-            
             {/* Meso progress - always show in current week */}
             <div className="week-navigator-progress-meso">
               <div className="sidebar-progress-track week-navigator-progress-bar-container">
@@ -290,8 +259,8 @@ function WeekNavigator({
                 </div>
               </div>
               <div className="sidebar-progress-numbers">
-                <span>{formatMeso(checkedMeso)}</span>
-                <span>{formatMeso(obtainableMesoForCurrentChar)}</span>
+                <span>{formatMesoBillions(checkedMeso)}</span>
+                <span>{formatMesoBillions(obtainableMesoForCurrentChar)}</span>
               </div>
             </div>
           </div>

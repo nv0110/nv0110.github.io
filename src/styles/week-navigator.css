@@ -339,7 +339,7 @@
   flex-direction: column;
   gap: 0.25rem;
   padding-top: 0.25rem;
-  border-top: 1px solid rgba(162, 89, 247, 0.2);
+  /* border-top: 1px solid rgba(162, 89, 247, 0.2); */
 }
 
 .week-navigator-progress-numbers {
