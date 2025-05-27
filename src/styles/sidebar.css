@@ -4,11 +4,23 @@
    
    Character sidebar and toggle button styling including:
    - Sidebar positioning and layout
-   - Character cards and pagination
+   - Character cards and scroll indicator
    - Toggle button animations
    - Glass-morphism effects
    
    ===================================================================================== */
+
+/* ===== ANIMATIONS ===== */
+
+/* Pulse animation for scroll indicator */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
 
 /* ===== MAIN SIDEBAR CONTAINER ===== */
 
@@ -221,58 +233,70 @@
   accent-color: #a259f7; /* Purple accent color for checkbox */
 }
 
-/* ===== PAGINATION ===== */
 
-/* Pagination navigation section - page controls when multiple pages exist */
-.sidebar-pagination {
-  display: flex; /* Horizontal layout */
-  align-items: center; /* Vertical center alignment */
-  justify-content: space-between; /* Space between arrows and indicator */
-  margin-bottom: 1rem; /* Space below pagination */
-  padding: 0.5rem 0; /* Vertical padding */
-  border-bottom: 1px solid rgba(162, 89, 247, 0.15); /* Separator line */
-}
-
-/* Pagination arrow buttons - previous/next page navigation */
-.sidebar-pagination-arrow {
-  cursor: pointer; /* Indicate clickable element */
-  transition: all 0.3s ease; /* Smooth hover transitions */
-  /* Default glow effect */
-  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.4)) drop-shadow(0 0 4px rgba(255, 255, 255, 0.2));
-}
-
-/* Pagination arrow hover effects */
-.sidebar-pagination-arrow:hover {
-  /* Enhanced glow on hover */
-  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 12px rgba(255, 255, 255, 0.4));
-}
-
-/* Previous arrow specific hover effect */
-.sidebar-pagination-arrow.previous:hover {
-  transform: scale(1.15) translateX(-2px); /* Scale and move left */
-}
-
-/* Next arrow specific hover effect */
-.sidebar-pagination-arrow.next:hover {
-  transform: scale(1.15) translateX(2px); /* Scale and move right */
-}
-
-/* Pagination page indicator - shows current page info */
-.sidebar-pagination-indicator {
-  font-size: 0.85rem; /* Small text size */
-  color: #b39ddb; /* Muted purple text */
-  font-weight: 600; /* Semi-bold weight */
-  text-align: center; /* Center-aligned text */
-}
 
 /* ===== CHARACTER LIST ===== */
+
+/* Character list container wrapper - contains scrollable list and scroll indicator */
+.sidebar-character-list-container {
+  position: relative; /* For absolute positioned scroll indicator */
+}
 
 /* Character cards container - scrollable list of character cards */
 .sidebar-character-list {
   display: flex; /* Vertical layout */
   flex-direction: column; /* Stack cards vertically */
-  gap: 8px; /* Space between character cards */
-  min-height: 320px; /* Minimum height to prevent layout shift */
+  gap: 18px; /* Space between character cards */
+  
+  /* Scrollable container setup - responsive height */
+  max-height: calc(100vh - 320px); /* Viewport height minus navbar, header, progress, and padding */
+  overflow-y: auto; /* Enable vertical scrolling */
+  overflow-x: hidden; /* Prevent horizontal overflow */
+  
+  /* Padding for scrollbar space */
+  padding-right: 4px; /* Small padding for scrollbar */
+}
+
+/* Scroll indicator arrow - shows when content is scrollable */
+.sidebar-scroll-indicator {
+  position: absolute; /* Position relative to container */
+  bottom: 12px; /* Position slightly above the bottom of scrollable area */
+  left: 50%; /* Center horizontally */
+  transform: translateX(-50%); /* Perfect center alignment */
+  
+  /* Styling */
+  display: flex; /* Center the arrow */
+  align-items: center; /* Vertical center */
+  justify-content: center; /* Horizontal center */
+  
+  /* No background - just the glowing icon */
+  background: none; /* Remove background */
+  border: none; /* Remove border */
+  
+  /* Arrow color with enhanced white glow */
+  color: #ffffff; /* White arrow */
+  
+  /* Breathing pulse animation */
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  
+  /* Transitions for smooth show/hide */
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  
+  /* Z-index to appear above character cards */
+  z-index: 10;
+}
+
+/* SVG icon inside scroll indicator with enhanced glow */
+.sidebar-scroll-indicator svg {
+  /* Enhanced white glow effect on the SVG itself */
+  filter: 
+    drop-shadow(0 0 4px rgba(255, 255, 255, 0.8))   /* Inner glow */
+    drop-shadow(0 0 8px rgba(255, 255, 255, 0.6))   /* Medium glow */
+    drop-shadow(0 0 12px rgba(255, 255, 255, 0.4))  /* Outer glow */
+    drop-shadow(0 0 16px rgba(255, 255, 255, 0.2)); /* Extended glow */
+  
+  /* Ensure the icon inherits the white color */
+  color: inherit;
 }
 
 /* Empty state message - shown when no characters match filters */
@@ -335,32 +359,7 @@
   border: 1px solid rgba(159, 122, 234, 0.5); /* Lighter purple for historical */
 }
 
-/* Character card status indicator - shows edit/lock status for historical weeks */
-.sidebar-character-status-indicator {
-  position: absolute; /* Positioned relative to card */
-  top: -6px; /* Slightly above card */
-  right: -6px; /* Slightly to the right of card */
-  color: #fff; /* White icon color */
-  border-radius: 50%; /* Circular indicator */
-  width: 18px; /* Fixed width */
-  height: 18px; /* Fixed height */
-  font-size: 0.6rem; /* Small icon size */
-  display: flex; /* Center content */
-  align-items: center; /* Vertical center */
-  justify-content: center; /* Horizontal center */
-  box-shadow: 0 2px 4px rgba(0,0,0,0.3); /* Depth shadow */
-  z-index: 5; /* Above card content */
-}
 
-/* Read-only indicator (lock icon) */
-.sidebar-character-status-indicator.readonly {
-  background: #ff6b6b; /* Red background for read-only */
-}
-
-/* Editable indicator (edit icon) */
-.sidebar-character-status-indicator.editable {
-  background: #38a169; /* Green background for editable */
-}
 
 /* Character card header - name and completion status */
 .sidebar-character-header {

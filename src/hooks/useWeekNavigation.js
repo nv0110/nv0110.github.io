@@ -7,8 +7,6 @@ export function useWeekNavigation(userCode) {
   const [selectedWeekKey, setSelectedWeekKey] = useState(currentWeekKey);
   const [availableWeeks, setAvailableWeeks] = useState([]);
   const [weekDataCache, setWeekDataCache] = useState({});
-  const [readOnlyOverride, setReadOnlyOverride] = useState(false);
-  
   // New state for sophisticated navigation
   const [historicalAnalysis, setHistoricalAnalysis] = useState({
     hasHistoricalData: false,
@@ -19,7 +17,6 @@ export function useWeekNavigation(userCode) {
   });
 
   const isHistoricalWeek = selectedWeekKey !== currentWeekKey;
-  const isReadOnlyMode = isHistoricalWeek && !readOnlyOverride;
 
   // Function to refresh historical analysis - can be called when pitched items change
   const refreshHistoricalAnalysis = useCallback(async () => {
@@ -70,7 +67,6 @@ export function useWeekNavigation(userCode) {
       }));
     }
     
-    setReadOnlyOverride(false);
     setSelectedWeekKey(newWeekKey);
   };
 
@@ -121,9 +117,6 @@ export function useWeekNavigation(userCode) {
     weekDataCache,
     setWeekDataCache,
     isHistoricalWeek,
-    isReadOnlyMode,
-    readOnlyOverride,
-    setReadOnlyOverride,
     handleWeekChange,
     // New sophisticated navigation data
     historicalAnalysis,

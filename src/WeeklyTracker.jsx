@@ -23,7 +23,7 @@ import { usePitchedItems } from './hooks/usePitchedItems';
 import { useBossActions } from './hooks/useBossActions';
 import { useStatsManagement } from './hooks/useStatsManagement';
 
-function WeeklyTracker({ characters, bossData, checked, setChecked, userCode, preservingCheckedStateRef }) {
+function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked, userCode, preservingCheckedStateRef }) {
   // Helper function to get boss price
   function getBossPrice(bossName, difficulty) {
     const boss = bossData.find(b => b.name === bossName);
@@ -57,7 +57,7 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode, pr
 
   // Handle fade-in animation for "No characters found" message
   useEffect(() => {
-    if (!characters.length) {
+    if (!characterBossSelections.length) {
       setShowNoCharactersMessage(false);
       const timer = setTimeout(() => {
         setShowNoCharactersMessage(true);
@@ -66,21 +66,31 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode, pr
     } else {
       setShowNoCharactersMessage(false);
     }
-  }, [characters.length]);
+  }, [characterBossSelections.length]);
 
   // Custom hooks for complex logic
   const weekNavigation = useWeekNavigation(userCode);
   const pitchedItems = usePitchedItems(
     userCode, 
-    characters, 
+    characterBossSelections, 
     checked, 
     setChecked, 
     weekNavigation.selectedWeekKey,
-    preservingCheckedStateRef
+    preservingCheckedStateRef,
+    selectedCharIdx // Add selectedCharIdx parameter
   );
+
+  // console.log('🎯 WEEKLY TRACKER: Current state:', {
+  //   selectedCharIdx,
+  //   selectedCharName: characterBossSelections[selectedCharIdx]?.name,
+  //   weekKey: weekNavigation.selectedWeekKey,
+  //   pitchedCheckedKeys: Object.keys(pitchedItems.pitchedChecked),
+  //   pitchedCheckedState: pitchedItems.pitchedChecked,
+  //   characterBosses: characterBossSelections[selectedCharIdx]?.bosses?.map(b => `${b.name}-${b.difficulty}`) || []
+  // });
   
   const bossActions = useBossActions({
-    characters,
+    characterBossSelections,
     selectedCharIdx,
     checked,
     setChecked,
@@ -90,7 +100,7 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode, pr
     weekKey: weekNavigation.selectedWeekKey,
     selectedWeekKey: weekNavigation.selectedWeekKey,
     isHistoricalWeek: weekNavigation.isHistoricalWeek,
-    readOnlyOverride: weekNavigation.readOnlyOverride,
+  
     userCode,
     userInteractionRef: pitchedItems.userInteractionRef,
     setCrystalAnimation,
@@ -113,13 +123,13 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode, pr
 
   // Reset selectedCharIdx if out of bounds
   useEffect(() => {
-    if (selectedCharIdx >= characters.length) {
-      setSelectedCharIdx(Math.max(0, characters.length - 1));
+    if (selectedCharIdx >= characterBossSelections.length) {
+      setSelectedCharIdx(Math.max(0, characterBossSelections.length - 1));
     }
-  }, [characters.length, selectedCharIdx]);
+  }, [characterBossSelections.length, selectedCharIdx]);
 
   // Calculate totals
-  const char = characters[selectedCharIdx];
+  const char = characterBossSelections[selectedCharIdx];
   const charKey = `${char?.name || ''}-${selectedCharIdx}`;
   const charBosses = char?.bosses || [];
 
@@ -133,18 +143,18 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode, pr
     }
   });
 
-  const totalMeso = characters.reduce((sum, char, charIndex) => {
+  const totalMeso = characterBossSelections.reduce((sum, char, charIndex) => {
     const charKey = `${char?.name || ''}-${charIndex}`;
     return sum + (char.bosses || []).reduce((s, b) =>
       checked[charKey]?.[b.name + '-' + b.difficulty] ? s + (getBossPrice(b.name, b.difficulty) / (b.partySize || 1)) : s, 0
     );
   }, 0);
 
-  const obtainableMeso = characters.reduce((sum, char) =>
+  const obtainableMeso = characterBossSelections.reduce((sum, char) =>
     sum + (char.bosses || []).reduce((s, b) => s + (getBossPrice(b.name, b.difficulty) / (b.partySize || 1)), 0)
   , 0);
 
-  const charSummaries = characters.map((char, idx) => {
+  const charSummaries = characterBossSelections.map((char, idx) => {
     const charKey = `${char?.name || ''}-${idx}`;
     const bosses = char?.bosses || [];
     const cleared = bosses.filter(b => checked[charKey]?.[b.name + '-' + b.difficulty]).length;
@@ -177,7 +187,7 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode, pr
     );
   }
 
-  if (!characters.length) {
+  if (!characterBossSelections.length) {
     return (
       <div className="App dark" style={{ padding: '2rem', color: '#e6e0ff', fontSize: '1.2rem', textAlign: 'center' }}>
         <div 
@@ -239,7 +249,6 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode, pr
           visibleCharSummaries={visibleCharSummaries}
           selectedCharIdx={selectedCharIdx}
           setSelectedCharIdx={setSelectedCharIdx}
-          isReadOnlyMode={weekNavigation.isReadOnlyMode}
           setPurgeTargetCharacter={statsManagement.setPurgeTargetCharacter}
           setShowCharacterPurgeConfirm={statsManagement.setShowCharacterPurgeConfirm}
         />
@@ -268,10 +277,9 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode, pr
                 selectedWeekKey={weekNavigation.selectedWeekKey}
                 onWeekChange={handleWeekChangeWithData}
                 availableWeeks={weekNavigation.availableWeeks}
-                isReadOnlyMode={weekNavigation.isReadOnlyMode}
                 isHistoricalWeek={weekNavigation.isHistoricalWeek}
                 historicalAnalysis={weekNavigation.historicalAnalysis}
-                characters={characters}
+                characterBossSelections={characterBossSelections}
                 checked={checked}
                 selectedCharIdx={selectedCharIdx}
                 totalMeso={totalMeso}
@@ -281,10 +289,7 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode, pr
             </div>
 
             <ModeIndicator
-              isHistoricalWeek={weekNavigation.isHistoricalWeek}
-              isReadOnlyMode={weekNavigation.isReadOnlyMode}
-              readOnlyOverride={weekNavigation.readOnlyOverride}
-              setReadOnlyOverride={weekNavigation.setReadOnlyOverride}
+              selectedWeekKey={weekNavigation.selectedWeekKey}
             />
 
             {showCharacterDetails && (
@@ -299,15 +304,13 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode, pr
                   }}>
                     <button 
                       onClick={bossActions.handleTickAll} 
-                      disabled={weekNavigation.isReadOnlyMode}
                       style={{ 
                         padding: '0.5rem 1.2rem', 
                         borderRadius: 6, 
-                        background: weekNavigation.isReadOnlyMode ? '#4a4a4a' : '#805ad5', 
+                        background: '#805ad5', 
                         color: '#fff', 
                         fontWeight: 600, 
-                        cursor: weekNavigation.isReadOnlyMode ? 'not-allowed' : 'pointer',
-                        opacity: weekNavigation.isReadOnlyMode ? 0.5 : 1,
+                        cursor: 'pointer',
                         border: '1px solid #9f7aea'
                       }}
                     >
@@ -318,7 +321,7 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode, pr
 
                 <BossTable
                   isHistoricalWeek={weekNavigation.isHistoricalWeek}
-                  characters={characters}
+                  characterBossSelections={characterBossSelections}
                   selectedCharIdx={selectedCharIdx}
                   charBosses={charBosses}
                   sortedBosses={sortedBosses}
@@ -327,7 +330,7 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode, pr
                   setChecked={setChecked}
                   charKey={charKey}
                   getBossPrice={getBossPrice}
-                  isReadOnlyMode={weekNavigation.isReadOnlyMode}
+
                   pitchedChecked={pitchedItems.pitchedChecked}
                   setPitchedChecked={pitchedItems.setPitchedChecked}
                   weekKey={weekNavigation.selectedWeekKey}
@@ -341,7 +344,7 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode, pr
                   startStatsTrackingIfNeeded={statsManagement.startStatsTrackingIfNeeded}
                   setHistoricalPitchedData={statsManagement.setHistoricalPitchedData}
                   setShowHistoricalPitchedModal={statsManagement.setShowHistoricalPitchedModal}
-                  readOnlyOverride={weekNavigation.readOnlyOverride}
+
                   loadingPitchedItems={pitchedItems.loadingPitchedItems}
                   setLoadingPitchedItems={pitchedItems.setLoadingPitchedItems}
                   refreshPitchedItems={pitchedItems.refreshPitchedItems}
@@ -441,7 +444,7 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode, pr
         >
           <HistoricalPitchedModal
             data={statsManagement.historicalPitchedData}
-            characters={characters}
+            characterBossSelections={characterBossSelections}
             onClose={() => statsManagement.setShowHistoricalPitchedModal(false)}
             onConfirm={async (dateStr, selectedCharacter) => {
               try {
@@ -454,7 +457,7 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode, pr
                 });
 
                 // Find character index
-                const characterIdx = characters.findIndex(c => c.name === selectedCharacter);
+                const characterIdx = characterBossSelections.findIndex(c => c.name === selectedCharacter);
                 if (characterIdx === -1) {
                   setError('Selected character not found');
                   return;

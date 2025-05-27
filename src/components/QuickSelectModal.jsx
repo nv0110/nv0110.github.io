@@ -12,7 +12,7 @@ function QuickSelectModal({
   applyQuickSelection,
   resetQuickSelection,
   selectedCharIdx,
-  characters
+  characterBossSelections
 }) {
   if (!show) return null;
 
@@ -345,7 +345,7 @@ function QuickSelectModal({
               }
             }}
           >
-            Apply to {selectedCharIdx !== null && characters[selectedCharIdx] ? characters[selectedCharIdx].name : 'Character'}
+            Apply to {selectedCharIdx !== null && characterBossSelections[selectedCharIdx] ? characterBossSelections[selectedCharIdx].name : 'Character'}
           </button>
         </div>
 

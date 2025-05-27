@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 // Format meso values in billions (e.g., 1.1B, 2.5B)
 const formatMesoBillions = (meso) => {
@@ -29,47 +29,73 @@ function CharacterSidebar({
   visibleCharSummaries,
   selectedCharIdx,
   setSelectedCharIdx,
-  isReadOnlyMode,
+
   setPurgeTargetCharacter,
   setShowCharacterPurgeConfirm
 }) {
-  const [currentPage, setCurrentPage] = useState(0);
-  const charactersPerPage = 5;
+  const [showScrollIndicator, setShowScrollIndicator] = useState(false);
+  const [isScrolling, setIsScrolling] = useState(false);
+  const characterListRef = useRef(null);
+  const scrollTimeoutRef = useRef(null);
 
-  // Calculate pagination
-  const paginationInfo = useMemo(() => {
-    const totalCharacters = visibleCharSummaries.length;
-    const totalPages = Math.ceil(totalCharacters / charactersPerPage);
-    const startIndex = currentPage * charactersPerPage;
-    const endIndex = Math.min(startIndex + charactersPerPage, totalCharacters);
-    const currentPageCharacters = visibleCharSummaries.slice(startIndex, endIndex);
-    
-    return {
-      totalPages,
-      currentPageCharacters,
-      startIndex,
-      endIndex,
-      totalCharacters
+  // Check if scroll indicator should be shown
+  useEffect(() => {
+    const checkScrollable = () => {
+      const element = characterListRef.current;
+      if (element) {
+        const hasScrollableContent = element.scrollHeight > element.clientHeight;
+        const isAtBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 5; // 5px tolerance
+        const canScrollDown = hasScrollableContent && !isAtBottom;
+        setShowScrollIndicator(canScrollDown && !isScrolling);
+      }
     };
-  }, [visibleCharSummaries, currentPage, charactersPerPage]);
 
-  // Reset to first page when characters change
-  React.useEffect(() => {
-    setCurrentPage(0);
-  }, [visibleCharSummaries.length, hideCompleted]);
+    const handleScroll = () => {
+      setIsScrolling(true);
+      setShowScrollIndicator(false);
+      
+      // Clear existing timeout
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      
+      // Set timeout to show indicator again after scrolling stops
+      scrollTimeoutRef.current = setTimeout(() => {
+        setIsScrolling(false);
+        checkScrollable();
+      }, 1000); // Show indicator 1 second after scrolling stops
+    };
 
-  // Infinite navigation functions
-  const goToPreviousPage = () => {
-    if (paginationInfo.totalPages > 1) {
-      setCurrentPage(prev => prev === 0 ? paginationInfo.totalPages - 1 : prev - 1);
+    // Check initially and when characters change
+    checkScrollable();
+    
+    // Add scroll listener
+    const element = characterListRef.current;
+    if (element) {
+      element.addEventListener('scroll', handleScroll);
+      return () => {
+        element.removeEventListener('scroll', handleScroll);
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
+      };
     }
-  };
+  }, [visibleCharSummaries, isScrolling]);
 
-  const goToNextPage = () => {
-    if (paginationInfo.totalPages > 1) {
-      setCurrentPage(prev => prev === paginationInfo.totalPages - 1 ? 0 : prev + 1);
+  // Also check when sidebar visibility changes
+  useEffect(() => {
+    if (sidebarVisible) {
+      setTimeout(() => {
+        const element = characterListRef.current;
+        if (element) {
+          const hasScrollableContent = element.scrollHeight > element.clientHeight;
+          const isAtBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 5;
+          const canScrollDown = hasScrollableContent && !isAtBottom;
+          setShowScrollIndicator(canScrollDown && !isScrolling);
+        }
+      }, 100); // Small delay to ensure sidebar is fully rendered
     }
-  };
+  }, [sidebarVisible, isScrolling]);
 
   return (
     <>
@@ -135,76 +161,30 @@ function CharacterSidebar({
               </label>
             </div>
 
-            {/* Pagination Navigation */}
-            {paginationInfo.totalPages > 1 && (
-              <div className="sidebar-pagination">
-                {/* Previous page arrow */}
-                <svg
-                  className="sidebar-pagination-arrow previous"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  onClick={goToPreviousPage}
-                  title="Previous Page"
-                >
-                  <path
-                    d="M20.3284 11.0001V13.0001L7.50011 13.0001L10.7426 16.2426L9.32842 17.6568L3.67157 12L9.32842 6.34314L10.7426 7.75735L7.49988 11.0001L20.3284 11.0001Z"
-                    fill="#ffffff"
-                  />
-                </svg>
-
-                {/* Page indicator */}
-                <div className="sidebar-pagination-indicator">
-                  {paginationInfo.totalCharacters > 0 ? (
-                    <>Page {currentPage + 1} of {paginationInfo.totalPages}</>
-                  ) : (
-                    'No characters'
-                  )}
-                </div>
-
-                {/* Next page arrow */}
-                <svg
-                  className="sidebar-pagination-arrow next"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  onClick={goToNextPage}
-                  title="Next Page"
-                >
-                  <path
-                    d="M15.0378 6.34317L13.6269 7.76069L16.8972 11.0157L3.29211 11.0293L3.29413 13.0293L16.8619 13.0157L13.6467 16.2459L15.0643 17.6568L20.7079 11.9868L15.0378 6.34317Z"
-                    fill="#ffffff"
-                  />
-                </svg>
-              </div>
-            )}
-
-            {/* Character Cards - Current Page Only */}
-            <div className="sidebar-character-list">
-              {paginationInfo.currentPageCharacters.length === 0 ? (
-                <div 
-                  className="sidebar-empty-state"
-                  style={{ 
-                    opacity: visibleCharSummaries.length === 0 ? 0 : 1
-                  }}
-                >
-                  {hideCompleted ? 'No characters with bosses left to clear.' : 'No characters found.'}
-                </div>
-              ) : (
-                paginationInfo.currentPageCharacters.map(cs => (
+            {/* Character Cards - Scrollable Container */}
+            <div className="sidebar-character-list-container">
+              <div className="sidebar-character-list" ref={characterListRef}>
+                {visibleCharSummaries.length === 0 ? (
+                  <div className="sidebar-empty-state">
+                    {hideCompleted ? 'No characters with bosses left to clear.' : 'No characters found.'}
+                  </div>
+                ) : (
+                  visibleCharSummaries.map(cs => (
                   <div
                     key={cs.name + '-' + cs.idx}
-                    onClick={() => setSelectedCharIdx(cs.idx)}
+                    onClick={() => {
+                      // console.log(`🎯 SIDEBAR: Character selection changed from ${selectedCharIdx} to ${cs.idx} (${cs.name})`);
+                      // console.log(`🎯 SIDEBAR: Character details:`, {
+                      //   oldChar: visibleCharSummaries.find(c => c.idx === selectedCharIdx),
+                      //   newChar: cs,
+                      //   allCharacters: visibleCharSummaries.map(c => ({ name: c.name, idx: c.idx }))
+                      // });
+                      setSelectedCharIdx(cs.idx);
+                    }}
                     onContextMenu={(e) => {
                       e.preventDefault();
-                      if (!isReadOnlyMode) {
-                        setPurgeTargetCharacter({ name: cs.name, idx: cs.idx });
-                        setShowCharacterPurgeConfirm(true);
-                      }
+                      setPurgeTargetCharacter({ name: cs.name, idx: cs.idx });
+                      setShowCharacterPurgeConfirm(true);
                     }}
                     className={`sidebar-character-card ${
                       selectedCharIdx === cs.idx 
@@ -212,12 +192,7 @@ function CharacterSidebar({
                         : 'default'
                     }`}
                   >
-                    {/* Historical week indicator */}
-                    {isHistoricalWeek && selectedCharIdx === cs.idx && (
-                      <div className={`sidebar-character-status-indicator ${isReadOnlyMode ? 'readonly' : 'editable'}`}>
-                        {isReadOnlyMode ? '🔒' : '✏️'}
-                      </div>
-                    )}
+
 
                     <div className="sidebar-character-header">
                       <span className={`sidebar-character-name ${selectedCharIdx === cs.idx ? 'selected' : 'default'}`}>
@@ -249,6 +224,25 @@ function CharacterSidebar({
                     </div>
                   </div>
                 ))
+                )}
+              </div>
+              
+              {/* Scroll Indicator Arrow */}
+              {showScrollIndicator && (
+                <div className="sidebar-scroll-indicator">
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M11.0001 3.67157L13.0001 3.67157L13.0001 16.4999L16.2426 13.2574L17.6568 14.6716L12 20.3284L6.34314 14.6716L7.75735 13.2574L11.0001 16.5001L11.0001 3.67157Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                </div>
               )}
             </div>
           </div>

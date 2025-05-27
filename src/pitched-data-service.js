@@ -45,7 +45,7 @@ async function verifySavedData(userCode) {
       
     if (error) throw error;
     
-    console.log('Verifying saved data:', data);
+    // console.log('Verifying saved data:', data);
     return data;
   } catch (error) {
     console.error('Error verifying saved data:', error);
@@ -56,7 +56,7 @@ async function verifySavedData(userCode) {
 // Function to save boss run data (within the existing data structure)
 export async function saveBossRun(userCode, data) {
   try {
-    console.log('saveBossRun called with:', { userCode, data });
+    // console.log('saveBossRun called with:', { userCode, data });
     const { character, characterIdx, bossName, bossDifficulty, isCleared, date } = data;
     
     if (!userCode || !character || !bossName || !bossDifficulty || isCleared === undefined) {
@@ -90,10 +90,10 @@ export async function saveBossRun(userCode, data) {
     // 4. EXPLICITLY initialize boss_runs if it doesn't exist
     if (!currentData.boss_runs) {
       currentData.boss_runs = [];
-      console.log('Initializing missing boss_runs array in data object');
+      // console.log('Initializing missing boss_runs array in data object');
     } else if (!Array.isArray(currentData.boss_runs)) {
       // If it exists but isn't an array, make it an array
-      console.log('boss_runs exists but is not an array, fixing this issue');
+      // console.log('boss_runs exists but is not an array, fixing this issue');
       currentData.boss_runs = [];
     }
     
@@ -101,24 +101,24 @@ export async function saveBossRun(userCode, data) {
     const currentWeekKey = getCurrentWeekKey();
     
     // 5. Log the existing state for debugging
-    console.log(`Current boss runs count: ${currentBossRuns.length}`);
-    console.log('Current data structure:', JSON.stringify(currentData, null, 2));
+    // console.log(`Current boss runs count: ${currentBossRuns.length}`);
+    // console.log('Current data structure:', JSON.stringify(currentData, null, 2));
     
     // 🧹 COMPREHENSIVE CLEANUP: Remove any inconsistent boss_runs for this character
     // This handles cases where:
     // 1. Boss difficulty was changed on the input page
     // 2. Boss was completely removed and replaced with different boss
-    console.log('🧹 CLEANUP: Checking for inconsistent boss_runs to remove...');
+    // console.log('🧹 CLEANUP: Checking for inconsistent boss_runs to remove...');
     const charactersData = currentData.characters || [];
     const targetCharacter = charactersData.find((char, idx) => 
       char.name === character && (char.index === characterIdx || idx === characterIdx)
     );
     
     if (targetCharacter) {
-      console.log('🧹 CLEANUP: Found character data:', {
-        name: targetCharacter.name,
-        bosses: targetCharacter.bosses?.map(b => `${b.name}-${b.difficulty}`) || []
-      });
+      // console.log('🧹 CLEANUP: Found character data:', {
+      //   name: targetCharacter.name,
+      //   bosses: targetCharacter.bosses?.map(b => `${b.name}-${b.difficulty}`) || []
+      // });
       
       // Create a set of valid boss-difficulty combinations for this character
       const validBossCombinations = new Set();
@@ -126,7 +126,7 @@ export async function saveBossRun(userCode, data) {
         validBossCombinations.add(`${boss.name}-${boss.difficulty}`);
       });
       
-      console.log('🧹 CLEANUP: Valid boss combinations for character:', Array.from(validBossCombinations));
+      // console.log('🧹 CLEANUP: Valid boss combinations for character:', Array.from(validBossCombinations));
       
       // Remove ALL boss_runs for this character that don't match the valid combinations
       const beforeCount = currentBossRuns.length;
@@ -140,7 +140,7 @@ export async function saveBossRun(userCode, data) {
         const isValid = validBossCombinations.has(runCombination);
         
         if (!isValid) {
-          console.log(`🗑️ CLEANUP: Removing invalid boss_run: ${run.character}-${run.boss}-${run.difficulty} (not in selected bosses)`);
+          // console.log(`🗑️ CLEANUP: Removing invalid boss_run: ${run.character}-${run.boss}-${run.difficulty} (not in selected bosses)`);
         }
         
         return isValid;
@@ -150,12 +150,12 @@ export async function saveBossRun(userCode, data) {
       currentData.boss_runs = filteredRuns;
       
       if (beforeCount !== filteredRuns.length) {
-        console.log(`🧹 CLEANUP: Removed ${beforeCount - filteredRuns.length} invalid boss_runs`);
+        // console.log(`🧹 CLEANUP: Removed ${beforeCount - filteredRuns.length} invalid boss_runs`);
       } else {
-        console.log('🧹 CLEANUP: No invalid boss_runs found to remove');
+        // console.log('🧹 CLEANUP: No invalid boss_runs found to remove');
       }
     } else {
-      console.log('🧹 CLEANUP: Could not find character data for cleanup');
+      // console.log('🧹 CLEANUP: Could not find character data for cleanup');
     }
     
     // 6. Continue with normal boss_run saving logic
@@ -193,21 +193,21 @@ export async function saveBossRun(userCode, data) {
           date: date || new Date().toISOString(), // Update the timestamp
           lastUpdated: new Date().toISOString()
         };
-        console.log(`Updating existing boss run at index ${existingRunIndex}`);
+        // console.log(`Updating existing boss run at index ${existingRunIndex}`);
       } else {
         // Add new entry
         finalBossRuns = [...updatedBossRuns, bossRun];
-        console.log(`Adding new boss run, total count will be ${finalBossRuns.length}`);
+        // console.log(`Adding new boss run, total count will be ${finalBossRuns.length}`);
       }
     } else {
       // Boss is being unchecked - remove entry completely
       if (existingRunIndex !== -1) {
         finalBossRuns = updatedBossRuns.filter((run, index) => index !== existingRunIndex);
-        console.log(`Removing boss run at index ${existingRunIndex}, total count will be ${finalBossRuns.length}`);
+        // console.log(`Removing boss run at index ${existingRunIndex}, total count will be ${finalBossRuns.length}`);
       } else {
         // No existing entry to remove
         finalBossRuns = [...updatedBossRuns];
-        console.log('No existing boss run found to remove');
+        // console.log('No existing boss run found to remove');
       }
     }
     
@@ -220,10 +220,10 @@ export async function saveBossRun(userCode, data) {
     };
     
     // Double-check the updated data structure
-    console.log('About to save this data structure:', JSON.stringify({
-      ...updatedData,
-      boss_runs_count: finalBossRuns.length // Just for logging
-    }, null, 2).substring(0, 200) + '...');
+    // console.log('About to save this data structure:', JSON.stringify({
+    //   ...updatedData,
+    //   boss_runs_count: finalBossRuns.length // Just for logging
+    // }, null, 2).substring(0, 200) + '...');
     
     // 8. First try with a simpler approach - just add the boss_runs field directly
     // We'll avoid any complex structures and just make sure boss_runs is in the data
@@ -233,9 +233,9 @@ export async function saveBossRun(userCode, data) {
       lastUpdated: new Date().toISOString()
     };
     
-    console.log('SIMPLIFIED DATA STRUCTURE:', JSON.stringify(simplifiedData).substring(0, 200) + '...');
+    // console.log('SIMPLIFIED DATA STRUCTURE:', JSON.stringify(simplifiedData).substring(0, 200) + '...');
     
-    console.log('🚨 ATTEMPTING DATABASE UPDATE WITH BOSS RUNS ARRAY');
+    // console.log('🚨 ATTEMPTING DATABASE UPDATE WITH BOSS RUNS ARRAY');
     const { data: updateResult, error: updateError } = await supabase
       .from('user_data')
       .update({ 
@@ -244,7 +244,7 @@ export async function saveBossRun(userCode, data) {
       .eq('id', userCode)
       .select();
     
-    console.log('UPDATE RESULT:', JSON.stringify(updateResult));
+    // console.log('UPDATE RESULT:', JSON.stringify(updateResult));
       
     if (updateError) {
       console.error('Database update error:', updateError);
@@ -252,10 +252,10 @@ export async function saveBossRun(userCode, data) {
     }
     
     // 9. Verify the update actually worked by checking the returned data
-    console.log(`Successfully ${isCleared ? 'saved' : 'removed'} boss run for ${character} - ${bossName} ${bossDifficulty}. Cleared: ${isCleared}`);
+    // console.log(`Successfully ${isCleared ? 'saved' : 'removed'} boss run for ${character} - ${bossName} ${bossDifficulty}. Cleared: ${isCleared}`);
     
     // 10. IMPORTANT: Do a separate fetch to see what's ACTUALLY in the database
-    console.log('🔍 VERIFYING DATABASE STATE WITH SEPARATE FETCH');
+    // console.log('🔍 VERIFYING DATABASE STATE WITH SEPARATE FETCH');
     const { data: verifyData, error: verifyError } = await supabase
       .from('user_data')
       .select('*')
@@ -265,16 +265,16 @@ export async function saveBossRun(userCode, data) {
     if (verifyError) {
       console.error('Verification fetch error:', verifyError);
     } else {
-      console.log('DATABASE ACTUAL STATE:', JSON.stringify(verifyData).substring(0, 200) + '...');
+      // console.log('DATABASE ACTUAL STATE:', JSON.stringify(verifyData).substring(0, 200) + '...');
       
       // Check if boss_runs exists in the data
       if (verifyData?.data?.boss_runs) {
-        console.log(`✅ VERIFICATION SUCCESS: Database has ${verifyData.data.boss_runs.length} boss runs`);
+        // console.log(`✅ VERIFICATION SUCCESS: Database has ${verifyData.data.boss_runs.length} boss runs`);
       } else {
-        console.log('❌ VERIFICATION FAILED: No boss_runs array found in database');
+        // console.log('❌ VERIFICATION FAILED: No boss_runs array found in database');
         
         // Try another approach - use UPSERT instead of UPDATE
-        console.log('⚠️ Attempting UPSERT as a fallback...');
+        // console.log('⚠️ Attempting UPSERT as a fallback...');
         
         // Create a complete record with the boss_runs array
         const completeRecord = {
@@ -293,7 +293,7 @@ export async function saveBossRun(userCode, data) {
         if (upsertError) {
           console.error('Upsert failed:', upsertError);
         } else {
-          console.log('✅ Upsert succeeded, verifying again...');
+          // console.log('✅ Upsert succeeded, verifying again...');
           
           // Verify one more time
           const { data: finalVerify } = await supabase
@@ -303,9 +303,9 @@ export async function saveBossRun(userCode, data) {
             .single();
             
           if (finalVerify?.data?.boss_runs) {
-            console.log(`✅✅ FINAL VERIFICATION: Database now has ${finalVerify.data.boss_runs.length} boss runs`);
+            // console.log(`✅✅ FINAL VERIFICATION: Database now has ${finalVerify.data.boss_runs.length} boss runs`);
           } else {
-            console.log('❌❌ FINAL VERIFICATION FAILED: Still no boss_runs array');
+            // console.log('❌❌ FINAL VERIFICATION FAILED: Still no boss_runs array');
           }
         }
       }
@@ -326,7 +326,7 @@ export async function saveBossRun(userCode, data) {
 // Function to save a pitched item to the cloud database
 export async function savePitchedItem(userCode, data, remove = false, weekKey = null) {
   try {
-    console.log('savePitchedItem called with:', { userCode, data, remove, weekKey });
+    // console.log('savePitchedItem called with:', { userCode, data, remove, weekKey });
     const { character, bossName, itemName, itemImage, date, characterIdx, bossDifficulty } = data;
     
     if (!userCode || !character || !bossName || !itemName || !itemImage) {
@@ -335,7 +335,7 @@ export async function savePitchedItem(userCode, data, remove = false, weekKey = 
     }
 
     // Fetch both pitched_items and data for comprehensive synchronization
-    console.log('Fetching user data for userCode:', userCode);
+    // console.log('Fetching user data for userCode:', userCode);
     const supabase = await getSupabase();
     const { data: userData, error: fetchError } = await supabase
       .from('user_data')
@@ -360,17 +360,17 @@ export async function savePitchedItem(userCode, data, remove = false, weekKey = 
     // 🧹 COMPREHENSIVE CLEANUP: Remove any inconsistent pitched items for this character
     // This ensures only valid boss-difficulty combinations have pitched items
     if (isCurrentWeek && !remove) {
-      console.log('🧹 PITCHED CLEANUP: Checking for inconsistent pitched items to remove...');
+      // console.log('🧹 PITCHED CLEANUP: Checking for inconsistent pitched items to remove...');
       const charactersData = currentData.characters || [];
       const targetCharacter = charactersData.find((char, idx) => 
         char.name === character && (char.index === characterIdx || idx === characterIdx)
       );
       
       if (targetCharacter) {
-        console.log('🧹 PITCHED CLEANUP: Found character data:', {
-          name: targetCharacter.name,
-          bosses: targetCharacter.bosses?.map(b => `${b.name}-${b.difficulty}`) || []
-        });
+        // console.log('🧹 PITCHED CLEANUP: Found character data:', {
+        //   name: targetCharacter.name,
+        //   bosses: targetCharacter.bosses?.map(b => `${b.name}-${b.difficulty}`) || []
+        // });
         
         // Create a set of valid boss-difficulty combinations for this character
         const validBossCombinations = new Set();
@@ -378,7 +378,7 @@ export async function savePitchedItem(userCode, data, remove = false, weekKey = 
           validBossCombinations.add(`${boss.name}-${boss.difficulty}`);
         });
         
-        console.log('🧹 PITCHED CLEANUP: Valid boss combinations for character:', Array.from(validBossCombinations));
+        // console.log('🧹 PITCHED CLEANUP: Valid boss combinations for character:', Array.from(validBossCombinations));
         
         // Remove pitched items for this character that don't match valid combinations
         // ONLY for current week items - preserve all historical data
@@ -399,7 +399,7 @@ export async function savePitchedItem(userCode, data, remove = false, weekKey = 
           const isValid = validBossCombinations.has(itemCombination);
           
           if (!isValid) {
-            console.log(`🗑️ PITCHED CLEANUP: Removing invalid current week pitched item: ${item.character}-${item.boss}-${item.difficulty || 'Unknown'} - ${item.item}`);
+            // console.log(`🗑️ PITCHED CLEANUP: Removing invalid current week pitched item: ${item.character}-${item.boss}-${item.difficulty || 'Unknown'} - ${item.item}`);
           }
           
           return isValid;
@@ -407,21 +407,21 @@ export async function savePitchedItem(userCode, data, remove = false, weekKey = 
         
         // Update the pitched items array if changes were made
         if (beforeCount !== filteredPitched.length) {
-          console.log(`🧹 PITCHED CLEANUP: Removed ${beforeCount - filteredPitched.length} invalid pitched items`);
+          // console.log(`🧹 PITCHED CLEANUP: Removed ${beforeCount - filteredPitched.length} invalid pitched items`);
           // Update the current pitched items for further processing
           currentPitched.length = 0;
           currentPitched.push(...filteredPitched);
         } else {
-          console.log('🧹 PITCHED CLEANUP: No invalid pitched items found to remove');
+          // console.log('🧹 PITCHED CLEANUP: No invalid pitched items found to remove');
         }
       } else {
-        console.log('🧹 PITCHED CLEANUP: Could not find character data for cleanup');
+        // console.log('🧹 PITCHED CLEANUP: Could not find character data for cleanup');
       }
     }
     
     if (remove) {
       // Remove the pitched item (filter it out)
-      console.log('Removing pitched item:', { character, bossName, itemName, weekKey: targetWeekKey });
+      // console.log('Removing pitched item:', { character, bossName, itemName, weekKey: targetWeekKey });
       const updatedPitched = currentPitched.filter(item => {
         return !(item.character === character && 
                item.boss === bossName && 
@@ -439,7 +439,7 @@ export async function savePitchedItem(userCode, data, remove = false, weekKey = 
                          run.hasPitchedItem === true;
           
           if (matches) {
-            console.log(`Removing boss run with hasPitchedItem flag: ${run.boss} ${run.difficulty} for ${character}`);
+            // console.log(`Removing boss run with hasPitchedItem flag: ${run.boss} ${run.difficulty} for ${character}`);
             return false;
           }
           return true;
@@ -461,7 +461,7 @@ export async function savePitchedItem(userCode, data, remove = false, weekKey = 
         .eq('id', userCode);
       
       if (updateError) throw updateError;
-      console.log(`Successfully removed pitched item for ${character} from ${bossName}. Remaining items: ${updatedPitched.length}`);
+      // console.log(`Successfully removed pitched item for ${character} from ${bossName}. Remaining items: ${updatedPitched.length}`);
       
       return { success: true };
     } else {
@@ -486,7 +486,7 @@ export async function savePitchedItem(userCode, data, remove = false, weekKey = 
       );
       
       if (existingItem) {
-        console.log('Item already exists in database, not adding duplicate');
+        // console.log('Item already exists in database, not adding duplicate');
         return { success: true, alreadyExists: true };
       }
       
@@ -553,7 +553,7 @@ export async function savePitchedItem(userCode, data, remove = false, weekKey = 
         };
       } else {
         // For historical weeks, don't modify boss_runs at all
-        console.log(`Historical pitched item for week ${targetWeekKey} - not modifying boss_runs`);
+        // console.log(`Historical pitched item for week ${targetWeekKey} - not modifying boss_runs`);
       }
       
       // Update both pitched items and data in the database
@@ -567,7 +567,7 @@ export async function savePitchedItem(userCode, data, remove = false, weekKey = 
         .eq('id', userCode);
         
       if (updateError) throw updateError;
-      console.log(`Successfully saved pitched item for ${character} from ${bossName} (week: ${targetWeekKey})`);
+      // console.log(`Successfully saved pitched item for ${character} from ${bossName} (week: ${targetWeekKey})`);
       
       // Only handle checked state for current week
       if (isCurrentWeek) {
@@ -619,7 +619,7 @@ export async function savePitchedItem(userCode, data, remove = false, weekKey = 
       return { success: true };
     }
 
-    console.log('Successfully updated pitched_items and synchronized with application data');
+    // console.log('Successfully updated pitched_items and synchronized with application data');
     return { 
       success: true, 
       data: pitchedItem,
@@ -792,7 +792,7 @@ export async function removeManyPitchedItems(userCode, itemsToRemove) {
         );
         
         if (shouldRemove) {
-          console.log(`[Batch Removal] Removing boss run with hasPitchedItem flag: ${run.boss} ${run.difficulty} for ${run.character}`);
+          // console.log(`[Batch Removal] Removing boss run with hasPitchedItem flag: ${run.boss} ${run.difficulty} for ${run.character}`);
           return false;
         }
         return true;
@@ -814,8 +814,8 @@ export async function removeManyPitchedItems(userCode, itemsToRemove) {
       .eq('id', userCode);
 
     if (updateError) throw updateError;
-    console.log(`[Batch Removal] Successfully removed ${itemsToRemove.length} pitched items for user '${userCode}'. Remaining items: ${updatedPitched.length}`);
-    console.log('[Batch Removal] Items removed:', itemsToRemove);
+    // console.log(`[Batch Removal] Successfully removed ${itemsToRemove.length} pitched items for user '${userCode}'. Remaining items: ${updatedPitched.length}`);
+    // console.log('[Batch Removal] Items removed:', itemsToRemove);
     return { success: true };
   } catch (error) {
     console.error('Error removing many pitched items:', error);
@@ -1078,7 +1078,7 @@ export async function importUserData(userCode, importObj) {
  */
 export async function purgePitchedRecords(userCode, characterName, characterIdx = 0) {
   try {
-    console.log(`🗑️ Starting pitched records purge for character: ${characterName} (idx: ${characterIdx})`);
+    // console.log(`🗑️ Starting pitched records purge for character: ${characterName} (idx: ${characterIdx})`);
     
     if (!userCode || !characterName) {
       console.error('Missing required fields:', { userCode, characterName });
@@ -1107,7 +1107,7 @@ export async function purgePitchedRecords(userCode, characterName, characterIdx 
       const matches = item.character === characterName && 
                      (item.characterIdx === characterIdx || item.characterIndex === characterIdx);
       if (matches) {
-        console.log(`🗑️ Removing pitched item: ${item.item} from ${item.boss} for ${characterName}`);
+        // console.log(`🗑️ Removing pitched item: ${item.item} from ${item.boss} for ${characterName}`);
       }
       return !matches;
     });
@@ -1121,7 +1121,7 @@ export async function purgePitchedRecords(userCode, characterName, characterIdx 
       const isPitchedRun = run.isPitched === true || run.hasPitchedItem === true;
       
       if (characterMatches && isPitchedRun) {
-        console.log(`🗑️ Removing pitched boss run: ${run.boss} ${run.difficulty} for ${characterName}`);
+        // console.log(`🗑️ Removing pitched boss run: ${run.boss} ${run.difficulty} for ${characterName}`);
         return false;
       }
       
@@ -1167,9 +1167,9 @@ export async function purgePitchedRecords(userCode, characterName, characterIdx 
       throw updateError;
     }
 
-    console.log(`✅ Pitched records purged successfully for ${characterName}`);
-    console.log(`📊 Removed ${auditEntry.itemsRemoved} pitched items and ${auditEntry.bossRunsRemoved} boss runs`);
-    console.log(`📊 Preserved ${filteredBossRuns.length} non-pitched boss runs`);
+    // console.log(`✅ Pitched records purged successfully for ${characterName}`);
+    // console.log(`📊 Removed ${auditEntry.itemsRemoved} pitched items and ${auditEntry.bossRunsRemoved} boss runs`);
+    // console.log(`📊 Preserved ${filteredBossRuns.length} non-pitched boss runs`);
 
     return { 
       success: true, 
@@ -1242,7 +1242,7 @@ export function clearCharacterPitchedUI(pitchedChecked, characterName, character
   Object.keys(updatedPitchedChecked).forEach(key => {
     // Key format: "CharacterName-idx__BossName__ItemName__WeekKey"
     if (key.startsWith(`${characterName}-${characterIdx}__`) && key.endsWith(`__${weekKey}`)) {
-      console.log(`🗑️ Clearing UI checkmark: ${key}`);
+      // console.log(`🗑️ Clearing UI checkmark: ${key}`);
       delete updatedPitchedChecked[key];
     }
   });
@@ -1263,7 +1263,7 @@ export async function getGlobalResetStatistics(adminUserCode) {
     }
 
     // This would require admin privileges - implement based on your auth system
-    console.log('📊 Fetching global reset statistics...');
+    // console.log('📊 Fetching global reset statistics...');
     
     // For now, return a placeholder - you'd need to implement proper admin queries
     return {
@@ -1337,7 +1337,7 @@ export async function getAvailableWeeks(userCode) {
       return weekA - weekB;
     });
 
-    console.log(`Found ${weeks.length} weeks with data:`, weeks);
+    // console.log(`Found ${weeks.length} weeks with data:`, weeks);
 
     return {
       success: true,
@@ -1360,7 +1360,7 @@ export async function getWeekData(userCode, weekKey) {
       return { success: false, error: 'Missing userCode or weekKey' };
     }
 
-    console.log(`Fetching data for week: ${weekKey}`);
+    // console.log(`Fetching data for week: ${weekKey}`);
 
     // Get user data
     const supabase = await getSupabase();
@@ -1406,11 +1406,11 @@ export async function getWeekData(userCode, weekKey) {
       });
     }
 
-    console.log(`Week ${weekKey} data:`, {
-      pitchedItems: pitchedItems.length,
-      bossRuns: bossRuns.length,
-      checkedStates: Object.keys(checkedState).length
-    });
+    // console.log(`Week ${weekKey} data:`, {
+    //   pitchedItems: pitchedItems.length,
+    //   bossRuns: bossRuns.length,
+    //   checkedStates: Object.keys(checkedState).length
+    // });
 
     return {
       success: true,
@@ -1434,7 +1434,7 @@ export async function getWeekData(userCode, weekKey) {
  */
 export async function purgeAllStatsData(userCode) {
   try {
-    console.log(`🗑️ Starting complete stats reset for user: ${userCode}`);
+    // console.log(`🗑️ Starting complete stats reset for user: ${userCode}`);
     
     if (!userCode) {
       console.error('Missing required field: userCode');
@@ -1494,8 +1494,8 @@ export async function purgeAllStatsData(userCode) {
       throw updateError;
     }
 
-    console.log(`✅ Complete stats reset successful for user ${userCode}`);
-    console.log(`📊 Removed ${auditEntry.itemsRemoved} pitched items and ${auditEntry.bossRunsRemoved} boss runs`);
+    // console.log(`✅ Complete stats reset successful for user ${userCode}`);
+    // console.log(`📊 Removed ${auditEntry.itemsRemoved} pitched items and ${auditEntry.bossRunsRemoved} boss runs`);
 
     return { 
       success: true, 
@@ -1513,7 +1513,7 @@ export async function purgeAllStatsData(userCode) {
 // Function to save multiple boss runs in a single batch operation
 export async function saveBatchBossRuns(userCode, bossRunsArray) {
   try {
-    console.log('saveBatchBossRuns called with:', { userCode, count: bossRunsArray.length });
+    // console.log('saveBatchBossRuns called with:', { userCode, count: bossRunsArray.length });
     
     if (!userCode || !Array.isArray(bossRunsArray) || bossRunsArray.length === 0) {
       console.error('Invalid parameters for batch boss runs');
@@ -1553,13 +1553,13 @@ export async function saveBatchBossRuns(userCode, bossRunsArray) {
     // Initialize boss_runs if it doesn't exist
     if (!currentData.boss_runs || !Array.isArray(currentData.boss_runs)) {
       currentData.boss_runs = [];
-      console.log('Initializing boss_runs array for batch update');
+      // console.log('Initializing boss_runs array for batch update');
     }
     
     const currentBossRuns = [...currentData.boss_runs];
     const currentWeekKey = getCurrentWeekKey();
     
-    console.log(`Starting batch update with ${currentBossRuns.length} existing boss runs`);
+    // console.log(`Starting batch update with ${currentBossRuns.length} existing boss runs`);
     
     // Process all boss runs in the batch
     let updatedBossRuns = [...currentBossRuns];
@@ -1596,17 +1596,17 @@ export async function saveBatchBossRuns(userCode, bossRunsArray) {
             date: date || new Date().toISOString(),
             lastUpdated: new Date().toISOString()
           };
-          console.log(`Batch: Updating existing boss run for ${bossName} ${bossDifficulty}`);
+          // console.log(`Batch: Updating existing boss run for ${bossName} ${bossDifficulty}`);
         } else {
           // Add new entry
           updatedBossRuns.push(bossRun);
-          console.log(`Batch: Adding new boss run for ${bossName} ${bossDifficulty}`);
+          // console.log(`Batch: Adding new boss run for ${bossName} ${bossDifficulty}`);
         }
       } else {
         // Boss is being unchecked - remove entry completely
         if (existingRunIndex !== -1) {
           updatedBossRuns = updatedBossRuns.filter((run, index) => index !== existingRunIndex);
-          console.log(`Batch: Removing boss run for ${bossName} ${bossDifficulty}`);
+          // console.log(`Batch: Removing boss run for ${bossName} ${bossDifficulty}`);
         }
       }
     }
@@ -1618,7 +1618,7 @@ export async function saveBatchBossRuns(userCode, bossRunsArray) {
       lastUpdated: new Date().toISOString()
     };
     
-    console.log(`Batch update: ${currentBossRuns.length} → ${updatedBossRuns.length} boss runs`);
+    // console.log(`Batch update: ${currentBossRuns.length} → ${updatedBossRuns.length} boss runs`);
     
     // Perform single database update
     const { data: updateResult, error: updateError } = await supabase
@@ -1632,7 +1632,7 @@ export async function saveBatchBossRuns(userCode, bossRunsArray) {
       throw updateError;
     }
     
-    console.log(`✅ Batch boss runs update successful: ${bossRunsArray.length} operations completed`);
+    // console.log(`✅ Batch boss runs update successful: ${bossRunsArray.length} operations completed`);
     
     return { 
       success: true, 
@@ -1659,7 +1659,7 @@ export async function getHistoricalWeekAnalysis(userCode) {
       return { success: false, error: 'No user code provided' };
     }
 
-    console.log('🔍 Analyzing historical week data for user:', userCode);
+    // console.log('🔍 Analyzing historical week data for user:', userCode);
 
     // Query the user_data table in Supabase
     const supabase = await getSupabase();
@@ -1675,54 +1675,54 @@ export async function getHistoricalWeekAnalysis(userCode) {
     }
 
     const currentWeek = getCurrentWeekKey();
-    console.log('📅 Current week:', currentWeek);
-    console.log('📊 Raw user data:', {
-      pitchedItemsCount: userData.pitched_items ? userData.pitched_items.length : 0,
-      bossRunsCount: userData.data && userData.data.boss_runs ? userData.data.boss_runs.length : 0
-    });
+    // console.log('📅 Current week:', currentWeek);
+    // console.log('📊 Raw user data:', {
+    //   pitchedItemsCount: userData.pitched_items ? userData.pitched_items.length : 0,
+    //   bossRunsCount: userData.data && userData.data.boss_runs ? userData.data.boss_runs.length : 0
+    // });
 
     const historicalWeeks = new Set();
 
     // Check for existing weekKey entries in the pitched_items column that are NOT from the current week
     if (userData.pitched_items && Array.isArray(userData.pitched_items)) {
-      console.log('🔍 Checking pitched_items for historical weeks...');
+      // console.log('🔍 Checking pitched_items for historical weeks...');
       userData.pitched_items.forEach((item, index) => {
-        console.log(`  Item ${index}:`, {
-          weekKey: item.weekKey,
-          character: item.character,
-          boss: item.boss,
-          item: item.item,
-          isCurrentWeek: item.weekKey === currentWeek
-        });
+        // console.log(`  Item ${index}:`, {
+        //   weekKey: item.weekKey,
+        //   character: item.character,
+        //   boss: item.boss,
+        //   item: item.item,
+        //   isCurrentWeek: item.weekKey === currentWeek
+        // });
         if (item.weekKey && item.weekKey !== currentWeek) {
           historicalWeeks.add(item.weekKey);
-          console.log(`    ✅ Added historical week: ${item.weekKey}`);
+          // console.log(`    ✅ Added historical week: ${item.weekKey}`);
         }
       });
     } else {
-      console.log('❌ No pitched_items found or not an array');
+      // console.log('❌ No pitched_items found or not an array');
     }
 
     // Also check boss_runs for historical weeks
     if (userData.data && userData.data.boss_runs && Array.isArray(userData.data.boss_runs)) {
-      console.log('🔍 Checking boss_runs for historical weeks...');
+      // console.log('🔍 Checking boss_runs for historical weeks...');
       userData.data.boss_runs.forEach((run, index) => {
-        console.log(`  Run ${index}:`, {
-          weekKey: run.weekKey,
-          character: run.character,
-          boss: run.boss,
-          isCurrentWeek: run.weekKey === currentWeek
-        });
+        // console.log(`  Run ${index}:`, {
+        //   weekKey: run.weekKey,
+        //   character: run.character,
+        //   boss: run.boss,
+        //   isCurrentWeek: run.weekKey === currentWeek
+        // });
         if (run.weekKey && run.weekKey !== currentWeek) {
           historicalWeeks.add(run.weekKey);
-          console.log(`    ✅ Added historical week: ${run.weekKey}`);
+          // console.log(`    ✅ Added historical week: ${run.weekKey}`);
         }
       });
     } else {
-      console.log('❌ No boss_runs found or not an array');
+      // console.log('❌ No boss_runs found or not an array');
     }
 
-    console.log('📋 Found historical weeks:', Array.from(historicalWeeks));
+    // console.log('📋 Found historical weeks:', Array.from(historicalWeeks));
 
     // Convert to sorted array (oldest to newest)
     const historicalWeeksList = Array.from(historicalWeeks).sort((a, b) => {
@@ -1765,10 +1765,10 @@ export async function getHistoricalWeekAnalysis(userCode) {
         userType = 'existing';
         // Dynamic limit: extend the limit to match their tracking history
         adaptiveWeekLimit = weeksOfHistory;
-        console.log(`📊 Existing user detected: ${weeksOfHistory} weeks of history, adaptive limit: ${adaptiveWeekLimit}`);
+        // console.log(`📊 Existing user detected: ${weeksOfHistory} weeks of history, adaptive limit: ${adaptiveWeekLimit}`);
       } else {
         userType = 'new';
-        console.log(`📊 New user detected: ${weeksOfHistory} weeks of history, standard limit: ${adaptiveWeekLimit}`);
+        // console.log(`📊 New user detected: ${weeksOfHistory} weeks of history, standard limit: ${adaptiveWeekLimit}`);
       }
     }
 
@@ -1788,13 +1788,13 @@ export async function getHistoricalWeekAnalysis(userCode) {
       }
     };
 
-    console.log('📈 Historical week analysis result:', {
-      userType: result.userType,
-      hasHistoricalData: result.hasHistoricalData,
-      oldestWeek: result.oldestHistoricalWeek,
-      adaptiveLimit: result.adaptiveWeekLimit,
-      totalWeeks: result.totalHistoricalWeeks
-    });
+    // console.log('📈 Historical week analysis result:', {
+    //   userType: result.userType,
+    //   hasHistoricalData: result.hasHistoricalData,
+    //   oldestWeek: result.oldestHistoricalWeek,
+    //   adaptiveLimit: result.adaptiveWeekLimit,
+    //   totalWeeks: result.totalHistoricalWeeks
+    // });
 
     return result;
 
@@ -1813,7 +1813,7 @@ export async function getHistoricalWeekAnalysis(userCode) {
  */
 export async function cleanupOrphanedPitchedItems(userCode, newCharacters) {
   try {
-    console.log('🧹 PITCHED: Starting orphaned pitched items cleanup...');
+    // console.log('🧹 PITCHED: Starting orphaned pitched items cleanup...');
     
     if (!userCode || !Array.isArray(newCharacters)) {
       console.error('Invalid parameters for pitched items cleanup');
@@ -1835,7 +1835,7 @@ export async function cleanupOrphanedPitchedItems(userCode, newCharacters) {
     const currentPitchedItems = userData.pitched_items || [];
     
     if (currentPitchedItems.length === 0) {
-      console.log('🧹 PITCHED: No pitched items to clean up');
+      // console.log('🧹 PITCHED: No pitched items to clean up');
       return { success: true, itemsRemoved: 0 };
     }
 
@@ -1850,16 +1850,48 @@ export async function cleanupOrphanedPitchedItems(userCode, newCharacters) {
       });
     });
 
-    console.log('🧹 PITCHED: Valid boss combinations:', Array.from(validBossCombinations));
+    // console.log('🧹 PITCHED: Valid boss combinations:', Array.from(validBossCombinations));
+    // console.log('🧹 PITCHED: Current pitched items to check:', currentPitchedItems.map(item => ({
+    //   character: item.character,
+    //   characterIdx: item.characterIdx,
+    //   boss: item.boss,
+    //   difficulty: item.difficulty,
+    //   item: item.item,
+    //   weekKey: item.weekKey
+    // })));
 
     // Filter pitched items to keep only valid combinations
     const filteredPitchedItems = currentPitchedItems.filter(item => {
       // Use characterIdx from the item (which should be array index)
       const itemKey = `${item.character}-${item.characterIdx || 0}-${item.boss}-${item.difficulty || 'Unknown'}`;
-      const isValid = validBossCombinations.has(itemKey);
+      let isValid = validBossCombinations.has(itemKey);
+      
+      // If exact match fails and difficulty is 'Unknown', check if ANY difficulty for this boss is valid
+      if (!isValid && (item.difficulty === 'Unknown' || !item.difficulty)) {
+        const characterBossPrefix = `${item.character}-${item.characterIdx || 0}-${item.boss}-`;
+        isValid = Array.from(validBossCombinations).some(combo => combo.startsWith(characterBossPrefix));
+        
+        if (isValid) {
+          // console.log(`🔧 PITCHED: Keeping item with Unknown difficulty - found valid boss: ${item.character} - ${item.boss} - ${item.item}`);
+        }
+      }
+      
+      // console.log(`🧹 PITCHED: Checking item key "${itemKey}" - Valid: ${isValid}`, {
+      //   itemData: {
+      //     character: item.character,
+      //     characterIdx: item.characterIdx,
+      //     boss: item.boss,
+      //     difficulty: item.difficulty,
+      //     item: item.item,
+      //     weekKey: item.weekKey
+      //   },
+      //   generatedKey: itemKey,
+      //   hasUnknownDifficulty: item.difficulty === 'Unknown' || !item.difficulty,
+      //   validCombinations: Array.from(validBossCombinations)
+      // });
       
       if (!isValid) {
-        console.log(`🗑️ PITCHED: Removing orphaned pitched item: ${item.character} - ${item.boss} - ${item.item}`);
+        // console.log(`🗑️ PITCHED: Removing orphaned pitched item: ${item.character} - ${item.boss} - ${item.item} (difficulty: ${item.difficulty || 'Unknown'})`);
       }
       
       return isValid;
@@ -1878,11 +1910,11 @@ export async function cleanupOrphanedPitchedItems(userCode, newCharacters) {
       }
 
       const itemsRemoved = currentPitchedItems.length - filteredPitchedItems.length;
-      console.log(`✅ PITCHED: Cleaned up pitched items: ${currentPitchedItems.length} → ${filteredPitchedItems.length} (removed ${itemsRemoved})`);
+      // console.log(`✅ PITCHED: Cleaned up pitched items: ${currentPitchedItems.length} → ${filteredPitchedItems.length} (removed ${itemsRemoved})`);
       
       return { success: true, itemsRemoved };
     } else {
-      console.log('🧹 PITCHED: No pitched items cleanup needed');
+      // console.log('🧹 PITCHED: No pitched items cleanup needed');
       return { success: true, itemsRemoved: 0 };
     }
 

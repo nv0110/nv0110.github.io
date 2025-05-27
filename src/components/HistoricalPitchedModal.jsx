@@ -3,7 +3,7 @@ import { getWeekDateRange } from '../utils/weekUtils'; // Adjusted path
 import '../styles/historical-modal.css';
 
 // Historical Pitched Item Modal Component
-function HistoricalPitchedModal({ data, characters, onClose, onConfirm }) {
+function HistoricalPitchedModal({ data, characterBossSelections, onClose, onConfirm }) {
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedCharacter, setSelectedCharacter] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -41,10 +41,10 @@ function HistoricalPitchedModal({ data, characters, onClose, onConfirm }) {
       setSelectedDate(formatDateForInput(availableDates[0]));
     }
     // Default to the first character
-    if (characters.length > 0 && !selectedCharacter) {
-      setSelectedCharacter(characters[0].name);
+    if (characterBossSelections.length > 0 && !selectedCharacter) {
+      setSelectedCharacter(characterBossSelections[0].name);
     }
-  }, [availableDates, selectedDate, characters, selectedCharacter]);
+  }, [availableDates, selectedDate, characterBossSelections, selectedCharacter]);
 
   const handleConfirm = async () => {
     if (!selectedDate || !selectedCharacter) return;
@@ -101,7 +101,7 @@ function HistoricalPitchedModal({ data, characters, onClose, onConfirm }) {
           onChange={e => setSelectedCharacter(e.target.value)}
           className="historical-modal-select"
         >
-          {characters.map(char => (
+          {characterBossSelections.map(char => (
             <option key={char.name} value={char.name}>
               {char.name}
             </option>

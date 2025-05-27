@@ -3,7 +3,7 @@ import { getPitchedKey } from '../utils/stringUtils';
 import { removeManyPitchedItems } from '../pitched-data-service';
 
 export function useBossActions({
-  characters,
+  characterBossSelections,
   selectedCharIdx,
   checked,
   setChecked,
@@ -13,7 +13,7 @@ export function useBossActions({
   weekKey,
   selectedWeekKey,
   isHistoricalWeek,
-  readOnlyOverride,
+
   userCode,
   userInteractionRef,
   setCrystalAnimation,
@@ -25,10 +25,7 @@ export function useBossActions({
 
   const handleCheck = async (bossOrEvent, checkedValOrBoss, event = null) => {
     try {
-      if (isHistoricalWeek && !readOnlyOverride) {
-        console.log('Boss check blocked - read-only mode active for historical week');
-        return;
-      }
+      // Historical weeks are now always editable for pitched items
       
       // Set user interaction flag to prevent sync conflicts
       userInteractionRef.current = true;
@@ -62,7 +59,7 @@ export function useBossActions({
         }
       }
 
-      const charName = characters[selectedCharIdx]?.name || '';
+      const charName = characterBossSelections[selectedCharIdx]?.name || '';
       const charIdx = selectedCharIdx;
       const charKey = `${charName}-${charIdx}`;
       const bossName = boss.name;
@@ -151,12 +148,9 @@ export function useBossActions({
 
   const handleTickAll = async () => {
     try {
-      if (isHistoricalWeek && !readOnlyOverride) {
-        console.log('Tick All blocked - read-only mode active for historical week');
-        return;
-      }
+      // Historical weeks are now always editable for pitched items
       
-      const char = characters[selectedCharIdx];
+      const char = characterBossSelections[selectedCharIdx];
       const charBosses = char?.bosses || [];
       const charKey = `${char?.name || ''}-${selectedCharIdx}`;
       const currentState = checked[charKey] || {};
@@ -179,7 +173,7 @@ export function useBossActions({
           const bossObj = bossData.find(bd => bd.name === boss.name);
           if (bossObj?.pitchedItems) {
             bossObj.pitchedItems.forEach(item => {
-              const key = getPitchedKey(characters[selectedCharIdx].name, selectedCharIdx, boss.name, item.name, weekKey);
+              const key = getPitchedKey(characterBossSelections[selectedCharIdx].name, selectedCharIdx, boss.name, item.name, weekKey);
               if (newPitchedChecked[key]) {
                 delete newPitchedChecked[key];
               }
@@ -198,7 +192,7 @@ export function useBossActions({
           const { saveBatchBossRuns } = await import('../pitched-data-service');
           
           const bossRunsData = charBosses.map(boss => ({
-            character: characters[selectedCharIdx].name,
+            character: characterBossSelections[selectedCharIdx].name,
             characterIdx: selectedCharIdx,
             bossName: boss.name,
             bossDifficulty: boss.difficulty,
@@ -222,10 +216,10 @@ export function useBossActions({
               const bossObj = bossData.find(bd => bd.name === boss.name);
               if (bossObj?.pitchedItems) {
                 bossObj.pitchedItems.forEach(item => {
-                  const key = getPitchedKey(characters[selectedCharIdx].name, selectedCharIdx, boss.name, item.name, weekKey);
+                  const key = getPitchedKey(characterBossSelections[selectedCharIdx].name, selectedCharIdx, boss.name, item.name, weekKey);
                   if (pitchedChecked[key]) {
                     itemsToRemove.push({
-                      character: characters[selectedCharIdx].name,
+                      character: characterBossSelections[selectedCharIdx].name,
                       bossName: boss.name,
                       itemName: item.name,
                       weekKey,

@@ -14,30 +14,30 @@
 /* Main mode indicator container */
 .mode-indicator-container {
   margin: 0 auto 1rem auto;
-  max-width: 600px; /* Smaller than boss table (700px) for better visual hierarchy */
-  width: 100%;
+  max-width: 700px; /* Match WeekNavigator width */
+  width: 54%; /* Match WeekNavigator width */
   border-radius: 12px;
   padding: 1rem 1.5rem;
   font-weight: 600;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center; /* Center content since no toggle button */
   gap: 1rem;
   transition: all 0.3s ease;
 }
 
-/* Read-only mode styling */
-.mode-indicator-container.read-only {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.2));
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-  border: 2px solid rgba(239, 68, 68, 0.6);
-}
-
-/* Edit mode styling */
-.mode-indicator-container.edit-mode {
+/* Green color scheme (even weeks) */
+.mode-indicator-container.green {
   background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(22, 163, 74, 0.2));
   box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
   border: 2px solid rgba(34, 197, 94, 0.6);
+}
+
+/* Red color scheme (odd weeks) */
+.mode-indicator-container.red {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.2));
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  border: 2px solid rgba(239, 68, 68, 0.6);
 }
 
 /* ===== MODE INDICATOR CONTENT ===== */
@@ -79,67 +79,4 @@
   opacity: 0.95;
 }
 
-/* ===== MODE TOGGLE BUTTON ===== */
-
-/* Toggle button base styling */
-.mode-toggle-button {
-  border: none;
-  border-radius: 8px;
-  color: #ffffff;
-  padding: 0.6rem 1.2rem;
-  font-weight: 700;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  min-width: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-  filter: none;
-}
-
-/* Toggle button - read-only state */
-.mode-toggle-button.read-only {
-  background: linear-gradient(135deg, #dc2626, #b91c1c);
-  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.4);
-}
-
-.mode-toggle-button.read-only:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.6);
-}
-
-/* Toggle button - edit mode state */
-.mode-toggle-button.edit-mode {
-  background: linear-gradient(135deg, #059669, #047857);
-  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.4);
-}
-
-.mode-toggle-button.edit-mode:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.6);
-}
-
-/* Button hover reset */
-.mode-toggle-button:not(:hover) {
-  transform: scale(1);
-}
-
-.mode-toggle-button.read-only:not(:hover) {
-  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.4);
-}
-
-.mode-toggle-button.edit-mode:not(:hover) {
-  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.4);
-}
-
-/* Button icon and text */
-.mode-toggle-icon {
-  /* Icon styling handled by parent */
-}
-
-.mode-toggle-text {
-  /* Text styling handled by parent */
-} 
+ 

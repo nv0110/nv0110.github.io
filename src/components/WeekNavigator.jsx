@@ -13,7 +13,7 @@ function WeekNavigator({
   selectedWeekKey,
   onWeekChange,
   availableWeeks = [],
-  isReadOnlyMode = false,
+
   isHistoricalWeek = false,
   historicalAnalysis = {
     hasHistoricalData: false,
@@ -33,7 +33,7 @@ function WeekNavigator({
   const currentWeekKey = getCurrentWeekKey();
   
   // Debug: Log what historicalAnalysis we're receiving
-  console.log('🎯 WeekNavigator received historicalAnalysis:', historicalAnalysis);
+  // console.log('🎯 WeekNavigator received historicalAnalysis:', historicalAnalysis); // Debug only, re-enable if needed
 
   // Calculate navigation boundaries using adaptive limits
   const navigationLimits = useMemo(() => {

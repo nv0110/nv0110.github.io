@@ -11,7 +11,7 @@ function WeeklyTrackerPage() {
   const { navigate } = useViewTransition();
   const { userCode, isLoggedIn, handleDeleteAccount } = useAuth();
   const { 
-    characters, 
+    characterBossSelections, 
     checked, 
     setChecked, 
     fullUserData, 
@@ -69,7 +69,7 @@ function WeeklyTrackerPage() {
       {/* Main content container - full width for sidebar + content layout */}
       <ViewTransitionWrapper>
         <WeeklyTracker 
-          characters={characters}
+          characterBossSelections={characterBossSelections}
           bossData={bossData}
           checked={checked}
           setChecked={setChecked}

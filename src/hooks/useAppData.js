@@ -12,8 +12,6 @@ function extractCharactersFromData(userData) {
   const characterSet = new Set();
   const characterBosses = {}; // Track bosses for each character
   
-  console.log('🔍 Extracting characters from data structure...');
-  
   // Method 1: From boss_runs data (most reliable and up-to-date)
   if (userData.boss_runs && Array.isArray(userData.boss_runs)) {
     userData.boss_runs.forEach(run => {
@@ -26,7 +24,6 @@ function extractCharactersFromData(userData) {
             index: run.characterIdx,
             bosses: []
           });
-          console.log(`✅ Found character from boss_runs: ${run.character} (index: ${run.characterIdx})`);
         }
         
         // Extract boss information from boss runs
@@ -38,7 +35,6 @@ function extractCharactersFromData(userData) {
           const bossId = `${run.boss}-${run.difficulty}`;
           if (!characterBosses[key].has(bossId)) {
             characterBosses[key].add(bossId);
-            console.log(`📋 Found boss from boss_runs for ${run.character}: ${run.boss} (${run.difficulty})`);
           }
         }
       }
@@ -63,7 +59,6 @@ function extractCharactersFromData(userData) {
               index: characterIndex,
               bosses: []
             });
-            console.log(`✅ Found character from checked (legacy): ${characterName} (index: ${characterIndex})`);
           }
           
           // Extract boss information from checked state
@@ -81,7 +76,6 @@ function extractCharactersFromData(userData) {
               
               if (!characterBosses[key].has(bossId)) {
                 characterBosses[key].add(bossId);
-                console.log(`📋 Found boss from checked for ${characterName}: ${bossName} (${difficulty})`);
               }
             }
           });
@@ -109,7 +103,6 @@ function extractCharactersFromData(userData) {
                   index: characterIndex,
                   bosses: []
                 });
-                console.log(`✅ Found character from weeklyBossClearHistory: ${characterName} (index: ${characterIndex})`);
               }
               
               // Extract boss information from weekly boss clear history
@@ -126,7 +119,6 @@ function extractCharactersFromData(userData) {
                   
                   if (!characterBosses[key].has(bossId)) {
                     characterBosses[key].add(bossId);
-                    console.log(`📋 Found boss from history for ${characterName}: ${bossName} (${difficulty})`);
                   }
                 }
               });
@@ -155,15 +147,12 @@ function extractCharactersFromData(userData) {
           price: 0 // Will be calculated later
         };
       });
-      
-      console.log(`🎯 Populated ${char.bosses.length} bosses for ${char.name}:`, char.bosses.map(b => `${b.name}-${b.difficulty}`));
     }
   });
   
   // Sort characters by index to maintain consistent order
   characters.sort((a, b) => a.index - b.index);
   
-  console.log(`🎯 Extracted ${characters.length} characters with bosses:`, characters.map(c => `${c.name}-${c.index} (${c.bosses.length} bosses)`));
   return characters;
 }
 
@@ -171,7 +160,7 @@ export function useAppData() {
   const { userCode, isLoggedIn } = useAuth();
 
   // Core state
-  const [characters, setCharacters] = useState([]);
+  const [characterBossSelections, setCharacterBossSelections] = useState([]);
   const [newCharName, setNewCharName] = useState('');
   const [selectedCharIdx, setSelectedCharIdx] = useState(null);
   const [error, setError] = useState('');
@@ -183,9 +172,6 @@ export function useAppData() {
   
   // Debug wrapper for setChecked to track all changes
   const debugSetChecked = (newChecked) => {
-    console.log('🔄 STATE: setChecked called with:', JSON.stringify(newChecked, null, 2));
-    console.log('🔄 STATE: Previous checked state was:', JSON.stringify(checked, null, 2));
-    console.log('🔄 STATE: Preservation flag is:', preservingCheckedStateRef.current);
     setChecked(newChecked);
   };
   
@@ -206,12 +192,12 @@ export function useAppData() {
     totalBossCount,
     getAvailablePartySizes,
     getBossDifficulties,
-  } = useBossCalculations(characters, bossData);
+  } = useBossCalculations(characterBossSelections, bossData);
 
   // Data loading effect
   useEffect(() => {
     if (!userCode || !isLoggedIn) {
-      setCharacters([]);
+      setCharacterBossSelections([]);
       setChecked({});
       setError('');
       return;
@@ -220,7 +206,7 @@ export function useAppData() {
     const loadData = async () => {
       try {
         setError('');
-        console.log('Loading data for user:', userCode);
+        // console.log('Loading data for user:', userCode);
         
         const { supabase } = await import('../supabaseClient');
         const { data, error } = await supabase
@@ -231,8 +217,8 @@ export function useAppData() {
 
         if (error) {
           if (error.code === 'PGRST116') {
-            console.log('No existing data found for user, starting fresh');
-            setCharacters([]);
+            // console.log('No existing data found for user, starting fresh');
+            setCharacterBossSelections([]);
             debugSetChecked({});
             return;
           }
@@ -241,20 +227,20 @@ export function useAppData() {
 
         if (data && data.data) {
           const userData = data.data;
-          console.log('📊 Raw user data:', userData);
-          console.log('📊 Characters found:', userData.characters);
-          console.log('📊 Boss runs found:', userData.boss_runs?.length || 0);
+          // console.log('📊 Raw user data:', userData);
+          // console.log('📊 Characters found:', userData.characters);
+          // console.log('📊 Boss runs found:', userData.boss_runs?.length || 0);
           
           // Load characters - handle both old and new data formats
           if (userData.characters && Array.isArray(userData.characters)) {
             // Old format - direct characters array
-            setCharacters(userData.characters);
-            console.log('✅ Loaded characters (old format):', userData.characters.length, userData.characters);
+            setCharacterBossSelections(userData.characters);
+            // console.log('✅ Loaded characters (old format):', userData.characters.length, userData.characters);
           } else {
             // New format - extract characters from data structures
             const extractedCharacters = extractCharactersFromData(userData);
-            setCharacters(extractedCharacters);
-            console.log('✅ Loaded characters (new format):', extractedCharacters.length, extractedCharacters);
+            setCharacterBossSelections(extractedCharacters);
+            // console.log('✅ Loaded characters (new format):', extractedCharacters.length, extractedCharacters);
           }
           
           // Reconstruct checked state from boss_runs (single source of truth)
@@ -271,26 +257,26 @@ export function useAppData() {
                 reconstructedChecked[charKey][bossKey] = true;
               }
             });
-            console.log('✅ Reconstructed checked state from boss_runs:', Object.keys(reconstructedChecked).length, 'characters');
+            // console.log('✅ Reconstructed checked state from boss_runs:', Object.keys(reconstructedChecked).length, 'characters');
           }
           
           // Fallback to legacy checked state if no boss_runs data
           if (Object.keys(reconstructedChecked).length === 0 && userData.checked && typeof userData.checked === 'object') {
-            console.log('📊 LOAD: Setting checked state from legacy data:', JSON.stringify(userData.checked, null, 2));
+            // console.log('📊 LOAD: Setting checked state from legacy data:', JSON.stringify(userData.checked, null, 2));
             debugSetChecked(userData.checked);
-            console.log('✅ LOAD: Loaded legacy checked state:', Object.keys(userData.checked).length, 'entries');
+            // console.log('✅ LOAD: Loaded legacy checked state:', Object.keys(userData.checked).length, 'entries');
           } else {
-            console.log('📊 LOAD: Setting checked state from boss_runs:', JSON.stringify(reconstructedChecked, null, 2));
+            // console.log('📊 LOAD: Setting checked state from boss_runs:', JSON.stringify(reconstructedChecked, null, 2));
             debugSetChecked(reconstructedChecked);
-            console.log('✅ LOAD: Using reconstructed checked state from boss_runs');
+            // console.log('✅ LOAD: Using reconstructed checked state from boss_runs');
           }
         } else {
-          console.log('No data found, starting fresh');
-          setCharacters([]);
+          // console.log('No data found, starting fresh');
+          setCharacterBossSelections([]);
           debugSetChecked({});
         }
       } catch (error) {
-        console.error('Error loading user data:', error);
+        // console.error('Error loading user data:', error);
         setError('Failed to load user data. Please try refreshing the page.');
       }
     };
@@ -303,7 +289,7 @@ export function useAppData() {
     if (!userCode || !isLoggedIn) return;
     
     try {
-      console.log('🔄 Refreshing checked state from boss runs...');
+      // console.log('🔄 Refreshing checked state from boss runs...');
       
       const { supabase } = await import('../supabaseClient');
       const { data, error } = await supabase
@@ -329,12 +315,12 @@ export function useAppData() {
           }
         });
         
-        console.log('✅ Refreshed checked state from boss_runs:', Object.keys(reconstructedChecked).length, 'characters');
+        // console.log('✅ Refreshed checked state from boss_runs:', Object.keys(reconstructedChecked).length, 'characters');
         debugSetChecked(reconstructedChecked);
         return reconstructedChecked;
       }
     } catch (error) {
-      console.error('Error refreshing checked state from boss runs:', error);
+      // console.error('Error refreshing checked state from boss runs:', error);
     }
     
     return null;
@@ -362,9 +348,9 @@ export function useAppData() {
   const cleanupCheckedState = (newCharacters, currentChecked) => {
     const cleanedChecked = { ...currentChecked };
     
-    console.log('🧹 Cleaning up checked state based on new boss selections...');
-    console.log('📊 Current checked state:', currentChecked);
-    console.log('📋 New characters:', newCharacters.map(c => `${c.name} (${c.bosses?.length || 0} bosses)`));
+    // console.log('🧹 Cleaning up checked state based on new boss selections...');
+    // console.log('📊 Current checked state:', currentChecked);
+    // console.log('📋 New characters:', newCharacters.map(c => `${c.name} (${c.bosses?.length || 0} bosses)`));
     
     // For each character in checked state
     Object.keys(cleanedChecked).forEach(charKey => {
@@ -373,21 +359,21 @@ export function useAppData() {
       
       if (!character) {
         // Character removed - remove all entries
-        console.log(`🗑️ Removing all entries for deleted character: ${charKey}`);
+        // console.log(`🗑️ Removing all entries for deleted character: ${charKey}`);
         delete cleanedChecked[charKey];
       } else {
         // Character exists - clean up removed bosses only
         const currentBosses = (character.bosses || []).map(b => `${b.name}-${b.difficulty}`);
         const checkedBosses = Object.keys(cleanedChecked[charKey] || {});
         
-        console.log(`🔍 Character ${charName}: Current bosses [${currentBosses.join(', ')}], Checked bosses [${checkedBosses.join(', ')}]`);
+        // console.log(`🔍 Character ${charName}: Current bosses [${currentBosses.join(', ')}], Checked bosses [${checkedBosses.join(', ')}]`);
         
         checkedBosses.forEach(bossKey => {
           if (!currentBosses.includes(bossKey)) {
-            console.log(`🗑️ Removing checked state for deselected boss: ${charName} - ${bossKey}`);
+            // console.log(`🗑️ Removing checked state for deselected boss: ${charName} - ${bossKey}`);
             delete cleanedChecked[charKey][bossKey];
           } else {
-            console.log(`✅ Preserving checked state for: ${charName} - ${bossKey}`);
+            // console.log(`✅ Preserving checked state for: ${charName} - ${bossKey}`);
           }
         });
         
@@ -398,7 +384,7 @@ export function useAppData() {
       }
     });
     
-    console.log('🎯 Final cleaned checked state:', cleanedChecked);
+    // console.log('🎯 Final cleaned checked state:', cleanedChecked);
     return cleanedChecked;
   };
 
@@ -408,18 +394,13 @@ export function useAppData() {
     
     try {
       const startTime = new Date().toISOString();
-      console.log(`🧹 DATABASE: Starting boss_runs cleanup at ${startTime}...`);
-      console.log('🧹 DATABASE: New characters structure:', newCharacters.map((char, idx) => ({
-        name: char.name,
-        arrayIndex: idx,
-        characterIndex: char.index,
-        bosses: char.bosses?.map(b => `${b.name}-${b.difficulty}`) || []
-      })));
+      // console.log(`🧹 DATABASE: Starting boss_runs cleanup at ${startTime}...`);
+      // console.log('🧹 DATABASE: New characters structure:', newCharacters.map((char, idx) => ({ name: char.name, arrayIndex: idx, characterIndex: char.index, bosses: char.bosses?.map(b => `${b.name}-${b.difficulty}`) || [] })));
       
       const { supabase } = await import('../supabaseClient');
       
       // Get current database state
-      console.log('🧹 DATABASE: Fetching current database state...');
+      // console.log('🧹 DATABASE: Fetching current database state...');
       const { data: userData, error: fetchError } = await supabase
         .from('user_data')
         .select('data')
@@ -434,13 +415,11 @@ export function useAppData() {
       const currentData = userData.data || {};
       const currentBossRuns = currentData.boss_runs || [];
       
-      console.log(`🧹 DATABASE: Found ${currentBossRuns.length} boss_runs in database:`);
-      currentBossRuns.forEach((run, idx) => {
-        console.log(`  ${idx + 1}. ${run.character}-${run.characterIdx}-${run.boss}-${run.difficulty} (${run.weekKey})`);
-      });
+      // console.log(`🧹 DATABASE: Found ${currentBossRuns.length} boss_runs in database:`);
+      // currentBossRuns.forEach((run, idx) => { console.log(`  ${idx + 1}. ${run.character}-${run.characterIdx}-${run.boss}-${run.difficulty} (${run.weekKey})`); });
       
       if (currentBossRuns.length === 0) {
-        console.log('🧹 DATABASE: No boss_runs to clean up');
+        // console.log('🧹 DATABASE: No boss_runs to clean up');
         return;
       }
       
@@ -452,23 +431,23 @@ export function useAppData() {
           // Use the array index (charIdx) since that's what's stored in characterIdx field of boss_runs
           const key = `${char.name}-${charIdx}-${boss.name}-${boss.difficulty}`;
           validBossCombinations.add(key);
-          console.log(`🧹 DATABASE: Adding valid combination: ${key}`);
+          // console.log(`🧹 DATABASE: Adding valid combination: ${key}`);
         });
       });
       
-      console.log('🧹 DATABASE: Valid boss combinations:', Array.from(validBossCombinations));
+      // console.log('🧹 DATABASE: Valid boss combinations:', Array.from(validBossCombinations));
       
       // Filter boss_runs to keep only valid combinations
       const filteredBossRuns = currentBossRuns.filter(run => {
         const runKey = `${run.character}-${run.characterIdx || 0}-${run.boss}-${run.difficulty}`;
         const isValid = validBossCombinations.has(runKey);
         
-        console.log(`🧹 DATABASE: Checking run: ${runKey} - Valid: ${isValid}`);
+        // console.log(`🧹 DATABASE: Checking run: ${runKey} - Valid: ${isValid}`);
         
         if (!isValid) {
-          console.log(`🗑️ DATABASE: WILL REMOVE invalid boss_run: ${runKey}`);
+          // console.log(`🗑️ DATABASE: WILL REMOVE invalid boss_run: ${runKey}`);
         } else {
-          console.log(`✅ DATABASE: WILL KEEP valid boss_run: ${runKey}`);
+          // console.log(`✅ DATABASE: WILL KEEP valid boss_run: ${runKey}`);
         }
         
         return isValid;
@@ -476,7 +455,7 @@ export function useAppData() {
       
       // Only update if there are changes
       if (filteredBossRuns.length !== currentBossRuns.length) {
-        console.log(`🧹 DATABASE: Changes detected! ${currentBossRuns.length} → ${filteredBossRuns.length}`);
+        // console.log(`🧹 DATABASE: Changes detected! ${currentBossRuns.length} → ${filteredBossRuns.length}`);
         
         const updatedData = {
           ...currentData,
@@ -484,7 +463,7 @@ export function useAppData() {
           lastUpdated: new Date().toISOString()
         };
         
-        console.log('🧹 DATABASE: Updating database with filtered boss_runs...');
+        // console.log('🧹 DATABASE: Updating database with filtered boss_runs...');
         const { error: updateError } = await supabase
           .from('user_data')
           .update({ data: updatedData })
@@ -493,14 +472,14 @@ export function useAppData() {
         if (updateError) {
           console.error('❌ DATABASE: Error updating boss_runs:', updateError);
         } else {
-          console.log(`✅ DATABASE: Successfully cleaned up boss_runs: ${currentBossRuns.length} → ${filteredBossRuns.length}`);
-          console.log('✅ DATABASE: Remaining boss_runs:');
-          filteredBossRuns.forEach((run, idx) => {
-            console.log(`  ${idx + 1}. ${run.character}-${run.characterIdx}-${run.boss}-${run.difficulty}`);
-          });
+          // console.log(`✅ DATABASE: Successfully cleaned up boss_runs: ${currentBossRuns.length} → ${filteredBossRuns.length}`);
+          // console.log('✅ DATABASE: Remaining boss_runs:');
+          // filteredBossRuns.forEach((run, idx) => {
+          //   console.log(`  ${idx + 1}. ${run.character}-${run.characterIdx}-${run.boss}-${run.difficulty}`);
+          // });
         }
       } else {
-        console.log('🧹 DATABASE: No boss_runs cleanup needed - no changes detected');
+        // console.log('🧹 DATABASE: No boss_runs cleanup needed - no changes detected');
       }
       
     } catch (error) {
@@ -512,49 +491,49 @@ export function useAppData() {
   // This ensures that checked bosses remain checked if they're still selected
   // and only removes checked state for bosses that are actually deselected
   const preserveCheckedStateOnBossChange = async (newCharacters) => {
-    console.log('🔄 PRESERVE: Starting preservation process...');
-    console.log('🔄 PRESERVE: userCode:', userCode, 'isLoggedIn:', isLoggedIn);
+    // console.log('🔄 PRESERVE: Starting preservation process...');
+    // console.log('🔄 PRESERVE: userCode:', userCode, 'isLoggedIn:', isLoggedIn);
     
     if (!userCode || !isLoggedIn) {
       console.log('❌ PRESERVE: Skipping - no userCode or not logged in');
       return;
     }
     
-    console.log('🔄 PRESERVE: Current checked state before preservation:', JSON.stringify(checked, null, 2));
-    console.log('🔄 PRESERVE: New characters data:', newCharacters.map((c, idx) => ({
-      name: c.name,
-      arrayIndex: idx,
-      characterIndex: c.index,
-      bosses: c.bosses?.map(b => `${b.name}-${b.difficulty}`) || []
-    })));
+    // console.log('🔄 PRESERVE: Current checked state before preservation:', JSON.stringify(checked, null, 2));
+    // console.log('🔄 PRESERVE: New characters data:', newCharacters.map((c, idx) => ({
+    //   name: c.name,
+    //   arrayIndex: idx,
+    //   characterIndex: c.index,
+    //   bosses: c.bosses?.map(b => `${b.name}-${b.difficulty}`) || []
+    // })));
     
     // Set flag to prevent other hooks from overwriting during preservation
     preservingCheckedStateRef.current = true;
-    console.log('🔒 PRESERVE: Flag set to prevent overwrites');
+    // console.log('🔒 PRESERVE: Flag set to prevent overwrites');
     
     // Clean up checked state based on new boss selections
     const cleanedChecked = cleanupCheckedState(newCharacters, checked);
     
-    console.log('🔄 PRESERVE: Cleaned checked state:', JSON.stringify(cleanedChecked, null, 2));
+    // console.log('🔄 PRESERVE: Cleaned checked state:', JSON.stringify(cleanedChecked, null, 2));
     
     // Update local state immediately
     debugSetChecked(cleanedChecked);
-    console.log('✅ PRESERVE: debugSetChecked called with cleaned state');
+    // console.log('✅ PRESERVE: debugSetChecked called with cleaned state');
     
     // Also clean up boss_runs in database
-    console.log('🔄 PRESERVE: About to call cleanupBossRunsInDatabase...');
+    // console.log('🔄 PRESERVE: About to call cleanupBossRunsInDatabase...');
     await cleanupBossRunsInDatabase(newCharacters, checked);
-    console.log('✅ PRESERVE: cleanupBossRunsInDatabase completed');
+    // console.log('✅ PRESERVE: cleanupBossRunsInDatabase completed');
     
     // Clean up orphaned pitched items
     try {
-      console.log('🔄 PRESERVE: About to call cleanupOrphanedPitchedItems...');
+      // console.log('🔄 PRESERVE: About to call cleanupOrphanedPitchedItems...');
       const { cleanupOrphanedPitchedItems } = await import('../pitched-data-service');
       const pitchedCleanupResult = await cleanupOrphanedPitchedItems(userCode, newCharacters);
       if (pitchedCleanupResult.success && pitchedCleanupResult.itemsRemoved > 0) {
-        console.log(`🧹 PRESERVE: Cleaned up ${pitchedCleanupResult.itemsRemoved} orphaned pitched items`);
+        // console.log(`🧹 PRESERVE: Cleaned up ${pitchedCleanupResult.itemsRemoved} orphaned pitched items`);
       } else {
-        console.log('🧹 PRESERVE: No orphaned pitched items to clean up');
+        // console.log('🧹 PRESERVE: No orphaned pitched items to clean up');
       }
     } catch (error) {
       console.error('Error cleaning up orphaned pitched items:', error);
@@ -563,10 +542,10 @@ export function useAppData() {
     // Clear flag after a delay to allow other effects to settle
     setTimeout(() => {
       preservingCheckedStateRef.current = false;
-      console.log('🔓 PRESERVE: Flag cleared - other hooks can now update');
+      // console.log('🔓 PRESERVE: Flag cleared - other hooks can now update');
     }, 500);
     
-    console.log('✅ PRESERVE: Preservation process completed');
+    // console.log('✅ PRESERVE: Preservation process completed');
   };
 
   // Save data to cloud
@@ -594,8 +573,13 @@ export function useAppData() {
         ...updatedData,
         lastUpdated: new Date().toISOString()
       };
+
+      // Remove legacy checked field if it exists
+      if ('checked' in mergedData) {
+        delete mergedData.checked;
+      }
       
-      console.log('💾 SAVE: Merging data - existing keys:', Object.keys(existingData), 'new keys:', Object.keys(updatedData));
+      // console.log('💾 SAVE: Merging data - existing keys:', Object.keys(existingData), 'new keys:', Object.keys(updatedData));
       
       const { error } = await supabase
         .from('user_data')
@@ -603,7 +587,7 @@ export function useAppData() {
         .eq('id', userCode);
         
       if (error) throw error;
-      console.log('Data saved to cloud successfully');
+      // console.log('Data saved to cloud successfully');
     } catch (error) {
       console.error('Error saving to cloud:', error);
     }
@@ -617,31 +601,32 @@ export function useAppData() {
   };
 
   const addCharacter = async () => {
-    if (!newCharName.trim() || characters.length >= LIMITS.CHARACTER_CAP) return;
+    if (!newCharName.trim() || characterBossSelections.length >= LIMITS.CHARACTER_CAP) return;
     
     // Create new character with index
-    const newIndex = characters.length > 0 ? Math.max(...characters.map(c => c.index || 0)) + 1 : 0;
+    const newIndex = characterBossSelections.length > 0 ? Math.max(...characterBossSelections.map(c => c.index || 0)) + 1 : 0;
     const newChar = { 
       name: newCharName.trim(), 
       index: newIndex,
       bosses: [] 
     };
-    const newCharacters = [...characters, newChar];
+    const newCharacters = [...characterBossSelections, newChar];
     
-    setCharacters(newCharacters);
+    setCharacterBossSelections(newCharacters);
     setNewCharName('');
     
     // Save to cloud (characters only, checked state reconstructed from boss_runs)
     const updatedData = {
-      characters: newCharacters
+      characterBossSelections: newCharacters
     };
     await saveToCloud(updatedData);
   };
 
   const removeCharacter = async (idx) => {
-    if (idx < 0 || idx >= characters.length) return;
+    if (idx < 0 || idx >= characterBossSelections.length) return;
     
-    const characterToRemove = characters[idx];
+    const characterToRemove = characterBossSelections[idx];
+    // console.log('🗑️ DELETE: Starting character deletion process for:', characterToRemove);
     
     // Store undo data
     setUndoData({
@@ -663,8 +648,8 @@ export function useAppData() {
       setUndoData(null);
     }, 10000);
     
-    const newCharacters = characters.filter((_, i) => i !== idx);
-    setCharacters(newCharacters);
+    const newCharacters = characterBossSelections.filter((_, i) => i !== idx);
+    setCharacterBossSelections(newCharacters);
     
     // Adjust selectedCharIdx
     if (selectedCharIdx === idx) {
@@ -672,12 +657,80 @@ export function useAppData() {
     } else if (selectedCharIdx > idx) {
       setSelectedCharIdx(selectedCharIdx - 1);
     }
-    
-    // Save to cloud (characters only, checked state reconstructed from boss_runs)
-    const updatedData = {
-      characters: newCharacters
-    };
-    await saveToCloud(updatedData);
+
+    // Clean up database entries for the deleted character
+    try {
+      // console.log('🗑️ DELETE: Cleaning up database entries for character:', characterToRemove.name);
+      const { supabase } = await import('../supabaseClient');
+      
+      // Get current data
+      const { data: currentData, error: fetchError } = await supabase
+        .from('user_data')
+        .select('data, pitched_items')
+        .eq('id', userCode)
+        .single();
+        
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        throw fetchError;
+      }
+      
+      const existingData = currentData?.data || {};
+      const currentPitchedItems = currentData?.pitched_items || [];
+      
+      // Clean up boss_runs for this character
+      const currentBossRuns = existingData.boss_runs || [];
+      const filteredBossRuns = currentBossRuns.filter(run => {
+        const shouldKeep = !(run.character === characterToRemove.name && 
+                           (run.characterIdx === idx || run.characterIdx === characterToRemove.index));
+        
+        if (!shouldKeep) {
+          // console.log('🗑️ DELETE: Removing boss_run:', `${run.character}-${run.characterIdx}-${run.boss}-${run.difficulty}`);
+        }
+        
+        return shouldKeep;
+      });
+      
+      // console.log(`🗑️ DELETE: Removed ${currentBossRuns.length - filteredBossRuns.length} boss_runs for ${characterToRemove.name}`);
+      
+      // Clean up pitched_items for this character
+      const filteredPitchedItems = currentPitchedItems.filter(item => {
+        const shouldKeep = item.character !== characterToRemove.name;
+        
+        if (!shouldKeep) {
+          // console.log('🗑️ DELETE: Removing pitched_item:', `${item.character}-${item.boss}-${item.item} (${item.weekKey})`);
+        }
+        
+        return shouldKeep;
+      });
+      
+      // console.log(`🗑️ DELETE: Removed ${currentPitchedItems.length - filteredPitchedItems.length} pitched_items for ${characterToRemove.name}`);
+      
+      // Update database with cleaned data
+      const updatedData = {
+        ...existingData,
+        characterBossSelections: newCharacters,
+        boss_runs: filteredBossRuns,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      const { error: updateError } = await supabase
+        .from('user_data')
+        .update({ 
+          data: updatedData,
+          pitched_items: filteredPitchedItems
+        })
+        .eq('id', userCode);
+        
+      if (updateError) {
+        throw updateError;
+      }
+      
+      // console.log('✅ DELETE: Character and all associated data successfully removed from database');
+    } catch (error) {
+      console.error('❌ DELETE: Error cleaning up database entries:', error);
+      setError('Failed to completely remove character data from database');
+      setTimeout(() => setError(''), 5000);
+    }
   };
 
   const handleUndo = () => {
@@ -687,9 +740,9 @@ export function useAppData() {
       clearTimeout(undoTimeout.current);
     }
     
-    const newCharacters = [...characters];
+    const newCharacters = [...characterBossSelections];
     newCharacters.splice(undoData.index, 0, undoData.character);
-    setCharacters(newCharacters);
+    setCharacterBossSelections(newCharacters);
     
     if (selectedCharIdx === null || selectedCharIdx >= undoData.index) {
       setSelectedCharIdx(undoData.index);
@@ -700,36 +753,36 @@ export function useAppData() {
   };
 
   const updateCharacterName = async (idx, newName) => {
-    const newCharacters = characters.map((char, i) => 
+    const newCharacters = characterBossSelections.map((char, i) => 
       i === idx ? { ...char, name: newName } : char
     );
-    setCharacters(newCharacters);
+    setCharacterBossSelections(newCharacters);
     
     // Save to cloud (characters only, checked state reconstructed from boss_runs)
     const updatedData = {
-      characters: newCharacters
+      characterBossSelections: newCharacters
     };
     await saveToCloud(updatedData);
   };
 
   // Boss management functions
   const toggleBoss = (charIdx, bossName, difficulty) => {
-    console.log('🎯 TOGGLE: Boss toggle called:', { charIdx, bossName, difficulty });
-    console.log('🎯 TOGGLE: Current characters before change:', characters.map((c, idx) => ({
-      name: c.name,
-      arrayIndex: idx,
-      characterIndex: c.index,
-      bosses: c.bosses?.map(b => `${b.name}-${b.difficulty}`) || []
-    })));
+    // console.log('🎯 TOGGLE: Boss toggle called:', { charIdx, bossName, difficulty });
+    // console.log('🎯 TOGGLE: Current characters before change:', characters.map((c, idx) => ({
+    //   name: c.name,
+    //   arrayIndex: idx,
+    //   characterIndex: c.index,
+    //   bosses: c.bosses?.map(b => `${b.name}-${b.difficulty}`) || []
+    // })));
     
-    const newCharacters = characters.map((char, idx) => {
+    const newCharacters = characterBossSelections.map((char, idx) => {
       if (idx !== charIdx) return char;
       
       if (!difficulty) {
         // Remove boss entirely when difficulty is empty/falsy
         const existingBoss = char.bosses.find(b => b.name === bossName);
         if (existingBoss) {
-          console.log('🎯 TOGGLE: Removing boss entirely:', bossName);
+          // console.log('🎯 TOGGLE: Removing boss entirely:', bossName);
           return { ...char, bosses: char.bosses.filter(b => b.name !== bossName) };
         }
         return char;
@@ -739,7 +792,7 @@ export function useAppData() {
       const existingBoss = char.bosses.find(b => b.name === bossName);
       if (existingBoss) {
         // Update existing boss with new difficulty
-        console.log('🎯 TOGGLE: Updating existing boss:', bossName, 'from', existingBoss.difficulty, 'to', difficulty);
+                  // console.log('🎯 TOGGLE: Updating existing boss:', bossName, 'from', existingBoss.difficulty, 'to', difficulty);
         return {
           ...char,
           bosses: char.bosses.map(b => 
@@ -757,7 +810,7 @@ export function useAppData() {
 
       // Add new boss if under limit
       if (char.bosses.length < LIMITS.CHARACTER_BOSS_CAP) {
-        console.log('🎯 TOGGLE: Adding new boss:', bossName, 'with difficulty:', difficulty);
+                  // console.log('🎯 TOGGLE: Adding new boss:', bossName, 'with difficulty:', difficulty);
         return {
           ...char,
           bosses: [
@@ -775,29 +828,30 @@ export function useAppData() {
       return char;
     });
 
-    console.log('🎯 TOGGLE: New characters after change:', newCharacters.map((c, idx) => ({
-      name: c.name,
-      arrayIndex: idx,
-      characterIndex: c.index,
-      bosses: c.bosses?.map(b => `${b.name}-${b.difficulty}`) || []
-    })));
+    // console.log('🎯 TOGGLE: New characters after change:', newCharacters.map((c, idx) => ({
+    //   name: c.name,
+    //   arrayIndex: idx,
+    //   characterIndex: c.index,
+    //   bosses: c.bosses?.map(b => `${b.name}-${b.difficulty}`) || []
+    // })));
 
-    setCharacters(newCharacters);
-    console.log('🎯 TOGGLE: setCharacters called');
+    setCharacterBossSelections(newCharacters);
+    // console.log('🎯 TOGGLE: setCharacters called');
     
     // Preserve checked state after boss selection changes
-    console.log('🎯 TOGGLE: About to call preserveCheckedStateOnBossChange');
-    console.log('🎯 TOGGLE: Passing newCharacters to preservation:', JSON.stringify(newCharacters.map((c, idx) => ({
-      name: c.name,
-      arrayIndex: idx,
-      bosses: c.bosses?.map(b => `${b.name}-${b.difficulty}`) || []
-    })), null, 2));
+    // console.log('🎯 TOGGLE: About to call preserveCheckedStateOnBossChange');
+    // console.log('🎯 TOGGLE: Passing newCharacters to preservation:', JSON.stringify(newCharacters.map((c, idx) => ({
+    //   name: c.name,
+    //   arrayIndex: idx,
+    //   characterIndex: c.index,
+    //   bosses: c.bosses?.map(b => `${b.name}-${b.difficulty}`) || []
+    // })), null, 2));
     
     preserveCheckedStateOnBossChange(newCharacters).catch(console.error);
     
     // Save to cloud asynchronously without blocking UI
     const saveData = async () => {
-      const updatedData = { characters: newCharacters };
+      const updatedData = { characterBossSelections: newCharacters };
       await saveToCloud(updatedData);
     };
     saveData().catch(console.error);
@@ -805,7 +859,7 @@ export function useAppData() {
 
   // Batch boss management - replaces all bosses for a character at once
   const batchSetBosses = (charIdx, newBosses) => {
-    const newCharacters = characters.map((char, idx) => {
+    const newCharacters = characterBossSelections.map((char, idx) => {
       if (idx !== charIdx) return char;
       
       // Process new bosses to ensure they have proper data structure
@@ -822,21 +876,21 @@ export function useAppData() {
       };
     });
 
-    setCharacters(newCharacters);
+    setCharacterBossSelections(newCharacters);
     
     // Preserve checked state after boss selection changes
     preserveCheckedStateOnBossChange(newCharacters).catch(console.error);
     
     // Save to cloud asynchronously without blocking UI
     const saveData = async () => {
-      const updatedData = { characters: newCharacters };
+      const updatedData = { characterBossSelections: newCharacters };
       await saveToCloud(updatedData);
     };
     saveData().catch(console.error);
   };
 
   const updatePartySize = async (charIdx, bossName, difficulty, newSize) => {
-    const newCharacters = characters.map((char, idx) => {
+    const newCharacters = characterBossSelections.map((char, idx) => {
       if (idx !== charIdx) return char;
       
       return {
@@ -849,26 +903,26 @@ export function useAppData() {
       };
     });
 
-    setCharacters(newCharacters);
+    setCharacterBossSelections(newCharacters);
     
     // Save to cloud (characters only, checked state reconstructed from boss_runs)
     const updatedData = {
-      characters: newCharacters
+      characterBossSelections: newCharacters
     };
     await saveToCloud(updatedData);
   };
 
   // Reset selectedCharIdx if out of bounds
   useEffect(() => {
-    if (selectedCharIdx >= characters.length) {
-      setSelectedCharIdx(Math.max(0, characters.length - 1));
+    if (selectedCharIdx >= characterBossSelections.length) {
+      setSelectedCharIdx(Math.max(0, characterBossSelections.length - 1));
     }
-  }, [characters.length, selectedCharIdx]);
+  }, [characterBossSelections.length, selectedCharIdx]);
 
   return {
     // State
-    characters,
-    setCharacters,
+    characterBossSelections,
+    setCharacterBossSelections,
     newCharName,
     setNewCharName,
     selectedCharIdx,

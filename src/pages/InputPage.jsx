@@ -21,8 +21,8 @@ function InputPage() {
   const { navigate } = useViewTransition();
   const { userCode, isLoggedIn, handleDeleteAccount } = useAuth();
   const {
-    characters,
-    setCharacters,
+    characterBossSelections,
+    setCharacterBossSelections,
     newCharName,
     setNewCharName,
     selectedCharIdx,
@@ -128,17 +128,24 @@ function InputPage() {
   };
 
   // Clone character function
-  const cloneCharacter = (idx) => {
-    if (characters.length >= LIMITS.CHARACTER_CAP) {
+  const cloneCharacter = async (idx) => {
+    // console.log('🔄 CLONE: Starting character clone process for index:', idx);
+    
+    if (characterBossSelections.length >= LIMITS.CHARACTER_CAP) {
       setCloneError('Cannot clone: Maximum character limit reached');
       setTimeout(() => setCloneError(''), 3000);
       return;
     }
 
-    const charToClone = characters[idx];
-    if (!charToClone) return;
+    const charToClone = characterBossSelections[idx];
+    if (!charToClone) {
+      console.error('🔄 CLONE: Character to clone not found at index:', idx);
+      return;
+    }
 
-    const totalCrystals = characters.reduce((sum, char) => sum + (char.bosses ? char.bosses.length : 0), 0);
+    // console.log('🔄 CLONE: Character to clone:', charToClone);
+
+    const totalCrystals = characterBossSelections.reduce((sum, char) => sum + (char.bosses ? char.bosses.length : 0), 0);
     const cloneCrystals = charToClone.bosses ? charToClone.bosses.length : 0;
 
     if (totalCrystals + cloneCrystals > 180) {
@@ -147,13 +154,69 @@ function InputPage() {
       return;
     }
 
+    // Create new character with proper index
+    const newIndex = characterBossSelections.length > 0 ? Math.max(...characterBossSelections.map(c => c.index || 0)) + 1 : 0;
     const clonedChar = {
       ...charToClone,
       name: `${charToClone.name} (Copy)`,
+      index: newIndex, // Assign new unique index
       bosses: [...(charToClone.bosses || [])]
     };
 
-    setCharacters([...characters, clonedChar]);
+    // console.log('🔄 CLONE: Cloned character created:', clonedChar);
+
+    const newCharacterBossSelections = [...characterBossSelections, clonedChar];
+    setCharacterBossSelections(newCharacterBossSelections);
+
+    // console.log('🔄 CLONE: Updated characters array:', newCharacterBossSelections.map(c => ({ name: c.name, index: c.index, bosses: c.bosses?.length || 0 })));
+
+    // Save to database - this is the missing piece!
+    try {
+      // console.log('🔄 CLONE: Saving to database...');
+      const { supabase } = await import('../supabaseClient');
+      
+      // Get current data to preserve existing fields
+      const { data: currentData, error: fetchError } = await supabase
+        .from('user_data')
+        .select('data')
+        .eq('id', userCode)
+        .single();
+        
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        throw fetchError;
+      }
+      
+      // Merge with existing data to preserve boss_runs and other fields
+      const existingData = currentData?.data || {};
+      const updatedData = {
+        ...existingData,
+        characterBossSelections: newCharacterBossSelections,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      // console.log('🔄 CLONE: Saving updated data to database:', { 
+      //   charactersCount: newCharacterBossSelections.length,
+      //   newCharacter: { name: clonedChar.name, index: clonedChar.index }
+      // });
+      
+      const { error: updateError } = await supabase
+        .from('user_data')
+        .update({ data: updatedData })
+        .eq('id', userCode);
+        
+      if (updateError) {
+        throw updateError;
+      }
+      
+      console.log('✅ CLONE: Character successfully cloned and saved to database');
+    } catch (error) {
+      console.error('❌ CLONE: Error saving cloned character to database:', error);
+      setCloneError('Failed to save cloned character to database');
+      setTimeout(() => setCloneError(''), 3000);
+      
+      // Revert local state on database error
+      setCharacterBossSelections(characterBossSelections);
+    }
   };
 
   // Handle delete account
@@ -269,7 +332,7 @@ function InputPage() {
           
           {/* Character Management */}
           <CharacterManagement
-            characters={characters}
+            characterBossSelections={characterBossSelections}
             newCharName={newCharName}
             setNewCharName={setNewCharName}
             selectedCharIdx={selectedCharIdx}
@@ -281,7 +344,7 @@ function InputPage() {
             onRemoveCharacter={removeCharacter}
           />
 
-          {characters.length === 0 ? (
+          {characterBossSelections.length === 0 ? (
             <div className="empty-state-message">
               <span role="img" aria-label="sparkles">✨</span> Welcome! Add your first character to get started.
             </div>
@@ -289,7 +352,7 @@ function InputPage() {
             /* Boss Selection Table */
             <BossSelectionTable
               selectedCharIdx={selectedCharIdx}
-              characters={characters}
+              characterBossSelections={characterBossSelections}
               sortedBossData={sortedBossData}
               getBossDifficulties={getBossDifficulties}
               getAvailablePartySizes={getAvailablePartySizes}
@@ -430,14 +493,14 @@ function InputPage() {
         getBossDifficulties={getBossDifficulties}
         formatPrice={formatPrice}
         handlePresetBossSelect={presetHook.handlePresetBossSelect}
-        createPreset={() => presetHook.createPreset(selectedCharIdx, characters, batchSetBosses)}
+        createPreset={() => presetHook.createPreset(selectedCharIdx, characterBossSelections, batchSetBosses)}
         applyPreset={(preset) => {
-          presetHook.applyPreset(preset, selectedCharIdx, characters, batchSetBosses);
+          presetHook.applyPreset(preset, selectedCharIdx, characterBossSelections, batchSetBosses);
           setShowPresetModal(false);
         }}
         deletePreset={presetHook.deletePreset}
         selectedCharIdx={selectedCharIdx}
-        characters={characters}
+        characterBossSelections={characterBossSelections}
       />
 
       {/* Quick Select Modal */}
@@ -451,12 +514,12 @@ function InputPage() {
         formatPrice={formatPrice}
         handleQuickSelectBoss={quickSelectHook.handleQuickSelectBoss}
         applyQuickSelection={() => {
-          quickSelectHook.applyQuickSelection(selectedCharIdx, characters, batchSetBosses);
+          quickSelectHook.applyQuickSelection(selectedCharIdx, characterBossSelections, batchSetBosses);
           setShowQuickSelectModal(false);
         }}
         resetQuickSelection={quickSelectHook.resetQuickSelection}
         selectedCharIdx={selectedCharIdx}
-        characters={characters}
+        characterBossSelections={characterBossSelections}
       />
 
       {/* CSS Animations */}

@@ -61,7 +61,7 @@ The white screen was caused by:
    // Clear flag after delay to allow UI to settle
    setTimeout(() => {
      userInteractionRef.current = false;
-     console.log('🖱️ PURGE: Interaction flag cleared, sync can resume');
+     // console.log('🖱️ PURGE: Interaction flag cleared, sync can resume');
    }, 1000);
    ```
 

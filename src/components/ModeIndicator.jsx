@@ -1,45 +1,49 @@
 import React from 'react';
+import { getCurrentWeekKey } from '../utils/weekUtils';
 
-function ModeIndicator({ isHistoricalWeek, isReadOnlyMode, readOnlyOverride, setReadOnlyOverride }) {
-  if (!isHistoricalWeek) {
-    return null;
-  }
+function ModeIndicator({ selectedWeekKey }) {
+  // Helper function to determine color scheme based on week
+  const getWeekColorScheme = (weekKey) => {
+    if (!weekKey) return 'green';
+    
+    // Parse week key to get week number
+    const parts = weekKey.split('-');
+    let weekNumber = 0;
+    
+    if (parts.length === 3) {
+      // Format: YYYY-MW-CW, use MapleStory week
+      weekNumber = parseInt(parts[1]) || 0;
+    } else if (parts.length === 2) {
+      // Legacy format: YYYY-WW
+      weekNumber = parseInt(parts[1]) || 0;
+    }
+    
+    // Alternate colors based on week number (even = green, odd = red)
+    return weekNumber % 2 === 0 ? 'green' : 'red';
+  };
+
+  const colorScheme = getWeekColorScheme(selectedWeekKey);
+  const currentWeekKey = getCurrentWeekKey();
+  const isCurrentWeek = selectedWeekKey === currentWeekKey;
 
   return (
-    <div className={`mode-indicator-container ${isReadOnlyMode ? 'read-only' : 'edit-mode'}`}>
+    <div className={`mode-indicator-container ${colorScheme}`}>
       <div className="mode-indicator-content">
         <span className="mode-indicator-icon">
-          {isReadOnlyMode ? '🔒' : '✏️'}
+          {colorScheme === 'green' ? '🎯' : '🎯'}
         </span>
         <div className="mode-indicator-text">
           <div className="mode-indicator-title">
-            {isReadOnlyMode ? 'Read-Only Mode' : 'Edit Mode'}
+            {isCurrentWeek ? 'Track Your Pitched Items' : 'Past Week Review'}
           </div>
           <div className="mode-indicator-description">
-            {isReadOnlyMode 
-              ? 'Historical week data is protected from changes'
-              : 'Editing enabled for historical week data'
+            {isCurrentWeek 
+              ? 'Click on item icons below to track rare boss drops as you get them'
+              : 'Click items to mark what you pitched that week'
             }
           </div>
         </div>
       </div>
-
-      {/* Toggle button */}
-      <button
-        className={`mode-toggle-button ${isReadOnlyMode ? 'read-only' : 'edit-mode'}`}
-        onClick={() => setReadOnlyOverride(!readOnlyOverride)}
-        title={isReadOnlyMode 
-          ? 'Enable editing for this historical week' 
-          : 'Disable editing to protect historical data'
-        }
-      >
-        <span className="mode-toggle-icon">
-          {isReadOnlyMode ? '🔓' : '🔒'}
-        </span>
-        <span className="mode-toggle-text">
-          {isReadOnlyMode ? 'Enable Edit' : 'Lock Data'}
-        </span>
-      </button>
     </div>
   );
 }

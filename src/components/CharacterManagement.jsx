@@ -4,7 +4,7 @@ import { LIMITS } from '../constants';
 import './CharacterManagement.css';
 
 function CharacterManagement({
-  characters,
+  characterBossSelections,
   newCharName,
   setNewCharName,
   selectedCharIdx,
@@ -29,14 +29,14 @@ function CharacterManagement({
         />
         <button
           onClick={onAddCharacter}
-          disabled={!newCharName.trim() || characters.length >= LIMITS.CHARACTER_CAP}
+          disabled={!newCharName.trim() || characterBossSelections.length >= LIMITS.CHARACTER_CAP}
           className="add-character-button"
         >
           Add Character
         </button>
       </div>
 
-      {characters.length > 0 && (
+      {characterBossSelections.length > 0 && (
         <>
           {/* Character Management Section */}
           <div className="character-management-row">
@@ -46,9 +46,9 @@ function CharacterManagement({
               </div>
             )}
             
-            {selectedCharIdx !== null && characters[selectedCharIdx] && (
+            {selectedCharIdx !== null && characterBossSelections[selectedCharIdx] && (
               <EditCharacterName
-                name={characters[selectedCharIdx].name}
+                name={characterBossSelections[selectedCharIdx].name}
                 onSave={newName => onUpdateCharacterName(selectedCharIdx, newName)}
               />
             )}
@@ -59,7 +59,7 @@ function CharacterManagement({
               className="character-select-dropdown"
             >
               <option value="">Select a Character</option>
-              {characters.map((char, idx) => (
+              {characterBossSelections.map((char, idx) => (
                 <option key={idx} value={idx}>{char.name}</option>
               ))}
             </select>
@@ -88,11 +88,11 @@ function CharacterManagement({
           </div>
 
           {/* Total Crystals Counter */}
-          {selectedCharIdx !== null && characters[selectedCharIdx] && (
+          {selectedCharIdx !== null && characterBossSelections[selectedCharIdx] && (
             <div className="crystals-counter-container">
               <div className="crystals-counter-main">
                 <span className="crystals-counter-number">
-                  {characters.reduce((sum, char) => sum + (char.bosses ? char.bosses.length : 0), 0)}
+                  {characterBossSelections.reduce((sum, char) => sum + (char.bosses ? char.bosses.length : 0), 0)}
                 </span>
                 <span className="crystals-counter-total"> / 180</span>
               </div>

@@ -4,7 +4,7 @@ import CustomCheckbox from './CustomCheckbox';
 
 function BossTable({
   isHistoricalWeek,
-  characters,
+  characterBossSelections,
   selectedCharIdx,
   charBosses,
   sortedBosses,
@@ -13,7 +13,7 @@ function BossTable({
   setChecked,
   charKey,
   getBossPrice,
-  isReadOnlyMode,
+
   pitchedChecked,
   weekKey,
   handleCheck,
@@ -27,7 +27,7 @@ function BossTable({
   startStatsTrackingIfNeeded,
   setHistoricalPitchedData,
   setShowHistoricalPitchedModal,
-  readOnlyOverride,
+
   loadingPitchedItems,
   setLoadingPitchedItems,
   refreshPitchedItems,
@@ -37,7 +37,7 @@ function BossTable({
   if (isHistoricalWeek) {
               // Get all unique bosses across all characters
               const allBosses = new Map();
-              characters.forEach(char => {
+              characterBossSelections.forEach(char => {
                 char.bosses?.forEach(boss => {
                   const bossObj = bossData.find(bd => bd.name === boss.name);
                   if (bossObj && bossObj.pitchedItems && bossObj.pitchedItems.length > 0) {
@@ -62,7 +62,7 @@ function BossTable({
                   {/* Show all difficulties this boss appears in */}
                   {(() => {
                     const difficulties = new Set();
-                    characters.forEach(char => {
+                    characterBossSelections.forEach(char => {
                       char.bosses?.forEach(boss => {
                         if (boss.name === bossObj.name) {
                           difficulties.add(boss.difficulty);
@@ -80,47 +80,31 @@ function BossTable({
               {(bossObj.pitchedItems || []).length > 0 ? (
                 <div className="historical-pitched-grid">
                       {(bossObj.pitchedItems || []).map(item => {
-                        // Check if any character has this pitched item for this boss in this week
-                        let hasPitchedItem = false;
-                        let characterWithItem = null;
-
-                        // Check across all characters
-                        characters.forEach((char, charIdx) => {
-                          const key = getPitchedKey(char.name, charIdx, bossObj.name, item.name, weekKey);
-                          if (pitchedChecked[key]) {
-                            hasPitchedItem = true;
-                            characterWithItem = char.name;
-                          }
-                        });
+                        // Check if the currently selected character has this pitched item for this boss in this week
+                        const key = getPitchedKey(characterBossSelections[selectedCharIdx].name, selectedCharIdx, bossObj.name, item.name, weekKey);
+                        const hasPitchedItem = !!pitchedChecked[key];
+                        const characterWithItem = hasPitchedItem ? characterBossSelections[selectedCharIdx].name : null;
 
                         return (
                           <div
                             key={item.name}
                         className={`historical-pitched-item ${hasPitchedItem ? 'obtained' : ''}`}
-                            title={isReadOnlyMode 
-                              ? (hasPitchedItem ? `${item.name} (obtained by ${characterWithItem})` : item.name)
-                              : hasPitchedItem 
-                                ? `Click to remove: ${item.name} (obtained by ${characterWithItem})`
-                                : `Click to track: ${item.name}`
+                            title={hasPitchedItem 
+                              ? `Click to remove: ${item.name} (obtained by ${characterWithItem})`
+                              : `Click to track: ${item.name}`
                             }
                             onClick={async (e) => {
                               e.stopPropagation();
                               
-                              // For historical weeks in read-only mode, block interaction
-                              if (isReadOnlyMode) {
-                                console.log('Historical pitched item click blocked - read-only mode');
-                                return;
-                              }
-
-                              // For historical weeks in edit mode
-                              if (isHistoricalWeek && readOnlyOverride) {
+                              // For historical weeks, always allow interaction
+                              if (isHistoricalWeek) {
                                 if (hasPitchedItem) {
                                   // Remove the historical pitched item
                                   console.log('Removing historical pitched item:', item.name);
                                   try {
                                     const result = await savePitchedItem(userCode, {
                                       character: characterWithItem,
-                                      characterIdx: characters.findIndex(c => c.name === characterWithItem),
+                                      characterIdx: characterBossSelections.findIndex(c => c.name === characterWithItem),
                                       bossName: bossObj.name,
                                       bossDifficulty: 'Unknown', // Historical items may not have difficulty info
                                       itemName: item.name,
@@ -205,14 +189,13 @@ function BossTable({
               return (
                 <tr
                   key={b.name + '-' + b.difficulty}
-                  className={`boss-table-row ${idx % 2 === 0 ? 'even' : 'odd'} ${isReadOnlyMode ? 'read-only' : ''}`}
-                  onClick={(e) => {
-                    // Only trigger if the click wasn't on the checkbox or pitched item
-                    // Also check if it's read-only mode
-                    if (!isReadOnlyMode && !e.target.closest('.checkbox-wrapper') && !e.target.closest('.pitched-item-icon')) {
-                      handleCheck(b, !isChecked, e);
-                    }
-                  }}
+                  className={`boss-table-row ${idx % 2 === 0 ? 'even' : 'odd'}`}
+                                      onClick={(e) => {
+                      // Only trigger if the click wasn't on the checkbox or pitched item
+                      if (!e.target.closest('.checkbox-wrapper') && !e.target.closest('.pitched-item-icon')) {
+                        handleCheck(b, !isChecked, e);
+                      }
+                    }}
                 >
                   <td className="boss-table-cell-boss">
                     {bossObj?.image && (
@@ -234,24 +217,29 @@ function BossTable({
                             if (item.name === 'Total Control' && b.difficulty !== 'Extreme') return null;
                             if ((item.name === 'Berserked' || item.name === 'Black Heart') && !['Hard', 'Extreme'].includes(b.difficulty)) return null;
                           }
-                          const key = getPitchedKey(characters[selectedCharIdx].name, selectedCharIdx, b.name, item.name, weekKey);
+                          const key = getPitchedKey(characterBossSelections[selectedCharIdx].name, selectedCharIdx, b.name, item.name, weekKey);
                           const got = !!pitchedChecked[key];
+                          
+                          // Debug logging for pitched item state - ENHANCED
+                          // console.log(`🎯 BOSS TABLE: Checking pitched item ${item.name} for ${characterBossSelections[selectedCharIdx].name}(${selectedCharIdx}):`, {
+                          //   key,
+                          //   got,
+                          //   bossName: b.name,
+                          //   difficulty: b.difficulty,
+                          //   weekKey,
+                          //   allPitchedKeys: Object.keys(pitchedChecked),
+                          //   pitchedCheckedState: pitchedChecked
+                          // });
                           return (
                             <span
                               key={item.name}
-                              className={`pitched-item-icon inline ${got ? 'obtained' : ''} ${isReadOnlyMode ? 'read-only' : ''}`}
+                              className={`pitched-item-icon inline ${got ? 'obtained' : ''}`}
                               title={got ? `Click to remove: ${item.name}` : `Click to track: ${item.name}`}
                               onClick={async (e) => {
                                 e.stopPropagation();
                                 
-                                // For historical weeks in read-only mode, block interaction
-                                if (isReadOnlyMode) {
-                                  console.log('Pitched item click blocked - read-only mode');
-                                  return;
-                                }
-
-                                // For historical weeks in edit mode, show historical logging modal
-                                if (isHistoricalWeek && readOnlyOverride) {
+                                // For historical weeks, show historical logging modal
+                                if (isHistoricalWeek) {
                                   console.log('Opening historical pitched item modal for:', item.name);
                                   setHistoricalPitchedData({
                                     character: '', // Will be selected in modal
@@ -266,14 +254,14 @@ function BossTable({
                                 }
 
                                 // For current week operations
-                                const charKey = `${characters[selectedCharIdx].name}-${selectedCharIdx}`;
-                                const key = getPitchedKey(characters[selectedCharIdx].name, selectedCharIdx, b.name, item.name, weekKey);
+                                const charKey = `${characterBossSelections[selectedCharIdx].name}-${selectedCharIdx}`;
+                                const key = getPitchedKey(characterBossSelections[selectedCharIdx].name, selectedCharIdx, b.name, item.name, weekKey);
                                 const got = !!pitchedChecked[key];
                                 
                                 // Check across all characters for this item
                                 let itemOwnedByOtherChar = false;
                                 let ownerCharName = '';
-                                characters.forEach((char, charIdx) => {
+                                characterBossSelections.forEach((char, charIdx) => {
                                   if (charIdx !== selectedCharIdx) {
                                     const otherKey = getPitchedKey(char.name, charIdx, b.name, item.name, weekKey);
                                     if (pitchedChecked[otherKey]) {
@@ -290,13 +278,15 @@ function BossTable({
 
                                 // Set user interaction flag to prevent sync conflicts
                                 userInteractionRef.current = true;
-                                console.log('🖱️ USER: Pitched item clicked:', { item: item.name, boss: b.name, character: characters[selectedCharIdx].name, currentState: got });
+                                console.log('🖱️ USER: Pitched item clicked:', { item: item.name, boss: b.name, character: characterBossSelections[selectedCharIdx].name, currentState: got });
                                 
-                                // If boss is not cleared, check it too
-                                const bossCleared = !!checked[charKey]?.[b.name + '-' + b.difficulty];
-                                if (!bossCleared) {
-                                  console.log('🖱️ USER: Auto-checking boss since it was not cleared');
-                                  handleCheck(b, true, e);
+                                // If boss is not cleared, check it too (only for current week)
+                                if (!isHistoricalWeek) {
+                                  const bossCleared = !!checked[charKey]?.[b.name + '-' + b.difficulty];
+                                  if (!bossCleared) {
+                                    console.log('🖱️ USER: Auto-checking boss since it was not cleared');
+                                    handleCheck(b, true, e);
+                                  }
                                 }
                                 
                                 // Set loading state
@@ -327,7 +317,7 @@ function BossTable({
                                   // 2. Save to cloud
                                   console.log('🖱️ USER: Saving to cloud...');
                                   const result = await savePitchedItem(userCode, {
-                                    character: characters[selectedCharIdx].name,
+                                    character: characterBossSelections[selectedCharIdx].name,
                                     characterIdx: selectedCharIdx,
                                     bossName: b.name,
                                     bossDifficulty: b.difficulty, // Include difficulty for proper cleanup
@@ -422,8 +412,7 @@ function BossTable({
                     <span onClick={e => e.stopPropagation()}>
                       <CustomCheckbox
                         checked={isChecked}
-                        onChange={e => !isReadOnlyMode && handleCheck(b, e.target.checked, e)}
-                        disabled={isReadOnlyMode}
+                        onChange={e => handleCheck(b, e.target.checked, e)}
                       />
                     </span>
                   </td>

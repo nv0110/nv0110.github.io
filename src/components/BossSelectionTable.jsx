@@ -4,14 +4,14 @@ import './BossSelectionTable.css';
 
 function BossSelectionTable({
   selectedCharIdx,
-  characters,
+  characterBossSelections,
   sortedBossData,
   getBossDifficulties,
   getAvailablePartySizes,
   onToggleBoss,
   onUpdatePartySize
 }) {
-  if (selectedCharIdx === null || !characters[selectedCharIdx]) {
+  if (selectedCharIdx === null || !characterBossSelections[selectedCharIdx]) {
     return (
       <div className="input-boss-empty-state">
         Select a character to manage their bosses.
@@ -37,7 +37,7 @@ function BossSelectionTable({
                   Mesos
                 </th>
                 <th className="input-boss-col-controls">
-                  {characters[selectedCharIdx]?.name || 'Selected Character'}
+                  {characterBossSelections[selectedCharIdx]?.name || 'Selected Character'}
                 </th>
               </tr>
             </thead>
@@ -50,7 +50,7 @@ function BossSelectionTable({
             <tbody>
               {sortedBossData.map((boss, bidx) => {
                 const difficulties = getBossDifficulties(boss);
-                const selected = characters[selectedCharIdx]?.bosses.find(b => b.name === boss.name);
+                const selected = characterBossSelections[selectedCharIdx]?.bosses.find(b => b.name === boss.name);
                 
                 return (
                   <tr 

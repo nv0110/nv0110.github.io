@@ -18,7 +18,7 @@ function PresetModal({
   applyPreset,
   deletePreset,
   selectedCharIdx,
-  characters
+  characterBossSelections
 }) {
   if (!show) return null;
 
@@ -555,7 +555,7 @@ function PresetModal({
                       }
                     }}
                   >
-                    Apply to {selectedCharIdx !== null && characters[selectedCharIdx] ? characters[selectedCharIdx].name : 'Character'}
+                    Apply to {selectedCharIdx !== null && characterBossSelections[selectedCharIdx] ? characterBossSelections[selectedCharIdx].name : 'Character'}
                   </button>
                 </div>
               ))}
