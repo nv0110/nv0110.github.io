@@ -248,7 +248,7 @@ function WeekNavigator({
             <div className="week-navigator-progress-meso">
               <div className="sidebar-progress-track week-navigator-progress-bar-container">
                 <div 
-                  className="sidebar-progress-fill"
+                  className="sidebar-progress-fill week-navigator-progress-bar"
                   style={{ 
                     width: `${obtainableMesoForCurrentChar > 0 ? Math.min((checkedMeso / obtainableMesoForCurrentChar) * 100, 100) : 0}%`
                   }} 
