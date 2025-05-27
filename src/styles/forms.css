@@ -66,10 +66,7 @@
   transition: background-color 0.2s;
 }
 
-.character-name-edit-btn svg {
-  width: 24px;
-  height: 24px;
-}
+
 
 .character-name-edit-btn:hover {
   background-color: rgba(255, 255, 255, 0.1);

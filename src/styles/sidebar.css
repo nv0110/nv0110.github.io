@@ -14,9 +14,7 @@
 
 /* Main sidebar container - fixed positioned character navigation panel */
 .sidebar-scroll {
-  /* Scrollbar styling - hidden for clean appearance */
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  /* Scrollbars handled by global invisible system */
   
   /* Layout positioning - fixed to left side of viewport */
   position: fixed; /* Fixed positioning to start from top */
@@ -43,10 +41,7 @@
   will-change: width, min-width, padding; /* Optimize for animations */
 }
 
-/* Hide scrollbar for webkit browsers */
-.sidebar-scroll::-webkit-scrollbar {
-  display: none;
-}
+/* Scrollbars handled by global invisible system */
 
 /* Sidebar visible state - full width with scrolling */
 .sidebar-scroll.visible {

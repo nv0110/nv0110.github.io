@@ -1,0 +1,187 @@
+/* ===================================
+   CHARACTER MANAGEMENT COMPONENT STYLES
+   =================================== */
+
+/* Character Creation Section */
+.character-creation-container {
+  margin: 2rem 0;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.character-name-input {
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #3a335a;
+  min-width: 180px;
+  font-size: 1rem;
+  background: #3a335a;
+  color: #e6e0ff;
+  outline: none;
+  box-shadow: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.character-name-input:focus {
+  outline: none;
+  border-color: #a259f7;
+  box-shadow: 0 0 0 2px rgba(162, 89, 247, 0.3);
+}
+
+.add-character-button {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: none;
+  font-weight: bold;
+  font-size: 1rem;
+  color: #fff;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.add-character-button:not(:disabled) {
+  background: #a259f7;
+}
+
+.add-character-button:not(:disabled):hover {
+  background: #805ad5;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(128, 90, 213, 0.4);
+}
+
+.add-character-button:disabled {
+  background: #555;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Character Management Section */
+.character-management-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  justify-content: center;
+  position: relative;
+}
+
+.clone-error-message {
+  color: #ffbaba;
+  background: #3a335a;
+  border-radius: 6px;
+  padding: 6px 16px;
+  font-size: 1em;
+  font-weight: 500;
+  margin-bottom: 4px;
+  box-shadow: 0 2px 8px #ffbaba22;
+  transition: opacity 0.3s;
+  position: absolute;
+  top: -36px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+}
+
+.character-select-dropdown {
+  background: #3a335a;
+  color: #e6e0ff;
+  border: 1px solid #3a335a;
+  border-radius: 10px;
+  font-size: 1.1em;
+  min-width: 140px;
+  height: 36px;
+  box-shadow: none;
+  text-align: center;
+  text-align-last: center;
+  padding-right: 20px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.character-select-dropdown:focus {
+  border-color: #a259f7;
+  box-shadow: 0 0 0 2px rgba(162, 89, 247, 0.3);
+}
+
+/* Total Crystals Counter */
+.crystals-counter-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px auto;
+  background: #352d58;
+  border-radius: 12px;
+  padding: 10px 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  max-width: 200px;
+  text-align: center;
+}
+
+.crystals-counter-main {
+  font-weight: 700;
+  font-size: 1.2em;
+  color: #d4c1ff;
+}
+
+.crystals-counter-number {
+}
+
+.crystals-counter-total {
+  opacity: 0.8;
+}
+
+.crystals-counter-label {
+  font-size: 0.875rem;
+  color: #9d8bbc;
+  margin-top: 4px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .character-creation-container {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .character-name-input {
+    min-width: 160px;
+  }
+  
+  .character-management-row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  
+  .character-select-dropdown {
+    min-width: 120px;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .character-creation-container {
+    margin: 1.5rem 0;
+  }
+  
+  .character-name-input {
+    min-width: 140px;
+    font-size: 0.9rem;
+  }
+  
+  .add-character-button {
+    font-size: 0.9rem;
+    padding: 0.4rem 0.8rem;
+  }
+  
+  .crystals-counter-container {
+    max-width: 180px;
+    padding: 8px 12px;
+  }
+  
+  .crystals-counter-main {
+    font-size: 1.1em;
+  }
+} 

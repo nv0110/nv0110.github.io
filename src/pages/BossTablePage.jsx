@@ -54,65 +54,74 @@ function BossTablePage() {
             Boss Crystal Price Table
           </h2>
           
-          <div className="table-scroll">
-            <table className="boss-price-table">
-              <thead>
-                <tr className="boss-table-header">
-                  <th className="boss-table-header-cell">
-                    Boss
-                  </th>
-                  <th className="boss-table-header-cell-difficulty">
-                    Difficulty
-                  </th>
-                  <th className="boss-table-header-cell-price">
-                    Mesos
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {(() => {
-                  // Flatten all boss-difficulty pairs
-                  const allBossDiffs = bossData.flatMap(boss =>
-                    boss.difficulties.map(diff => ({
-                      boss,
-                      difficulty: diff.difficulty,
-                      price: diff.price
-                    }))
-                  );
-                  // Sort by price descending
-                  allBossDiffs.sort((a, b) => b.price - a.price);
-                  return allBossDiffs.map((item, idx) => (
-                    <tr 
-                      key={item.boss.name + '-' + item.difficulty} 
-                      className={idx % 2 === 0 ? 'boss-table-row-even' : 'boss-table-row-odd'}
-                    >
-                      <td className="boss-name-cell">
-                        {item.boss.image && (
-                          <img 
-                            src={item.boss.image} 
-                            alt={item.boss.name} 
-                            className="boss-table-image"
-                          />
-                        )}
-                        <span className="boss-name-text">
-                          {item.boss.name}
-                        </span>
-                      </td>
-                      <td className="boss-difficulty-cell">
-                        <span className="boss-difficulty-text">
-                          {item.difficulty}
-                        </span>
-                      </td>
-                      <td className="boss-price-cell">
-                        <span className="boss-price-text">
-                          {item.price.toLocaleString()}
-                        </span>
-                      </td>
-                    </tr>
-                  ));
-                })()}
-              </tbody>
-            </table>
+          <div className="boss-table-wrapper">
+            {/* Fixed Header Table */}
+            <div className="boss-table-header-container">
+              <table className="boss-price-table boss-table-header">
+                <thead>
+                  <tr className="boss-table-header">
+                    <th className="boss-price-table-header-cell">
+                      Boss
+                    </th>
+                    <th className="boss-price-table-header-cell-difficulty">
+                      Difficulty
+                    </th>
+                    <th className="boss-price-table-header-cell-price">
+                      Mesos
+                    </th>
+                  </tr>
+                </thead>
+              </table>
+            </div>
+
+            {/* Scrollable Body Table */}
+            <div className="boss-table-body-container">
+              <table className="boss-price-table boss-table-body">
+                <tbody>
+                  {(() => {
+                    // Flatten all boss-difficulty pairs
+                    const allBossDiffs = bossData.flatMap(boss =>
+                      boss.difficulties.map(diff => ({
+                        boss,
+                        difficulty: diff.difficulty,
+                        price: diff.price
+                      }))
+                    );
+                    // Sort by price descending
+                    allBossDiffs.sort((a, b) => b.price - a.price);
+                    return allBossDiffs.map((item, idx) => (
+                      <tr 
+                        key={item.boss.name + '-' + item.difficulty} 
+                        className={idx % 2 === 0 ? 'boss-table-row-even' : 'boss-table-row-odd'}
+                      >
+                        <td className="boss-price-table-name-cell">
+                          {item.boss.image && (
+                            <img 
+                              src={item.boss.image} 
+                              alt={item.boss.name} 
+                              className="boss-price-table-image"
+                            />
+                          )}
+                          <span className="boss-price-table-name-text">
+                            {item.boss.name}
+                          </span>
+                        </td>
+                        <td className="boss-price-table-difficulty-cell">
+                          <span className="boss-price-table-difficulty-text">
+                            {item.difficulty}
+                          </span>
+                        </td>
+                        <td className="boss-price-table-price-cell">
+                          <span className="boss-price-table-price-text">
+                            {item.price.toLocaleString()}
+                          </span>
+                        </td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </ViewTransitionWrapper>

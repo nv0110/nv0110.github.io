@@ -1,4 +1,12 @@
-import { useState, useEffect } from 'react';import { useNavigate } from 'react-router-dom';import { supabase } from '../supabaseClient';import { STORAGE_KEYS, COOLDOWNS } from '../constants';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { STORAGE_KEYS, COOLDOWNS } from '../constants';
+
+// Helper: get supabase client dynamically for code splitting
+async function getSupabase() {
+  const { supabase } = await import('../supabaseClient');
+  return supabase;
+}
 
 export function useAuth() {
   const navigate = useNavigate();
@@ -34,6 +42,7 @@ export function useAuth() {
         lastUpdated: new Date().toISOString()
       };
       
+      const supabase = await getSupabase();
       const { error } = await supabase.from('user_data').upsert([{ 
         id: code, 
         data: initialData,
@@ -60,6 +69,7 @@ export function useAuth() {
   const handleLogin = async () => {
     setLoginError('');
     try {
+      const supabase = await getSupabase();
       const { data, error } = await supabase
         .from('user_data')
         .select('data')
@@ -99,6 +109,7 @@ export function useAuth() {
 
   const handleDeleteAccount = async () => {
     try {
+      const supabase = await getSupabase();
       const { error } = await supabase.from('user_data').delete().eq('id', userCode);
       
       if (error) {

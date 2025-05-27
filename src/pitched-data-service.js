@@ -1,9 +1,14 @@
-import { supabase } from './supabaseClient';
 import { getCurrentWeekKey as getWeekKeyFromUtils } from './utils/weekUtils';
 
 // Helper: get current week key - now imports from weekUtils for consistency
 export function getCurrentWeekKey() {
   return getWeekKeyFromUtils();
+}
+
+// Helper: get supabase client dynamically for code splitting
+async function getSupabase() {
+  const { supabase } = await import('./supabaseClient');
+  return supabase;
 }
 
 // Helper: get week key from a date string
@@ -31,6 +36,7 @@ function getCurrentMonthKey() {
 // Function to verify saved data
 async function verifySavedData(userCode) {
   try {
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from('user_data')
       .select('data')
@@ -59,6 +65,7 @@ export async function saveBossRun(userCode, data) {
     }
 
     // 1. First, get the ENTIRE user record to ensure we don't lose any data
+    const supabase = await getSupabase();
     const { data: userData, error: fetchError } = await supabase
       .from('user_data')
       .select('*')  // Select all columns to get the complete record

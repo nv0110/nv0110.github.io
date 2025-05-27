@@ -1,15 +1,48 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Suspense, lazy, Component } from 'react';
 import { useAuth } from './hooks/useAuth';
-import useScrollbarVisibility from './hooks/useScrollbarVisibility';
 import ViewTransitionWrapper from './components/ViewTransitionWrapper';
-import LoginPage from './pages/LoginPage';
-import InputPage from './pages/InputPage';
-import BossTablePage from './pages/BossTablePage';
-import WeeklyTrackerPage from './pages/WeeklyTrackerPage';
 import './App.css';
 
+// Lazy load page components for code splitting
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const InputPage = lazy(() => import('./pages/InputPage'));
+const BossTablePage = lazy(() => import('./pages/BossTablePage'));
+const WeeklyTrackerPage = lazy(() => import('./pages/WeeklyTrackerPage'));
+
+// Loading component for Suspense fallback
+function PageLoader() {
+  return (
+    <div className="App dark" style={{ 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      minHeight: '100vh',
+      color: '#e6e0ff'
+    }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ 
+          width: '40px', 
+          height: '40px', 
+          border: '3px solid #805ad5', 
+          borderTop: '3px solid transparent', 
+          borderRadius: '50%', 
+          animation: 'spin 1s linear infinite',
+          margin: '0 auto 1rem'
+        }}></div>
+        <p>Loading...</p>
+      </div>
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 // Error Boundary Component
-import { Component } from 'react';
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -75,52 +108,51 @@ function ProtectedRoute({ children }) {
 // Main App Component
 function App() {
   const { isLoggedIn } = useAuth();
-  
-  // Enable global scroll-triggered scrollbar visibility
-  useScrollbarVisibility();
 
   return (
     <ErrorBoundary>
       <div className="App dark">
         <ViewTransitionWrapper>
-          <Routes>
-            {/* Login Route - redirect to home if already logged in */}
-            <Route 
-              path="/login" 
-              element={isLoggedIn ? <Navigate to="/" replace /> : <LoginPage />} 
-            />
-            
-            {/* Protected Routes */}
-            <Route 
-              path="/" 
-              element={
-                <ProtectedRoute>
-                  <InputPage />
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/weeklytracker" 
-              element={
-                <ProtectedRoute>
-                  <WeeklyTrackerPage />
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/bosstable" 
-              element={
-                <ProtectedRoute>
-                  <BossTablePage />
-                </ProtectedRoute>
-              } 
-            />
-            
-            {/* Catch all route - 404 */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {/* Login Route - redirect to home if already logged in */}
+              <Route 
+                path="/login" 
+                element={isLoggedIn ? <Navigate to="/" replace /> : <LoginPage />} 
+              />
+              
+              {/* Protected Routes */}
+              <Route 
+                path="/" 
+                element={
+                  <ProtectedRoute>
+                    <InputPage />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/weeklytracker" 
+                element={
+                  <ProtectedRoute>
+                    <WeeklyTrackerPage />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/bosstable" 
+                element={
+                  <ProtectedRoute>
+                    <BossTablePage />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              {/* Catch all route - 404 */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </ViewTransitionWrapper>
       </div>
     </ErrorBoundary>
