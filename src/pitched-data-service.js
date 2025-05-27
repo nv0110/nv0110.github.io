@@ -326,20 +326,18 @@ export async function saveBossRun(userCode, data) {
 // Function to save a pitched item to the cloud database
 export async function savePitchedItem(userCode, data, remove = false, weekKey = null) {
   try {
-    // console.log('savePitchedItem called with:', { userCode, data, remove, weekKey });
     const { character, bossName, itemName, itemImage, date, characterIdx, bossDifficulty } = data;
     
-    if (!userCode || !character || !bossName || !itemName || !itemImage) {
-      console.error('Missing required fields:', { userCode, character, bossName, itemName, itemImage });
+    if (!userCode || !character || !bossName || !itemName) {
+      console.error('Missing required fields:', { userCode, character, bossName, itemName });
       return { success: false, error: 'Missing required fields' };
     }
 
-    // Fetch both pitched_items and data for comprehensive synchronization
-    // console.log('Fetching user data for userCode:', userCode);
+    // Fetch pitched_items data
     const supabase = await getSupabase();
     const { data: userData, error: fetchError } = await supabase
       .from('user_data')
-      .select('pitched_items, data')
+      .select('pitched_items')
       .eq('id', userCode)
       .single();
 
@@ -349,79 +347,12 @@ export async function savePitchedItem(userCode, data, remove = false, weekKey = 
     }
 
     const currentPitched = userData.pitched_items || [];
-    const currentData = userData.data || {};
-    // Track boss runs inside the data object
-    const currentBossRuns = currentData.boss_runs || [];
-    // Use provided weekKey or derive from date or fall back to current week
     const targetWeekKey = weekKey || getWeekKeyFromDate(date) || getCurrentWeekKey();
     const currentWeekKey = getCurrentWeekKey();
     const isCurrentWeek = targetWeekKey === currentWeekKey;
     
-    // 🧹 COMPREHENSIVE CLEANUP: Remove any inconsistent pitched items for this character
-    // This ensures only valid boss-difficulty combinations have pitched items
-    if (isCurrentWeek && !remove) {
-      // console.log('🧹 PITCHED CLEANUP: Checking for inconsistent pitched items to remove...');
-      const charactersData = currentData.characters || [];
-      const targetCharacter = charactersData.find((char, idx) => 
-        char.name === character && (char.index === characterIdx || idx === characterIdx)
-      );
-      
-      if (targetCharacter) {
-        // console.log('🧹 PITCHED CLEANUP: Found character data:', {
-        //   name: targetCharacter.name,
-        //   bosses: targetCharacter.bosses?.map(b => `${b.name}-${b.difficulty}`) || []
-        // });
-        
-        // Create a set of valid boss-difficulty combinations for this character
-        const validBossCombinations = new Set();
-        targetCharacter.bosses?.forEach(boss => {
-          validBossCombinations.add(`${boss.name}-${boss.difficulty}`);
-        });
-        
-        // console.log('🧹 PITCHED CLEANUP: Valid boss combinations for character:', Array.from(validBossCombinations));
-        
-        // Remove pitched items for this character that don't match valid combinations
-        // ONLY for current week items - preserve all historical data
-        const beforeCount = currentPitched.length;
-        const filteredPitched = currentPitched.filter(item => {
-          // Keep all items for other characters
-          if (item.character !== character) {
-            return true;
-          }
-          
-          // Keep all historical items (non-current week) regardless of difficulty
-          if (item.weekKey !== currentWeekKey) {
-            return true;
-          }
-          
-          // Only validate current week items for this character
-          const itemCombination = `${item.boss}-${item.difficulty || 'Unknown'}`;
-          const isValid = validBossCombinations.has(itemCombination);
-          
-          if (!isValid) {
-            // console.log(`🗑️ PITCHED CLEANUP: Removing invalid current week pitched item: ${item.character}-${item.boss}-${item.difficulty || 'Unknown'} - ${item.item}`);
-          }
-          
-          return isValid;
-        });
-        
-        // Update the pitched items array if changes were made
-        if (beforeCount !== filteredPitched.length) {
-          // console.log(`🧹 PITCHED CLEANUP: Removed ${beforeCount - filteredPitched.length} invalid pitched items`);
-          // Update the current pitched items for further processing
-          currentPitched.length = 0;
-          currentPitched.push(...filteredPitched);
-        } else {
-          // console.log('🧹 PITCHED CLEANUP: No invalid pitched items found to remove');
-        }
-      } else {
-        // console.log('🧹 PITCHED CLEANUP: Could not find character data for cleanup');
-      }
-    }
-    
     if (remove) {
       // Remove the pitched item (filter it out)
-      // console.log('Removing pitched item:', { character, bossName, itemName, weekKey: targetWeekKey });
       const updatedPitched = currentPitched.filter(item => {
         return !(item.character === character && 
                item.boss === bossName && 
@@ -429,197 +360,50 @@ export async function savePitchedItem(userCode, data, remove = false, weekKey = 
                item.weekKey === targetWeekKey);
       });
       
-      // For current week, also remove from boss_runs if it has hasPitchedItem flag
-      let updatedData = currentData;
-      if (isCurrentWeek) {
-        const updatedBossRuns = currentBossRuns.filter(run => {
-          const matches = run.character === character && 
-                         run.boss === bossName && 
-                         run.weekKey === targetWeekKey &&
-                         run.hasPitchedItem === true;
-          
-          if (matches) {
-            // console.log(`Removing boss run with hasPitchedItem flag: ${run.boss} ${run.difficulty} for ${character}`);
-            return false;
-          }
-          return true;
-        });
-        
-        updatedData = {
-          ...currentData,
-          boss_runs: updatedBossRuns,
-          lastUpdated: new Date().toISOString()
-        };
-      }
-      
       const { error: updateError } = await supabase
         .from('user_data')
-        .update({ 
-          pitched_items: updatedPitched,
-          ...(isCurrentWeek && { data: updatedData })
-        })
+        .update({ pitched_items: updatedPitched })
         .eq('id', userCode);
       
       if (updateError) throw updateError;
-      // console.log(`Successfully removed pitched item for ${character} from ${bossName}. Remaining items: ${updatedPitched.length}`);
-      
-      return { success: true };
-    } else {
-      // Construct the pitched item object
-      const pitchedItem = {
-        character,
-        characterIdx: characterIdx || 0,
-        boss: bossName,
-        difficulty: bossDifficulty, // Include difficulty for proper cleanup
-        item: itemName,
-        image: itemImage,
-        date: date || new Date().toISOString(),
-        weekKey: targetWeekKey,
-      };
-      
-      // Check for duplicates
-      const existingItem = currentPitched.find(item => 
-        item.character === character && 
-        item.boss === bossName && 
-        item.item === itemName && 
-        item.weekKey === targetWeekKey
-      );
-      
-      if (existingItem) {
-        // console.log('Item already exists in database, not adding duplicate');
-        return { success: true, alreadyExists: true };
-      }
-      
-      // Add the new pitched item
-      const updatedPitched = [...currentPitched, pitchedItem];
-      
-      // Only modify boss_runs for current week items
-      let updatedData = currentData;
-      if (isCurrentWeek) {
-        // Also make sure there's a boss run entry for this
-        let updatedBossRuns = [...currentBossRuns];
-        
-        // Check for existing run entry for this character-boss-week combination
-        const existingRunIndex = currentBossRuns.findIndex(run => 
-          run.character === character && 
-          run.boss === bossName && 
-          run.weekKey === targetWeekKey
-        );
-        
-        // If no existing run for this boss (which is unlikely since we're getting a pitched item),
-        // create a boss run entry
-        if (existingRunIndex === -1) {
-          // Find the most likely difficulty for this boss
-          const possibleBossKeys = generateBossKeysForAllDifficulties(bossName);
-          const sortedKeys = possibleBossKeys.sort((a, b) => {
-            const difficultyOrder = {
-              'Extreme': 5, 'Hard': 4, 'Chaos': 3, 'Normal': 2, 'Easy': 1
-            };
-            // Extract difficulty from "BossName-Difficulty" format
-            const diffA = a.split('-')[1];
-            const diffB = b.split('-')[1];
-            return (difficultyOrder[diffB] || 0) - (difficultyOrder[diffA] || 0);
-          });
-          
-          // Use the highest difficulty
-          const highestKey = sortedKeys[0];
-          const bossDifficulty = highestKey.split('-')[1];
-          
-          // Add a new boss run entry
-          updatedBossRuns.push({
-            character,
-            characterIdx: characterIdx || 0,
-            boss: bossName,
-            difficulty: bossDifficulty,
-            cleared: true,
-            date: date || new Date().toISOString(),
-            weekKey: targetWeekKey,
-            hasPitchedItem: true
-          });
-        } else {
-          // Update existing boss run to indicate it has a pitched item
-          updatedBossRuns[existingRunIndex] = {
-            ...updatedBossRuns[existingRunIndex],
-            hasPitchedItem: true,
-            date: date || new Date().toISOString() // Update the timestamp
-          };
-        }
-        
-        // Update data object with boss runs tracking
-        updatedData = {
-          ...currentData,
-          boss_runs: updatedBossRuns,
-          lastUpdated: new Date().toISOString()
-        };
-      } else {
-        // For historical weeks, don't modify boss_runs at all
-        // console.log(`Historical pitched item for week ${targetWeekKey} - not modifying boss_runs`);
-      }
-      
-      // Update both pitched items and data in the database
-      // Note: currentPitched may have been modified by cleanup above
-      const { error: updateError } = await supabase
-        .from('user_data')
-        .update({ 
-          pitched_items: updatedPitched,
-          ...(isCurrentWeek && { data: updatedData })
-        })
-        .eq('id', userCode);
-        
-      if (updateError) throw updateError;
-      // console.log(`Successfully saved pitched item for ${character} from ${bossName} (week: ${targetWeekKey})`);
-      
-      // Only handle checked state for current week
-      if (isCurrentWeek) {
-        // Get the current checked state from userData
-        let userDataObj = updatedData; // Use the already updated data object
-        const checkedState = userDataObj.checked || {};
-        
-        // Make sure the boss is marked as checked too
-        // This is needed to ensure pitched items and boss clears are in sync
-        const charKey = `${character}-${characterIdx || 0}`;
-        const possibleBossKeys = generateBossKeysForAllDifficulties(bossName);
-        
-        // Check if any of the difficulties is already checked
-        let anyDifficultyChecked = false;
-        if (checkedState[charKey]) {
-          for (const bossKey of possibleBossKeys) {
-            if (checkedState[charKey][bossKey]) {
-              anyDifficultyChecked = true;
-              break;
-            }
-          }
-        }
-        
-        // If no difficulty is checked, mark the highest one
-        if (!anyDifficultyChecked && possibleBossKeys.length > 0) {
-          // Sort by probable difficulty - typically hardest is more valuable
-          const sortedKeys = possibleBossKeys.sort((a, b) => {
-            const difficultyOrder = {
-              'Extreme': 5, 'Hard': 4, 'Chaos': 3, 'Normal': 2, 'Easy': 1
-            };
-            // Extract difficulty from "BossName-Difficulty" format
-            const diffA = a.split('-')[1];
-            const diffB = b.split('-')[1];
-            return (difficultyOrder[diffB] || 0) - (difficultyOrder[diffA] || 0);
-          });
-          
-          // Use the highest difficulty
-          const highestKey = sortedKeys[0];
-          if (!checkedState[charKey]) {
-            checkedState[charKey] = {};
-          }
-          checkedState[charKey][highestKey] = true;
-          
-          // Note: Boss checked state is now handled by boss_runs array only
-          // No need to update legacy checked field - boss_runs is the single source of truth
-        }
-      }
-      
       return { success: true };
     }
 
-    // console.log('Successfully updated pitched_items and synchronized with application data');
+    // Construct the pitched item object
+    const pitchedItem = {
+      character,
+      characterIdx: characterIdx || 0,
+      boss: bossName,
+      difficulty: bossDifficulty || 'Unknown',
+      item: itemName,
+      image: itemImage || `/items/${itemName.toLowerCase()}.png`,
+      date: date || new Date().toISOString(),
+      weekKey: targetWeekKey,
+    };
+    
+    // Check for duplicates
+    const existingItem = currentPitched.find(item => 
+      item.character === character && 
+      item.boss === bossName && 
+      item.item === itemName && 
+      item.weekKey === targetWeekKey
+    );
+    
+    if (existingItem) {
+      return { success: true, alreadyExists: true };
+    }
+    
+    // Add the new pitched item
+    const updatedPitched = [...currentPitched, pitchedItem];
+    
+    // Update only the pitched_items array in the database
+    const { error: updateError } = await supabase
+      .from('user_data')
+      .update({ pitched_items: updatedPitched })
+      .eq('id', userCode);
+      
+    if (updateError) throw updateError;
+    
     return { 
       success: true, 
       data: pitchedItem,

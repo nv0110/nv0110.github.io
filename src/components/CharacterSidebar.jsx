@@ -129,8 +129,6 @@ function CharacterSidebar({
               </div>
             )}
 
-            {/* Checkbox section removed */}
-
             {/* Character Cards - Scrollable Container */}
             <div className="sidebar-character-list-container">
               <div className="sidebar-character-list" ref={characterListRef}>
@@ -143,12 +141,6 @@ function CharacterSidebar({
                   <div
                     key={cs.name + '-' + cs.idx}
                     onClick={() => {
-                      // console.log(`🎯 SIDEBAR: Character selection changed from ${selectedCharIdx} to ${cs.idx} (${cs.name})`);
-                      // console.log(`🎯 SIDEBAR: Character details:`, {
-                      //   oldChar: visibleCharSummaries.find(c => c.idx === selectedCharIdx),
-                      //   newChar: cs,
-                      //   allCharacters: visibleCharSummaries.map(c => ({ name: c.name, idx: c.idx }))
-                      // });
                       setSelectedCharIdx(cs.idx);
                     }}
                     onContextMenu={(e) => {
@@ -162,8 +154,6 @@ function CharacterSidebar({
                         : 'default'
                     }`}
                   >
-
-
                     <div className="sidebar-character-header">
                       <span className={`sidebar-character-name ${selectedCharIdx === cs.idx ? 'selected' : 'default'}`}>
                         {cs.name}

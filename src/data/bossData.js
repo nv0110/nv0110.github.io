@@ -181,7 +181,8 @@ export const bossData = [
     ],
     image: '/bosses/seren.png',
     pitchedItems: [
-      { name: "Mitra's Rage", image: '/items/emblem.webp' }
+      { name: "Mitra's Rage", image: '/items/emblem.webp' },
+      { name: 'Gravity Module', image: '/items/module.webp', difficulty: 'Extreme' }
     ]
   },
   {
@@ -193,6 +194,10 @@ export const bossData = [
       { difficulty: 'Extreme', price: 5200000000 },
     ],
     image: '/bosses/Kalos.png',
+    pitchedItems: [
+      { name: 'Mark of Destruction', image: '/items/mark.webp', difficulty: 'Extreme' },
+      { name: 'Grindstone of Life', image: '/items/grindstone.webp', difficulties: ['Easy', 'Normal', 'Chaos', 'Extreme'] }
+    ]
   },
   {
     name: 'Kaling',
@@ -203,6 +208,10 @@ export const bossData = [
       { difficulty: 'Extreme', price: 6026000000 },
     ],
     image: '/bosses/Kaling.png',
+    pitchedItems: [
+      { name: 'Helmet of Loyalty', image: '/items/helm.webp', difficulty: 'Extreme' },
+      { name: 'Grindstone of Life', image: '/items/grindstone.webp', difficulties: ['Easy', 'Normal', 'Hard', 'Extreme'] }
+    ]
   },
   {
     name: 'Limbo',
