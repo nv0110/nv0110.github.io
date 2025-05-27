@@ -13,31 +13,23 @@
 
 /* Main mode indicator container */
 .mode-indicator-container {
-  margin: 0 auto 1rem auto;
-  max-width: 700px; /* Match WeekNavigator width */
-  width: 54%; /* Match WeekNavigator width */
+  margin: -5rem auto 1.5rem auto;
+  max-width: 700px;
+  width: 54%;
+  min-height: 100px; /* Fixed minimum height */
   border-radius: 12px;
   padding: 1rem 1.5rem;
   font-weight: 600;
   display: flex;
   align-items: center;
-  justify-content: center; /* Center content since no toggle button */
-  gap: 1rem;
+  justify-content: space-between;
+  gap: 1.5rem;
   transition: all 0.3s ease;
-}
-
-/* Green color scheme (even weeks) */
-.mode-indicator-container.green {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(22, 163, 74, 0.2));
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
-  border: 2px solid rgba(34, 197, 94, 0.6);
-}
-
-/* Red color scheme (odd weeks) */
-.mode-indicator-container.red {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.2));
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-  border: 2px solid rgba(239, 68, 68, 0.6);
+  position: relative;
+  background: linear-gradient(135deg, #231a36 0%, #2d2540 60%, #3a2a5d 100%);
+  box-shadow: 0 4px 16px rgba(128, 90, 213, 0.18), 0 1.5px 8px rgba(40, 32, 74, 0.18);
+  border: 2px solid #805ad5;
+  box-sizing: border-box; /* Ensure padding is included in height calculation */
 }
 
 /* ===== MODE INDICATOR CONTENT ===== */
@@ -47,36 +39,147 @@
   display: flex;
   align-items: center;
   gap: 0.7rem;
+  flex: 1;
+  min-height: 48px; /* Fixed height for content area */
 }
 
 /* Mode icon */
-.mode-indicator-icon {
-  font-size: 1.2rem;
-}
+
 
 /* Text content container */
 .mode-indicator-text {
-  /* Container for title and description */
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* Center text vertically */
+  min-height: 48px; /* Match content area height */
 }
 
 /* Mode title */
 .mode-indicator-title {
-  font-size: 1rem;
-  margin-bottom: 0.2rem;
-  color: #ffffff;
+  font-size: 1.1rem;
+  margin-bottom: 0.3rem;
+  color: #e6e0ff;
   font-weight: 700;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-  filter: none;
+  letter-spacing: 0.3px;
+  line-height: 1.2;
 }
 
 /* Mode description */
 .mode-indicator-description {
-  font-size: 0.85rem;
-  color: #f3f4f6;
+  font-size: 0.9rem;
+  color: #b39ddb;
   font-weight: 500;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
-  filter: none;
-  opacity: 0.95;
+  line-height: 1.4;
+}
+
+/* ===== TICK ALL BUTTON INTEGRATION ===== */
+
+/* Mode indicator specific button styling */
+.mode-indicator-tick-all-button {
+  padding: 0.5rem 1.2rem;
+  border-radius: 6px;
+  background: rgba(74, 53, 112, 0.4);
+  color: #e6e0ff;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid rgba(162, 89, 247, 0.2);
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  min-width: 100px;
+  height: 36px; /* Fixed height for button */
+  font-size: 0.9rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.2px;
+  position: relative;
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mode-indicator-tick-all-button:hover {
+  background: rgba(128, 90, 213, 0.3);
+  color: #fff;
+  border-color: rgba(162, 89, 247, 0.3);
+  box-shadow: 0 2px 6px rgba(128, 90, 213, 0.15);
+  transform: translateY(-1px);
+}
+
+.mode-indicator-tick-all-button:active {
+  background: rgba(58, 42, 93, 0.4);
+  transform: translateY(1px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.mode-indicator-tick-all-button:focus {
+  outline: 1px solid rgba(162, 89, 247, 0.3);
+  outline-offset: 2px;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+
+@media (max-width: 768px) {
+  .mode-indicator-container {
+    width: 90%;
+    padding: 1rem;
+    gap: 1rem;
+    min-height: 70px; /* Slightly smaller on mobile */
+  }
+
+  .mode-indicator-content {
+    gap: 0.5rem;
+    min-height: 40px; /* Slightly smaller on mobile */
+  }
+
+  .mode-indicator-text {
+    min-height: 40px; /* Match content area height */
+  }
+
+  .mode-indicator-title {
+    font-size: 1rem;
+  }
+
+  .mode-indicator-description {
+    font-size: 0.85rem;
+  }
+
+  .mode-indicator-tick-all-button {
+    padding: 0.4rem 1rem;
+    font-size: 0.85rem;
+    min-width: 90px;
+    height: 32px; /* Slightly smaller on mobile */
+  }
+}
+
+/* ===== ACCESSIBILITY ===== */
+
+@media (prefers-reduced-motion: reduce) {
+  .mode-indicator-container,
+  .mode-indicator-container .weekly-tracker-tick-all-button {
+    transition: none !important;
+  }
+}
+
+@media (prefers-contrast: high) {
+  .mode-indicator-container {
+    border: 2px solid #fff;
+    background: #000;
+  }
+
+  .mode-indicator-title {
+    color: #fff;
+  }
+
+  .mode-indicator-description {
+    color: #ccc;
+  }
+
+  .mode-indicator-container .weekly-tracker-tick-all-button {
+    border: 2px solid #fff;
+    background: #000;
+    color: #fff;
+  }
 }
 
  

@@ -12,7 +12,6 @@ export function useBossActions({
   setPitchedChecked,
   weekKey,
   selectedWeekKey,
-  isHistoricalWeek,
 
   userCode,
   userInteractionRef,

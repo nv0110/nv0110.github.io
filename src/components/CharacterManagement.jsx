@@ -13,7 +13,8 @@ function CharacterManagement({
   onAddCharacter,
   onUpdateCharacterName,
   onCloneCharacter,
-  onRemoveCharacter
+  onRemoveCharacter,
+  showCrystalCapError
 }) {
   return (
     <>
@@ -90,15 +91,40 @@ function CharacterManagement({
           {/* Total Crystals Counter */}
           {selectedCharIdx !== null && characterBossSelections[selectedCharIdx] && (
             <div className="crystals-counter-container">
-              <div className="crystals-counter-main">
-                <span className="crystals-counter-number">
-                  {characterBossSelections.reduce((sum, char) => sum + (char.bosses ? char.bosses.length : 0), 0)}
-                </span>
-                <span className="crystals-counter-total"> / 180</span>
-              </div>
-              <div className="crystals-counter-label">
-                Total Crystals
-              </div>
+              {showCrystalCapError ? (
+                <div className="crystals-cap-error-text">Cannot exceed 180 crystal limit</div>
+              ) : (() => {
+                const totalCrystals = characterBossSelections.reduce(
+                  (sum, char) => sum + (char.bosses ? char.bosses.length : 0), 0
+                );
+                
+                if (totalCrystals === 180) {
+                  return (
+                    <>
+                      <div className="crystals-counter-main crystals-counter-max">
+                        <span className="crystals-counter-number-max">180</span>
+                      </div>
+                      <div className="crystals-counter-label">
+                        Total Crystals
+                      </div>
+                    </>
+                  );
+                } else {
+                  return (
+                    <>
+                      <div className="crystals-counter-main">
+                        <span className="crystals-counter-number">
+                          {totalCrystals}
+                        </span>
+                        <span className="crystals-counter-total"> / 180</span>
+                      </div>
+                      <div className="crystals-counter-label">
+                        Total Crystals
+                      </div>
+                    </>
+                  );
+                }
+              })()}
             </div>
           )}
         </>

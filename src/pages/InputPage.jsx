@@ -1,10 +1,10 @@
-import { useState, Suspense, lazy } from 'react';
+import { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useViewTransition } from '../hooks/useViewTransition';
-import { useAppData } from '../hooks/useAppData';
+import { useAppData } from '../hooks/AppDataContext.jsx';
 import { usePresets } from '../hooks/usePresets';
 import { useQuickSelect } from '../hooks/useQuickSelect';
-import { bossData, getBossPrice } from '../data/bossData';
+import { bossData } from '../data/bossData';
 import { LIMITS } from '../constants';
 import Navbar from '../components/Navbar';
 import ActionButtons from '../components/ActionButtons';
@@ -26,10 +26,7 @@ function InputPage() {
     newCharName,
     setNewCharName,
     selectedCharIdx,
-    setSelectedCharIdx,
     error,
-    setError,
-    isLoading,
     cloneError,
     setCloneError,
     showUndo,
@@ -50,6 +47,7 @@ function InputPage() {
     updateCharacterName,
     updatePartySize,
     batchSetBosses,
+    showCrystalCapError,
   } = useAppData();
 
   // Modal states
@@ -64,11 +62,12 @@ function InputPage() {
   const presetHook = usePresets();
   const quickSelectHook = useQuickSelect();
 
-  // Redirect if not logged in
-  if (!isLoggedIn) {
-    navigate('/login', { replace: true });
-    return null;
-  }
+  // Redirect if not logged in - using useEffect to prevent navigation during render
+  useEffect(() => {
+    if (!isLoggedIn) {
+      navigate('/login', { replace: true });
+    }
+  }, [isLoggedIn, navigate]);
 
   // Handle export (simplified version)
   const handleExport = async () => {
@@ -288,18 +287,12 @@ function InputPage() {
       />
       
       <div className="page-header-container fade-in">
-        <div className="crystal-images-container">
-          <img src="/bosses/crystal.png" alt="Crystal" />
-          <img src="/bosses/bluecrystal.png" alt="Blue Crystal" />
-          <img src="/bosses/yellowcrystal.png" alt="Yellow Crystal" />
-        </div>
-        
         <h1 className="page-title-main">
-          Character & Boss Configuration
+          Character and Boss Configuration
         </h1>
         
         <p className="page-description">
-          Create characters, configure boss difficulties and party sizes for your weekly runs!
+          Create characters, configure boss difficulties and party sizes for your weekly runs
         </p>
         
         {/* Action buttons */}
@@ -328,8 +321,6 @@ function InputPage() {
       {/* Main Content */}
       <ViewTransitionWrapper>
         <div className="table-container premium-content-container input-page-container fade-in">
-          {error && <div className="character-error-message">{error}</div>}
-          
           {/* Character Management */}
           <CharacterManagement
             characterBossSelections={characterBossSelections}
@@ -342,6 +333,7 @@ function InputPage() {
             onUpdateCharacterName={updateCharacterName}
             onCloneCharacter={cloneCharacter}
             onRemoveCharacter={removeCharacter}
+            showCrystalCapError={showCrystalCapError}
           />
 
           {characterBossSelections.length === 0 ? (
@@ -542,6 +534,32 @@ function InputPage() {
             opacity: 1;
             transform: scale(1) translateY(0);
           }
+        }
+
+        .crystal-cap-error-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 3000;
+          pointer-events: none;
+        }
+        .crystal-cap-error-message {
+          background: rgba(40, 32, 74, 0.97);
+          color: #fff;
+          font-size: 1.25rem;
+          font-weight: 600;
+          border-radius: 16px;
+          box-shadow: 0 4px 32px rgba(128,90,213,0.18);
+          padding: 1.5rem 2.5rem;
+          border: 1.5px solid #a259f7;
+          text-align: center;
+          animation: modalFadeIn 0.3s cubic-bezier(.4,2,.6,1);
+          letter-spacing: 0.5px;
         }
       `}</style>
     </div>

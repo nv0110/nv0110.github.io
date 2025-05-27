@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getCurrentWeekKey } from '../utils/weekUtils';
-import { getAvailableWeeks, getWeekData, getHistoricalWeekAnalysis } from '../pitched-data-service';
+import { getAvailableWeeks, getHistoricalWeekAnalysis } from '../pitched-data-service';
 
 export function useWeekNavigation(userCode) {
   const currentWeekKey = getCurrentWeekKey();
@@ -46,7 +46,7 @@ export function useWeekNavigation(userCode) {
     } catch (error) {
       console.error('Error refreshing historical analysis:', error);
     }
-  }, [userCode]);
+  }, [userCode, setHistoricalAnalysis]);
 
   // Week change handler - now takes optional parameters for caching
   const handleWeekChange = async (newWeekKey, checked = {}, cloudPitchedItems = [], pitchedChecked = {}) => {

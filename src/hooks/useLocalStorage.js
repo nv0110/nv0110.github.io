@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 // Custom hook for managing localStorage with JSON serialization
 export function useLocalStorage(key, defaultValue) {
@@ -6,11 +6,9 @@ export function useLocalStorage(key, defaultValue) {
     try {
       const item = window.localStorage.getItem(key);
       if (item === null) return defaultValue;
-      
-      // Try to parse as JSON first
       try {
         return JSON.parse(item);
-      } catch (parseError) {
+      } catch {
         // If JSON parsing fails, check if it's a simple string value we can handle
         console.warn(`localStorage key "${key}" contains non-JSON data: "${item}". Using default value.`);
         // Clear the problematic data

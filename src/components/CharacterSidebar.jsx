@@ -80,7 +80,7 @@ function CharacterSidebar({
         }
       };
     }
-  }, [visibleCharSummaries, isScrolling]);
+  }, [visibleCharSummaries, isScrolling, characterListRef, scrollTimeoutRef]);
 
   // Also check when sidebar visibility changes
   useEffect(() => {
@@ -108,11 +108,6 @@ function CharacterSidebar({
               <h3 className="sidebar-title">
                 Characters
               </h3>
-              <div className="sidebar-crystal-icons">
-                <img src="/bosses/crystal.png" alt="Crystal" className="sidebar-crystal-icon" />
-                <img src="/bosses/bluecrystal.png" alt="Blue Crystal" className="sidebar-crystal-icon" />
-                <img src="/bosses/yellowcrystal.png" alt="Yellow Crystal" className="sidebar-crystal-icon" />
-              </div>
             </div>
 
             {/* Progress Bar - only for current week */}
@@ -121,13 +116,17 @@ function CharacterSidebar({
                 <div className="sidebar-progress-title">
                   Weekly Progress
                 </div>
-                <div className="sidebar-progress-track">
+                <div className="sidebar-progress-track week-navigator-progress-bar-container">
                   <div 
-                    className="sidebar-progress-fill"
+                    className="sidebar-progress-fill week-navigator-progress-bar"
                     style={{ 
                       width: `${obtainableMeso > 0 ? Math.min((totalMeso / obtainableMeso) * 100, 100) : 0}%`
                     }} 
-                  />
+                  >
+                    {obtainableMeso > 0 && totalMeso > 0 && (
+                      <div className="week-navigator-progress-shimmer" />
+                    )}
+                  </div>
                 </div>
                 <div className="sidebar-progress-numbers">
                   <span>{formatMesoBillions(totalMeso)}</span>
@@ -140,7 +139,7 @@ function CharacterSidebar({
             {isHistoricalWeek && (
               <div className="sidebar-historical-section">
                 <div className="sidebar-historical-title">
-                  Week {selectedWeekKey}
+                  Week {selectedWeekKey.split('-').slice(1).join('-')}
                 </div>
                 <div className="sidebar-historical-subtitle">
                   Historical Data
@@ -148,18 +147,7 @@ function CharacterSidebar({
               </div>
             )}
 
-            {/* Hide completed checkbox */}
-            <div className="sidebar-checkbox-section">
-              <label className="sidebar-checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={hideCompleted}
-                  onChange={e => setHideCompleted(e.target.checked)}
-                  className="sidebar-checkbox-input"
-                />
-                Hide completed
-              </label>
-            </div>
+            {/* Checkbox section removed */}
 
             {/* Character Cards - Scrollable Container */}
             <div className="sidebar-character-list-container">

@@ -129,9 +129,41 @@
   box-shadow: 
     0 1px 0 0 rgba(255, 255, 255, 0.15) inset,
     0 8px 24px 0 rgba(162, 89, 247, 0.12),
-    0 2px 8px 0 rgba(0, 0, 0, 0.1),
-    0 0 20px rgba(107, 33, 168, 0.4),
-    0 0 40px rgba(107, 33, 168, 0.2);
+    0 2px 8px 0 rgba(0, 0, 0, 0.1);
+}
+
+.navbar-navigation::before {
+  content: " ";
+  position: absolute;
+  inset: -2px;
+  z-index: -1;
+  border-radius: inherit;
+  border: 2px solid transparent;
+  background: conic-gradient(from var(--angle, 0deg), #381D6A 80%, #E0D1FF 88%, #E0D1FF 92%, #381D6A 100%);
+  background-origin: border-box;
+  -webkit-mask:
+    linear-gradient(black, black) content-box,
+    linear-gradient(black, black);
+  mask: linear-gradient(black, black),
+        linear-gradient(black, black);
+  -webkit-mask-clip: content-box, border-box;
+  mask-clip: content-box, border-box;
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: navbar-border-spin 3s linear infinite;
+  pointer-events: none;
+}
+
+@property --angle {
+  syntax: "<angle>";
+  inherits: true;
+  initial-value: 0deg;
+}
+
+@keyframes navbar-border-spin {
+  to {
+    --angle: 1turn;
+  }
 }
 
 /* ===== BUTTON STYLES ===== */
@@ -179,52 +211,52 @@
 
 /* ===== BUTTON VARIANTS ===== */
 
-/* Logout button styling */
+/* Logout button styling - purple/blue soft gradient, like delete but purple */
 .navbar-btn.logout {
-  background: linear-gradient(135deg, #4c82f7, #3b72e8);
-  color: #ffffff;
-  border-color: rgba(76, 130, 247, 0.3);
+  background: linear-gradient(135deg, rgba(128, 90, 213, 0.15), rgba(64, 64, 255, 0.18));
+  color: #e6e0ff;
+  border: 2px solid rgba(128, 90, 213, 0.6);
+  box-shadow: 0 4px 12px rgba(128, 90, 213, 0.18);
+  font-weight: 700;
+  transition: background 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
-
 .navbar-btn.logout:hover {
-  background: linear-gradient(135deg, #5c92ff, #4b82f7);
-  border-color: rgba(92, 146, 255, 0.5);
-  box-shadow: 
-    0 4px 20px rgba(76, 130, 247, 0.4),
-    0 1px 0 rgba(255, 255, 255, 0.2) inset;
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, rgba(128, 90, 213, 0.22), rgba(64, 64, 255, 0.24));
+  border-color: #805ad5;
+  box-shadow: 0 6px 18px rgba(128, 90, 213, 0.28);
+  color: #fff;
 }
 
-/* Delete button styling */
+/* Delete button styling - match mode-indicator red */
 .navbar-btn.delete {
-  background: linear-gradient(135deg, #ff4757, #ff3742);
-  color: #ffffff;
-  border-color: rgba(255, 71, 87, 0.3);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.2));
+  color: #fff;
+  border: 2px solid rgba(239, 68, 68, 0.6);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.18);
+  font-weight: 700;
+  transition: background 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
-
 .navbar-btn.delete:hover {
-  background: linear-gradient(135deg, #ff6b7a, #ff4757);
-  border-color: rgba(255, 107, 122, 0.5);
-  box-shadow: 
-    0 4px 20px rgba(255, 71, 87, 0.4),
-    0 1px 0 rgba(255, 255, 255, 0.2) inset;
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.22), rgba(220, 38, 38, 0.28));
+  border-color: #ef4444;
+  box-shadow: 0 6px 18px rgba(239, 68, 68, 0.28);
+  color: #fff;
 }
 
-/* Help button styling */
+/* Help button styling - purple/blue soft gradient, like delete but lighter purple/blue */
 .navbar-btn.help {
-  background: linear-gradient(135deg, #a259f7, #8b46e8);
-  color: #ffffff;
-  border-color: rgba(162, 89, 247, 0.3);
+  background: linear-gradient(135deg, rgba(162, 89, 247, 0.15), rgba(59, 130, 246, 0.18));
+  color: #e6e0ff;
+  border: 2px solid rgba(162, 89, 247, 0.6);
+  box-shadow: 0 4px 12px rgba(162, 89, 247, 0.18);
+  font-weight: 700;
+  transition: background 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
-
 .navbar-btn.help:hover {
-  background: linear-gradient(135deg, #b470ff, #a259f7);
-  border-color: rgba(180, 112, 255, 0.5);
-  box-shadow: 
-    0 4px 20px rgba(162, 89, 247, 0.4),
-    0 1px 0 rgba(255, 255, 255, 0.2) inset;
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, rgba(162, 89, 247, 0.22), rgba(59, 130, 246, 0.24));
+  border-color: #a259f7;
+  box-shadow: 0 6px 18px rgba(162, 89, 247, 0.28);
+  color: #fff;
 }
 
 /* ===== PAGE NAVIGATION BUTTONS ===== */
@@ -265,6 +297,13 @@
   box-shadow: 
     0 2px 8px rgba(162, 89, 247, 0.4),
     0 0 12px rgba(162, 89, 247, 0.3);
+}
+
+.navbar-nav-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: rgba(60, 60, 80, 0.3);
+  color: #8a8a9a;
 }
 
 .navbar-nav-btn.active:hover {

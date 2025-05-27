@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { getCurrentYearKey } from '../utils/weekUtils';
+import React from 'react';
 
 function StatsModal({
   showStats,

@@ -36,54 +36,57 @@ export function useStatsManagement(userCode, refreshPitchedItems) {
     const currentYear = getCurrentYearKey();
     const yearsSet = new Set([currentYear]);
     
-    if (statsPanel && statsPanel.yearly && Array.isArray(statsPanel.yearly)) {
+    if (statsPanel?.yearly && Array.isArray(statsPanel.yearly)) {
       statsPanel.yearly.forEach(y => yearsSet.add(y.yearKey));
     }
     
-    const cloudYears = Object.keys(cloudPitchedStats);
-    cloudYears.forEach(year => yearsSet.add(year));
+    if (cloudPitchedStats) {
+      Object.keys(cloudPitchedStats).forEach(year => yearsSet.add(year));
+    }
     
     return Array.from(yearsSet).sort((a, b) => b.localeCompare(a));
-  }, [statsPanel.yearly, cloudPitchedStats]);
+  }, [statsPanel?.yearly, cloudPitchedStats]);
   
   const [selectedYear, setSelectedYear] = useState(() => getCurrentYearKey());
   
   useEffect(() => {
-    if (allYears && Array.isArray(allYears) && allYears.length > 0) {
-      if (!allYears.includes(selectedYear)) {
-        setSelectedYear(allYears[0]);
-      }
+    if (allYears?.length > 0 && !allYears.includes(selectedYear)) {
+      setSelectedYear(allYears[0]);
     }
   }, [allYears, selectedYear]);
 
   // Fetch cloud stats when viewing stats
   useEffect(() => {
-    if (showStats && userCode) {
-      const fetchCloudStats = async () => {
-        try {
-          setIsLoadingCloudStats(true);
-          const result = await getYearlyPitchedStats(userCode);
-          if (result.success) {
-            setCloudPitchedStats(result.data);
-          }
-        } catch (error) {
-          console.error('Error fetching cloud pitched stats:', error);
-        } finally {
-          setIsLoadingCloudStats(false);
+    if (!showStats || !userCode) return;
+
+    const fetchCloudStats = async () => {
+      try {
+        setIsLoadingCloudStats(true);
+        const result = await getYearlyPitchedStats(userCode);
+        if (result.success) {
+          setCloudPitchedStats(result.data);
         }
-      };
-      
-      fetchCloudStats();
-    }
+      } catch (error) {
+        console.error('Error fetching cloud pitched stats:', error);
+      } finally {
+        setIsLoadingCloudStats(false);
+      }
+    };
+    
+    fetchCloudStats();
   }, [showStats, userCode]);
 
   // Yearly pitched summary
   const yearlyPitchedSummary = useMemo(() => {
+    if (!selectedYear || !cloudPitchedStats) return [];
+
     const pitchedMap = new Map();
     const cloudData = cloudPitchedStats[selectedYear];
-    if (cloudData && cloudData.items && Array.isArray(cloudData.items)) {
+    
+    if (cloudData?.items && Array.isArray(cloudData.items)) {
       cloudData.items.forEach(item => {
-        if (!item || !item.item || !item.image) return;
+        if (!item?.item || !item?.image) return;
+        
         const key = item.item + '|' + item.image;
         if (!pitchedMap.has(key)) {
           pitchedMap.set(key, { 
@@ -94,21 +97,29 @@ export function useStatsManagement(userCode, refreshPitchedItems) {
             source: 'cloud' 
           });
         }
-        pitchedMap.get(key).count += 1;
-        const date = new Date(item.date);
-        const monthNum = date.getUTCMonth();
-        const day = date.getUTCDate();
-        pitchedMap.get(key).history.push({ 
-          char: item.character, 
-          date: `${MONTH_NAMES[monthNum]} ${day}`,
-          cloud: true,
-          fullDate: item.date
-        });
+        
+        const entry = pitchedMap.get(key);
+        entry.count += 1;
+        
+        if (item.date) {
+          const date = new Date(item.date);
+          const monthNum = date.getUTCMonth();
+          const day = date.getUTCDate();
+          entry.history.push({ 
+            char: item.character, 
+            date: `${MONTH_NAMES[monthNum]} ${day}`,
+            cloud: true,
+            fullDate: item.date
+          });
+        }
       });
     }
+    
     const result = Array.from(pitchedMap.values());
+    
+    // Sort history by date
     result.forEach(item => {
-      if (item.history && Array.isArray(item.history)) {
+      if (item.history?.length > 0) {
         item.history.sort((a, b) => {
           if (a.fullDate && b.fullDate) {
             return new Date(b.fullDate) - new Date(a.fullDate);
@@ -117,6 +128,7 @@ export function useStatsManagement(userCode, refreshPitchedItems) {
         });
       }
     });
+    
     return result.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
   }, [selectedYear, cloudPitchedStats]);
 

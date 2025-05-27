@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useMemo, useCallback } from 'react';
 import { 
   getCurrentWeekKey, 
   getWeekKeyOffset, 
@@ -12,33 +12,27 @@ import '../styles/week-navigator.css';
 function WeekNavigator({
   selectedWeekKey,
   onWeekChange,
-  availableWeeks = [],
-
-  isHistoricalWeek = false,
-  historicalAnalysis = {
-    hasHistoricalData: false,
-    oldestHistoricalWeek: null,
-    userType: 'new',
-    adaptiveWeekLimit: 8,
-    historicalWeeks: []
-  },
   // Progress data for current week
   characters = [],
   checked = {},
   selectedCharIdx = 0,
   totalMeso = 0,
   obtainableMeso = 0,
-  charSummaries = []
+  // Add historicalAnalysis with default values
+  historicalAnalysis = {
+    hasHistoricalData: false,
+    oldestHistoricalWeek: null,
+    userType: 'new',
+    adaptiveWeekLimit: 8
+  },
+  charSummaries
 }) {
   const currentWeekKey = getCurrentWeekKey();
   
-  // Debug: Log what historicalAnalysis we're receiving
-  // console.log('🎯 WeekNavigator received historicalAnalysis:', historicalAnalysis); // Debug only, re-enable if needed
-
   // Calculate navigation boundaries using adaptive limits
   const navigationLimits = useMemo(() => {
     const currentOffset = 0;
-    const adaptiveLimit = historicalAnalysis.adaptiveWeekLimit || 8;
+    const adaptiveLimit = historicalAnalysis?.adaptiveWeekLimit || 8;
     
     // Always allow navigation to the full adaptive limit range
     // This ensures users can navigate to weeks 6, 7, 8 even if they only have data from week 5
@@ -81,14 +75,14 @@ function WeekNavigator({
   const goToOldestOrFallback = useCallback(() => {
     // Debug logging
     console.log('🔍 goToOldestOrFallback called with analysis:', {
-      hasHistoricalData: historicalAnalysis.hasHistoricalData,
-      oldestHistoricalWeek: historicalAnalysis.oldestHistoricalWeek,
-      userType: historicalAnalysis.userType,
+      hasHistoricalData: historicalAnalysis?.hasHistoricalData,
+      oldestHistoricalWeek: historicalAnalysis?.oldestHistoricalWeek,
+      userType: historicalAnalysis?.userType,
       adaptiveLimit: navigationLimits.adaptiveLimit
     });
     
     // Use sophisticated historical analysis for navigation
-    if (historicalAnalysis.hasHistoricalData && historicalAnalysis.oldestHistoricalWeek) {
+    if (historicalAnalysis?.hasHistoricalData && historicalAnalysis?.oldestHistoricalWeek) {
       // Jump to the oldest registered historical data
       console.log(`🎯 Jumping to oldest historical data: ${historicalAnalysis.oldestHistoricalWeek} (${historicalAnalysis.userType} user)`);
       goToWeek(historicalAnalysis.oldestHistoricalWeek);
@@ -105,7 +99,7 @@ function WeekNavigator({
   };
 
   const goToOldestWeek = () => {
-    if (historicalAnalysis.hasHistoricalData && historicalAnalysis.oldestHistoricalWeek) {
+    if (historicalAnalysis?.hasHistoricalData && historicalAnalysis?.oldestHistoricalWeek) {
       goToWeek(historicalAnalysis.oldestHistoricalWeek);
     }
   };
@@ -113,10 +107,9 @@ function WeekNavigator({
   // Check if navigation is possible using sophisticated analysis
   const canGoPrevious = selectedOffset > navigationLimits.min; // Can go to previous week within limits
   const canGoNext = selectedOffset < navigationLimits.max; // Can go to next week (towards current)
-  const canGoToOldest = historicalAnalysis.hasHistoricalData || selectedOffset > -navigationLimits.adaptiveLimit;
+  const canGoToOldest = historicalAnalysis?.hasHistoricalData || selectedOffset > -navigationLimits.adaptiveLimit;
   const isCurrentWeek = selectedWeekKey === currentWeekKey;
-  const hasOlderData = historicalAnalysis.hasHistoricalData;
-  const isAtOldestWeek = selectedOffset <= navigationLimits.min;
+  const hasOlderData = historicalAnalysis?.hasHistoricalData;
 
   // Get week display info
   const weekInfo = useMemo(() => {
@@ -136,9 +129,44 @@ function WeekNavigator({
   const currentChar = characters[selectedCharIdx];
   const currentCharBosses = currentChar?.bosses || [];
   const currentCharKey = `${currentChar?.name || ''}-${selectedCharIdx}`;
-  const completedBosses = currentCharBosses.filter(b => checked[currentCharKey]?.[b.name + '-' + b.difficulty]).length;
+  
+  // Count completed bosses for this character
+  const completedBosses = currentCharBosses.filter(b => {
+    return checked[currentCharKey]?.[`${b.name}-${b.difficulty}`];
+  }).length;
+  
   const totalBosses = currentCharBosses.length;
   const progressPercentage = totalBosses > 0 ? (completedBosses / totalBosses) * 100 : 0;
+
+  // Calculate character's total obtainable meso - using the same logic as the sidebar
+  let obtainableMesoForCurrentChar = 0;
+  if (currentChar) {
+    obtainableMesoForCurrentChar = currentCharBosses.reduce((sum, b) => {
+      const price = b.price || 0;
+      const partySize = b.partySize || 1;
+      return sum + Math.ceil(price / partySize);
+    }, 0);
+  }
+  
+  // Calculate how much meso this character has earned - using the same logic as the sidebar
+  let checkedMeso = 0;
+  if (currentChar) {
+    checkedMeso = currentCharBosses.reduce((sum, b) => {
+      const bossKey = `${b.name}-${b.difficulty}`;
+      if (checked[currentCharKey]?.[bossKey]) {
+        const price = b.price || 0;
+        const partySize = b.partySize || 1;
+        return sum + Math.ceil(price / partySize);
+      }
+      return sum;
+    }, 0);
+  }
+
+  // Format meso values
+  const formatMeso = (value) => {
+    if (!value) return '0';
+    return value.toLocaleString();
+  };
 
   return (
     <div key={selectedWeekKey} className="week-navigator-container">
@@ -155,7 +183,7 @@ function WeekNavigator({
         </div>
         
         {/* User type and adaptive limit indicator */}
-        {historicalAnalysis.userType === 'existing' && (
+        {historicalAnalysis?.userType === 'existing' && (
           <div className="week-navigator-extended-history">
             Extended History ({navigationLimits.adaptiveLimit} weeks)
           </div>
@@ -167,8 +195,8 @@ function WeekNavigator({
         {/* Previous week SVG icon */}
         <div className="week-navigator-arrow-container">
           <svg
-            width="24"
-            height="24"
+            width="32"
+            height="32"
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
@@ -193,8 +221,8 @@ function WeekNavigator({
         {/* Next week SVG icon */}
         <div className="week-navigator-arrow-container">
           <svg
-            width="24"
-            height="24"
+            width="32"
+            height="32"
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
@@ -202,8 +230,8 @@ function WeekNavigator({
             className={`week-navigator-arrow arrow-right ${(isCurrentWeek ? canGoToOldest : canGoNext) ? 'enabled' : 'disabled'}`}
             title={isCurrentWeek 
               ? (canGoToOldest 
-                  ? (historicalAnalysis.hasHistoricalData 
-                      ? `Jump to oldest data (${historicalAnalysis.oldestHistoricalWeek})` 
+                  ? (historicalAnalysis?.hasHistoricalData 
+                      ? `Jump to oldest data (${historicalAnalysis?.oldestHistoricalWeek})` 
                       : `Jump to ${navigationLimits.adaptiveLimit} weeks back`)
                   : 'No historical data available')
               : (canGoNext ? 'Next Week' : 'Already at current week')
@@ -220,34 +248,51 @@ function WeekNavigator({
       {/* Content area - flexible height */}
       <div className="week-navigator-content">
         {/* Current week progress section */}
-        {isCurrentWeek && currentChar && (
+        {isCurrentWeek && (
           <div className="week-navigator-progress">
-            <div className="week-navigator-progress-header">
-              <div className="week-navigator-progress-character">
-                {currentChar.name} Progress
-              </div>
-              <div className="week-navigator-progress-count">
-                {completedBosses}/{totalBosses} bosses
-              </div>
-            </div>
+            {/* Character progress section */}
+            {currentChar && (
+              <>
+                <div className="week-navigator-progress-header">
+                  <div className="week-navigator-progress-character">
+                    {currentChar.name} Progress
+                  </div>
+                  <div className="week-navigator-progress-count">
+                    {completedBosses}/{totalBosses} bosses
+                  </div>
+                </div>
+                
+                <div className="week-navigator-progress-bar-container">
+                  <div
+                    className="week-navigator-progress-bar"
+                    style={{ width: `${progressPercentage}%` }}
+                  >
+                    {progressPercentage > 0 && (
+                      <div className="week-navigator-progress-shimmer" />
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
             
-            {/* Animated progress bar */}
-            <div className="week-navigator-progress-bar-container">
-              <div
-                className="week-navigator-progress-bar"
-                style={{ width: `${progressPercentage}%` }}
-              >
-                {/* Animated shimmer effect */}
-                {progressPercentage > 0 && (
-                  <div className="week-navigator-progress-shimmer" />
-                )}
-              </div>
-            </div>
-            
-            {/* Meso progress */}
+            {/* Meso progress - always show in current week */}
             <div className="week-navigator-progress-meso">
-              <span>{Math.floor(totalMeso).toLocaleString()} mesos earned</span>
-              <span>{Math.floor((totalMeso / obtainableMeso) * 100)}% of potential</span>
+              <div className="sidebar-progress-track week-navigator-progress-bar-container">
+                <div 
+                  className="sidebar-progress-fill"
+                  style={{ 
+                    width: `${obtainableMesoForCurrentChar > 0 ? Math.min((checkedMeso / obtainableMesoForCurrentChar) * 100, 100) : 0}%`
+                  }} 
+                >
+                  {obtainableMesoForCurrentChar > 0 && checkedMeso > 0 && (
+                    <div className="week-navigator-progress-shimmer" />
+                  )}
+                </div>
+              </div>
+              <div className="sidebar-progress-numbers">
+                <span>{formatMeso(checkedMeso)}</span>
+                <span>{formatMeso(obtainableMesoForCurrentChar)}</span>
+              </div>
             </div>
           </div>
         )}

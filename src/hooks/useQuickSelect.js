@@ -44,17 +44,60 @@ export function useQuickSelect() {
       return;
     }
 
-    const newBosses = Object.entries(quickSelectBosses).map(([bossName, difficulty]) => ({
+    // Create boss objects from quick select entries
+    let newBosses = Object.entries(quickSelectBosses).map(([bossName, difficulty]) => ({
       name: bossName,
       difficulty,
       partySize: 1, // Default party size for quick select
     }));
 
-    // Use the new batch function that handles cloud saving properly
+    // Calculate current total crystal count across all characters (excluding the target character)
+    const currentTotalCrystals = characters.reduce((sum, char, idx) => {
+      if (idx === selectedCharIdx) return sum; // Skip the target character
+      return sum + (char.bosses ? char.bosses.length : 0);
+    }, 0);
+    
+    // Calculate how many crystals we can add to stay within the limit
+    const availableCrystalSlots = 180 - currentTotalCrystals;
+    
+    // If applying all bosses would exceed the total crystal limit
+    if (newBosses.length > availableCrystalSlots) {
+      // Try to fetch boss data to get prices
+      try {
+        const bossDataModule = require('../data/bossData');
+        const bossData = bossDataModule.bossData;
+        
+        // Add price info to bosses
+        newBosses = newBosses.map(boss => ({
+          ...boss,
+          price: bossDataModule.getBossPrice(
+            bossData.find(bd => bd.name === boss.name),
+            boss.difficulty
+          ) || 0
+        }));
+        
+        // Sort by price (highest to lowest) to keep the most valuable bosses
+        newBosses.sort((a, b) => (b.price || 0) - (a.price || 0));
+      } catch (error) {
+        console.error('Error loading boss data for price sorting:', error);
+        // If price info isn't available, keep the order as is
+      }
+      
+      // Only keep the bosses that fit within the limit
+      newBosses = newBosses.slice(0, availableCrystalSlots);
+      
+      // Show warning
+      setQuickSelectError(`Selection trimmed to stay within 180 crystal limit. Added ${availableCrystalSlots} ${availableCrystalSlots === 1 ? 'boss' : 'bosses'}.`);
+      setTimeout(() => setQuickSelectError(''), 5000);
+    }
+
+    // Use the batch function that handles cloud saving properly
     batchSetBosses(selectedCharIdx, newBosses);
 
     setQuickSelectBosses({});
-    setQuickSelectError('');
+    if (!newBosses.length) {
+      setQuickSelectError('');
+    }
   };
 
   // Reset quick selection

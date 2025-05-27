@@ -12,7 +12,7 @@ function ActionButtons({
       display: 'flex', 
       justifyContent: 'center', 
       gap: '10px', 
-      marginBottom: '2rem', 
+      marginBottom: '0.5rem', 
       flexWrap: 'wrap' 
     }}>
       <Tooltip text="Export all character data as a backup file">

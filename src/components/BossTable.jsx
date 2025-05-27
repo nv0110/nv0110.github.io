@@ -6,28 +6,22 @@ function BossTable({
   isHistoricalWeek,
   characterBossSelections,
   selectedCharIdx,
-  charBosses,
   sortedBosses,
   bossData,
   checked,
-  setChecked,
   charKey,
   getBossPrice,
-
   pitchedChecked,
   weekKey,
   handleCheck,
-  refreshCheckedStateFromDatabase,
   userInteractionRef,
   userCode,
   savePitchedItem,
-  removeManyPitchedItems,
   setPitchedChecked,
   setError,
   startStatsTrackingIfNeeded,
   setHistoricalPitchedData,
   setShowHistoricalPitchedModal,
-
   loadingPitchedItems,
   setLoadingPitchedItems,
   refreshPitchedItems,
@@ -178,7 +172,7 @@ function BossTable({
             <th className="boss-table-header-cell-difficulty">Difficulty</th>
             <th className="boss-table-header-cell-mesos">Mesos</th>
             <th className="boss-table-header-cell-cleared">Cleared</th>
-                </tr>
+          </tr>
         </thead>
         <tbody>
           {/* Current week view - show detailed boss information */}

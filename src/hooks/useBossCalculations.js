@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { getBossPrice } from '../data/bossData';
 
 // Custom hook for memoized boss calculations
 export function useBossCalculations(characters, bossData) {
@@ -8,7 +7,7 @@ export function useBossCalculations(characters, bossData) {
     return (char) => char.bosses.reduce((sum, b) => 
       sum + Math.ceil((b.price || 0) / (b.partySize || 1)), 0
     );
-  }, []);
+  }, []); // Remove characters dependency as it's not used in the calculation
 
   // Memoized calculation for overall total
   const overallTotal = useMemo(() => {
@@ -40,12 +39,12 @@ export function useBossCalculations(characters, bossData) {
       }
       return [1, 2, 3, 4, 5, 6];
     };
-  }, []);
+  }, []); // Remove bossData dependency as it's not used in the calculation
 
   // Memoized boss difficulty getter
   const getBossDifficulties = useMemo(() => {
     return (boss) => boss.difficulties.map(d => d.difficulty);
-  }, []);
+  }, []); // Remove bossData dependency as it's not used in the calculation
 
   return {
     charTotal,

@@ -7,7 +7,7 @@ import ViewTransitionWrapper from '../components/ViewTransitionWrapper';
 
 function BossTablePage() {
   const { navigate } = useViewTransition();
-  const { userCode, isLoggedIn, handleDeleteAccount } = useAuth();
+  const { isLoggedIn, handleDeleteAccount } = useAuth();
 
   // Modal states
   const [showHelp, setShowHelp] = useState(false);

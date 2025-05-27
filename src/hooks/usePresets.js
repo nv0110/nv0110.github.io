@@ -17,7 +17,7 @@ export function usePresets() {
   };
 
   // Create preset from current character
-  const createPreset = (selectedCharIdx, characters, batchSetBosses) => {
+  const createPreset = (selectedCharIdx, characters) => {
     if (!newPresetName.trim()) {
       setPresetError('Please enter a preset name');
       return;
@@ -82,12 +82,39 @@ export function usePresets() {
     }
 
     // Create a copy of the preset bosses to avoid reference issues
-    const newBosses = preset.bosses.map(boss => ({ ...boss }));
+    let newBosses = preset.bosses.map(boss => ({ ...boss }));
 
-    // Use the new batch function that handles cloud saving properly
+    // Calculate current total crystal count across all characters (excluding the target character)
+    const currentTotalCrystals = characters.reduce((sum, char, idx) => {
+      if (idx === selectedCharIdx) return sum; // Skip the target character
+      return sum + (char.bosses ? char.bosses.length : 0);
+    }, 0);
+  
+    // Calculate how many crystals we can add to stay within the limit
+    const availableCrystalSlots = 180 - currentTotalCrystals;
+  
+    // If applying all bosses would exceed the total crystal limit
+    if (newBosses.length > availableCrystalSlots) {
+      // Sort by price (highest to lowest) to keep the most valuable bosses
+      newBosses.sort((a, b) => {
+        // Add fallback values for missing price
+        const priceA = a.price || 0;
+        const priceB = b.price || 0;
+        return priceB - priceA;
+      });
+      
+      // Only keep the bosses that fit within the limit
+      newBosses = newBosses.slice(0, availableCrystalSlots);
+      
+      // Show warning
+      setPresetError(`Preset trimmed to stay within 180 crystal limit. Added ${availableCrystalSlots} highest-value bosses.`);
+      setTimeout(() => setPresetError(''), 5000);
+    } else {
+      setPresetError('');
+    }
+
+    // Use the batch function that handles cloud saving properly
     batchSetBosses(selectedCharIdx, newBosses);
-
-    setPresetError('');
   };
 
   // Delete preset

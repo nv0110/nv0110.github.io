@@ -1,17 +1,31 @@
 import { useAuth } from '../hooks/useAuth';
 import { useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { getTimeUntilReset, getCurrentWeekKey } from '../utils/weekUtils';
+import { getTimeUntilReset } from '../utils/weekUtils';
 import { useViewTransition } from '../hooks/useViewTransition';
+import { useAppData } from '../hooks/AppDataContext.jsx';
+import { useForceUpdate } from '../hooks/ForceUpdateContext';
+import { Tooltip } from './Tooltip';
 
-function Navbar({ currentPage, onShowHelp, onShowDeleteConfirm }) {
+function Navbar({ onShowHelp, onShowDeleteConfirm }) {
   const { userCode, handleLogout } = useAuth();
-  const { navigate, isPending } = useViewTransition();
+  const { navigate } = useViewTransition();
   const location = useLocation();
+  const { characterBossSelections } = useAppData();
+  const { lastUpdate } = useForceUpdate(); // Get the force update trigger
+  
+  // State to track if weekly tracker should be enabled
+  const [hasCharacters, setHasCharacters] = useState(false);
+  
+  // Update hasCharacters state whenever characterBossSelections changes OR when forceUpdate is triggered
+  useEffect(() => {
+    console.log('Navbar: Checking character count after update', lastUpdate);
+    const characterCount = characterBossSelections?.length || 0;
+    setHasCharacters(characterCount > 0);
+  }, [characterBossSelections, lastUpdate]); // Include lastUpdate in dependencies
 
   // Timer state managed within navbar
   const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilReset());
-  const currentWeekKey = getCurrentWeekKey();
 
   // Update countdown timer
   useEffect(() => {
@@ -79,13 +93,24 @@ function Navbar({ currentPage, onShowHelp, onShowDeleteConfirm }) {
             Boss Config
           </button>
           
-          <button
-            onClick={() => navigate('/weeklytracker')}
-            className={`navbar-nav-btn ${currentPageFromPath === 'weeklytracker' ? 'active' : ''}`}
-            title="Weekly Boss Progress Tracker"
-          >
-            Weekly Tracker
-          </button>
+          {!hasCharacters ? (
+            <Tooltip text="You need to create at least one character first">
+              <button
+                className={`navbar-nav-btn disabled`}
+                disabled
+              >
+                Weekly Tracker
+              </button>
+            </Tooltip>
+          ) : (
+            <button
+              onClick={() => navigate('/weeklytracker')}
+              className={`navbar-nav-btn ${currentPageFromPath === 'weeklytracker' ? 'active' : ''}`}
+              title="Weekly Boss Progress Tracker"
+            >
+              Weekly Tracker
+            </button>
+          )}
           
           <button
             onClick={() => navigate('/bosstable')}

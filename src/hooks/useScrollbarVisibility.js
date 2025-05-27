@@ -1,63 +1,54 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
-export const useScrollbarVisibility = () => {
+export function useScrollbarVisibility() {
+  const scrollTimeout = useRef(null);
+  const scrollableElements = useRef(new Set());
+
   useEffect(() => {
-    let scrollTimeout;
-    
     const handleScroll = () => {
-      // Add scrolling class to show scrollbars
       document.documentElement.classList.add('scrolling');
       
-      // Clear existing timeout
-      clearTimeout(scrollTimeout);
+      if (scrollTimeout.current) {
+        clearTimeout(scrollTimeout.current);
+      }
       
-      // Set timeout to hide scrollbars after scrolling stops
-      scrollTimeout = setTimeout(() => {
+      scrollTimeout.current = setTimeout(() => {
         document.documentElement.classList.remove('scrolling');
-      }, 1000); // Hide after 1 second of no scrolling
+      }, 150);
     };
-    
-    // Add scroll event listeners
+
+    // Function to add scroll listeners to new elements
     const addScrollListeners = () => {
-      // Listen for window scroll
-      window.addEventListener('scroll', handleScroll, { passive: true });
-      
-      // Listen for scroll on document
-      document.addEventListener('scroll', handleScroll, { passive: true });
-      
-      // Use MutationObserver to catch dynamically added scrollable elements
-      const observer = new MutationObserver(() => {
-        // Re-add listeners to any new scrollable elements
-        const scrollableElements = document.querySelectorAll('*');
-        scrollableElements.forEach(element => {
-          // Check if element is scrollable
-          const hasVerticalScroll = element.scrollHeight > element.clientHeight;
-          const hasHorizontalScroll = element.scrollWidth > element.clientWidth;
-          
-          if (hasVerticalScroll || hasHorizontalScroll) {
-            // Remove any existing listener first to avoid duplicates
-            element.removeEventListener('scroll', handleScroll);
-            element.addEventListener('scroll', handleScroll, { passive: true });
-          }
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const element = node;
+              const hasVerticalScroll = element.scrollHeight > element.clientHeight;
+              const hasHorizontalScroll = element.scrollWidth > element.clientWidth;
+              
+              if ((hasVerticalScroll || hasHorizontalScroll) && !scrollableElements.current.has(element)) {
+                element.addEventListener('scroll', handleScroll, { passive: true });
+                scrollableElements.current.add(element);
+              }
+            }
+          });
         });
       });
       
-      // Start observing
       observer.observe(document.body, {
         childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['style', 'class']
+        subtree: true
       });
       
       // Initial setup for existing elements
-      const scrollableElements = document.querySelectorAll('*');
-      scrollableElements.forEach(element => {
+      document.querySelectorAll('*').forEach(element => {
         const hasVerticalScroll = element.scrollHeight > element.clientHeight;
         const hasHorizontalScroll = element.scrollWidth > element.clientWidth;
         
-        if (hasVerticalScroll || hasHorizontalScroll) {
+        if ((hasVerticalScroll || hasHorizontalScroll) && !scrollableElements.current.has(element)) {
           element.addEventListener('scroll', handleScroll, { passive: true });
+          scrollableElements.current.add(element);
         }
       });
       
@@ -67,27 +58,28 @@ export const useScrollbarVisibility = () => {
     // Initial setup
     const observer = addScrollListeners();
     
+    // Store current elements for cleanup
+    const currentElements = new Set(scrollableElements.current);
+    
     // Cleanup function
     return () => {
-      clearTimeout(scrollTimeout);
-      window.removeEventListener('scroll', handleScroll);
-      document.removeEventListener('scroll', handleScroll);
+      clearTimeout(scrollTimeout.current);
+      
+      // Remove listeners from all tracked elements
+      currentElements.forEach(element => {
+        element.removeEventListener('scroll', handleScroll);
+      });
+      scrollableElements.current.clear();
       
       // Disconnect observer
       if (observer) {
         observer.disconnect();
       }
       
-      // Remove listeners from all elements
-      const scrollableElements = document.querySelectorAll('*');
-      scrollableElements.forEach(element => {
-        element.removeEventListener('scroll', handleScroll);
-      });
-      
       // Remove scrolling class
       document.documentElement.classList.remove('scrolling');
     };
   }, []);
-};
+}
 
 export default useScrollbarVisibility; 

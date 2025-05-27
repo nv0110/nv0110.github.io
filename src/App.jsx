@@ -1,7 +1,9 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Suspense, lazy, Component } from 'react';
 import { useAuth } from './hooks/useAuth';
+import { ForceUpdateProvider } from './hooks/ForceUpdateContext';
 import ViewTransitionWrapper from './components/ViewTransitionWrapper';
+import { AppDataProvider } from './hooks/AppDataContext.jsx';
 import './App.css';
 
 // Lazy load page components for code splitting
@@ -43,11 +45,10 @@ function PageLoader() {
 }
 
 // Error Boundary Component
-
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error) {
@@ -55,26 +56,32 @@ class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
+    this.setState({ errorInfo });
     console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  componentWillUnmount() {
+    // Cleanup any resources if needed
+    this.setState({ hasError: false, error: null, errorInfo: null });
   }
 
   render() {
     if (this.state.hasError) {
-    return (
+      return (
         <div className="App dark error-container">
           <h1 className="error-page-title">Something went wrong</h1>
           <p className="error-page-description">
             An unexpected error occurred. Please try refreshing the page.
           </p>
-              <button 
+          <button 
             onClick={() => window.location.reload()} 
-                className="error-refresh-btn"
-              >
+            className="error-refresh-btn"
+          >
             Refresh Page
-              </button>
-      </div>
-    );
-  }
+          </button>
+        </div>
+      );
+    }
 
     return this.props.children;
   }
@@ -82,7 +89,7 @@ class ErrorBoundary extends Component {
 
 // 404 Not Found Component
 function NotFound() {
-                return (
+  return (
     <div className="App dark not-found-container">
       <h1 className="not-found-title">404</h1>
       <h2 className="not-found-subtitle">Page Not Found</h2>
@@ -90,7 +97,7 @@ function NotFound() {
         The page you're looking for doesn't exist. It might have been moved or deleted.
       </p>
       <Navigate to="/" replace />
-            </div>
+    </div>
   );
 }
 
@@ -111,50 +118,54 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <div className="App dark">
-        <ViewTransitionWrapper>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              {/* Login Route - redirect to home if already logged in */}
-              <Route 
-                path="/login" 
-                element={isLoggedIn ? <Navigate to="/" replace /> : <LoginPage />} 
-              />
-              
-              {/* Protected Routes */}
-              <Route 
-                path="/" 
-                element={
-                  <ProtectedRoute>
-                    <InputPage />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              <Route 
-                path="/weeklytracker" 
-                element={
-                  <ProtectedRoute>
-                    <WeeklyTrackerPage />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              <Route 
-                path="/bosstable" 
-                element={
-                  <ProtectedRoute>
-                    <BossTablePage />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              {/* Catch all route - 404 */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-        </ViewTransitionWrapper>
-      </div>
+      <ForceUpdateProvider>
+        <AppDataProvider>
+          <div className="App dark">
+            <ViewTransitionWrapper>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                {/* Login Route - redirect to home if already logged in */}
+                <Route 
+                  path="/login" 
+                  element={isLoggedIn ? <Navigate to="/" replace /> : <LoginPage />} 
+                />
+                
+                {/* Protected Routes */}
+                <Route 
+                  path="/" 
+                  element={
+                    <ProtectedRoute>
+                      <InputPage />
+                    </ProtectedRoute>
+                  } 
+                />
+                
+                <Route 
+                  path="/weeklytracker" 
+                  element={
+                    <ProtectedRoute>
+                      <WeeklyTrackerPage />
+                    </ProtectedRoute>
+                  } 
+                />
+                
+                <Route 
+                  path="/bosstable" 
+                  element={
+                    <ProtectedRoute>
+                      <BossTablePage />
+                    </ProtectedRoute>
+                  } 
+                />
+                
+                {/* Catch all route - 404 */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+              </Suspense>
+            </ViewTransitionWrapper>
+          </div>
+        </AppDataProvider>
+      </ForceUpdateProvider>
     </ErrorBoundary>
   );
 }

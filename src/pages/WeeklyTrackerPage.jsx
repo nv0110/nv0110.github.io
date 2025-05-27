@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useViewTransition } from '../hooks/useViewTransition';
 import WeeklyTracker from '../WeeklyTracker';
-import { useAppData } from '../hooks/useAppData';
+import { useAppData } from '../hooks/AppDataContext.jsx';
 import { bossData } from '../data/bossData';
 import Navbar from '../components/Navbar';
 import ViewTransitionWrapper from '../components/ViewTransitionWrapper';
@@ -16,7 +16,6 @@ function WeeklyTrackerPage() {
     setChecked, 
     fullUserData, 
     weekKey,
-    preserveCheckedStateOnBossChange,
     preservingCheckedStateRef
   } = useAppData();
 
@@ -25,12 +24,6 @@ function WeeklyTrackerPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [showDeleteLoading, setShowDeleteLoading] = useState(false);
-
-  // Note: We don't call preserveCheckedStateOnBossChange on load
-  // because we want to preserve the database state when first loading.
-  // The preservation function is only called when boss selections change.
-
-
 
   // Redirect if not logged in
   if (!isLoggedIn) {

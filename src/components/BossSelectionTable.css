@@ -18,9 +18,9 @@
 
 /* Empty state message when no character is selected */
 .input-boss-empty-state {
-  padding: 2rem;
+  padding: 1.6rem; /* Reduced by 20% */
   color: #cebbe4;
-  font-size: 1.1rem;
+  font-size: 0.88rem; /* Reduced by 20% */
   text-align: center;
 }
 
@@ -28,7 +28,7 @@
 .input-boss-wrapper {
   position: relative;
   border: 1px solid #2d2540;
-  border-radius: 12px;
+  border-radius: 10px; /* Reduced by 20% */
   overflow: hidden;
   background: #201c32;
 }
@@ -44,7 +44,7 @@
 
 /* Scrollable body container - max height triggers scrolling after ~10 rows */
 .input-boss-body-container {
-  max-height: 575px; /* Approximately 10 rows at ~57px each (15% increase) */
+  max-height: 460px; /* Reduced by 20% */
   overflow-y: auto;
   overflow-x: hidden;
   /* Let the global scrollbar system handle the styling */
@@ -58,7 +58,7 @@
 .input-boss-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 805px;
+  min-width: 644px; /* Reduced by 20% */
   table-layout: fixed; /* Fixed layout for equal column widths */
   color: #cebbe4; /* Base color for all table text */
   border-spacing: 0; /* Ensure no spacing between cells */
@@ -88,9 +88,9 @@
 
 /* Base header cell styling - shared properties */
 .input-boss-table th {
-  padding: 14px 9px;
+  padding: 11px 7px; /* Reduced by 20% */
   font-weight: 700;
-  font-size: 1.27em;
+  font-size: 1.02em; /* Reduced by 20% */
   vertical-align: middle;
   box-sizing: border-box; /* Shared by all columns */
 }
@@ -99,30 +99,30 @@
 .input-boss-col-boss {
   text-align: left;
   width: 35%;
-  min-width: 282px;
-  max-width: 282px;
-  padding-left: 14px; /* Only override left padding */
+  min-width: 226px; /* Reduced by 20% */
+  max-width: 226px; /* Reduced by 20% */
+  padding-left: 11px; /* Reduced by 20% */
 }
 
 /* Difficulty column header */
 .input-boss-col-difficulty {
   width: 15%;
-  min-width: 121px;
-  max-width: 121px;
+  min-width: 97px; /* Reduced by 20% */
+  max-width: 97px; /* Reduced by 20% */
 }
 
 /* Mesos column header */
 .input-boss-col-mesos {
   width: 20%;
-  min-width: 161px;
-  max-width: 161px;
+  min-width: 129px; /* Reduced by 20% */
+  max-width: 129px; /* Reduced by 20% */
 }
 
 /* Controls column header (character name) */
 .input-boss-col-controls {
   width: 30%;
-  min-width: 242px;
-  max-width: 242px;
+  min-width: 194px; /* Reduced by 20% */
+  max-width: 194px; /* Reduced by 20% */
 }
 
 /* ===================================================================
@@ -162,7 +162,7 @@
 
 /* Base table cell styling - shared properties */
 .input-boss-table td {
-  padding: 14px 9px;
+  padding: 11px 7px; /* Reduced by 20% */
   vertical-align: middle;
   box-sizing: border-box; /* Shared by all cells */
 }
@@ -171,21 +171,21 @@
 .input-boss-cell-boss {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px; /* Reduced by 20% */
   text-align: left;
-  padding-left: 14px; /* Only override left padding */
+  padding-left: 11px; /* Reduced by 20% */
   white-space: nowrap;
   width: 35%;
-  min-width: 282px;
-  max-width: 282px;
+  min-width: 226px; /* Reduced by 20% */
+  max-width: 226px; /* Reduced by 20% */
 }
 
 /* Boss image styling */
 .input-boss-img {
-  width: 56px;
-  height: 56px;
+  width: 45px; /* Reduced by 20% */
+  height: 45px; /* Reduced by 20% */
   object-fit: contain;
-  border-radius: 9px;
+  border-radius: 7px; /* Reduced by 20% */
   background: rgba(255, 255, 255, 0.1);
   transition: transform 0.2s ease;
   flex-shrink: 0; /* Prevent image from shrinking */
@@ -199,7 +199,7 @@
 /* Boss name text styling */
 .input-boss-name {
   font-weight: 690;
-  font-size: 1.15em;
+  font-size: 0.92em; /* Reduced by 20% */
   white-space: nowrap;
   flex: 1;
   min-width: 0; /* Allow flex item to shrink if needed */
@@ -209,23 +209,23 @@
 /* Difficulty cell styling */
 .input-boss-cell-difficulty {
   width: 15%;
-  min-width: 121px;
-  max-width: 121px;
+  min-width: 97px; /* Reduced by 20% */
+  max-width: 97px; /* Reduced by 20% */
   text-align: center;
 }
 
 /* Difficulty text styling */
 .input-boss-difficulty-text {
   font-weight: 575;
-  font-size: 1.15em;
+  font-size: 0.92em; /* Reduced by 20% */
   color: #cebbe4;
 }
 
 /* Mesos cell styling */
 .input-boss-cell-mesos {
   width: 20%;
-  min-width: 161px;
-  max-width: 161px;
+  min-width: 129px; /* Reduced by 20% */
+  max-width: 129px; /* Reduced by 20% */
   text-align: center;
 }
 
@@ -233,15 +233,15 @@
 .input-boss-mesos-amount {
   color: #cebbe4;
   font-weight: 690;
-  font-size: 1.09em;
+  font-size: 0.87em; /* Reduced by 20% */
 }
 
 /* Controls cell (checkboxes and selects) */
 .input-boss-cell-controls {
   background: inherit;
   width: 30%;
-  min-width: 242px;
-  max-width: 242px;
+  min-width: 194px; /* Reduced by 20% */
+  max-width: 194px; /* Reduced by 20% */
   text-align: center;
 }
 
@@ -250,7 +250,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 6px; /* Reduced by 20% */
   flex-wrap: nowrap;
   white-space: nowrap;
   width: 100%; /* Ensure full width for perfect centering */
@@ -263,15 +263,15 @@
 /* Base select styling - shared properties */
 .input-boss-difficulty-select,
 .input-boss-party-select {
-  height: 37px;
-  border-radius: 7px;
+  height: 30px; /* Reduced by 20% */
+  border-radius: 6px; /* Reduced by 20% */
   border: 1px solid #3a335a;
   background: #3a335a;
   color: #cebbe4;
   font-weight: 690;
   cursor: pointer;
   box-sizing: border-box;
-  font-size: 1.04rem;
+  font-size: 0.83rem; /* Reduced by 20% */
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -280,9 +280,9 @@
 
 /* Difficulty dropdown specific styling */
 .input-boss-difficulty-select {
-  padding: 0 9px;
-  min-width: 92px;
-  max-width: 115px;
+  padding: 0 7px; /* Reduced by 20% */
+  min-width: 74px; /* Reduced by 20% */
+  max-width: 92px; /* Reduced by 20% */
   text-overflow: ellipsis;
   white-space: nowrap;
   overflow: hidden;
@@ -290,16 +290,16 @@
 
 /* Party size dropdown specific styling */
 .input-boss-party-select {
-  width: 46px;
-  min-width: 46px;
-  padding: 0 7px;
+  width: 37px; /* Reduced by 20% */
+  min-width: 37px; /* Reduced by 20% */
+  padding: 0 6px; /* Reduced by 20% */
 }
 
 /* Select focus states */
 .input-boss-difficulty-select:focus,
 .input-boss-party-select:focus {
   outline: 2px solid #6a11cb;
-  outline-offset: 2px;
+  outline-offset: 1px; /* Reduced by 20% */
 }
 
 /* Select hover states */
@@ -342,17 +342,17 @@
 /* Tablet and smaller screens */
 @media (max-width: 768px) {
   .input-boss-table {
-    min-width: 690px;
-    font-size: 0.98rem;
+    min-width: 552px; /* Reduced by 20% */
+    font-size: 0.78rem; /* Reduced by 20% */
   }
   
   .input-boss-body-container {
-    max-height: 460px; /* Reduce height on smaller screens (15% increase) */
+    max-height: 368px; /* Reduced by 20% */
   }
   
   .input-boss-img {
-    width: 48px;
-    height: 48px;
+    width: 38.4px;
+    height: 38.4px;
   }
   
   .input-boss-table th,
@@ -389,23 +389,23 @@
 /* Mobile screens */
 @media (max-width: 480px) {
   .input-boss-table {
-    min-width: 552px;
-    font-size: 0.86rem;
+    min-width: 442px; /* Reduced by 20% */
+    font-size: 0.69rem; /* Reduced by 20% */
   }
   
   .input-boss-body-container {
-    max-height: 403px; /* Further reduce height on mobile (15% increase) */
+    max-height: 322px; /* Reduced by 20% */
   }
   
   .input-boss-img {
-    width: 38px;
-    height: 38px;
+    width: 30px; /* Reduced by 20% */
+    height: 30px; /* Reduced by 20% */
   }
   
   .input-boss-difficulty-select,
   .input-boss-party-select {
-    height: 30px;
-    font-size: 0.81rem;
+    height: 24px; /* Reduced by 20% */
+    font-size: 0.65rem; /* Reduced by 20% */
   }
   
   .input-boss-table th,
@@ -426,17 +426,17 @@
   }
   
   .input-boss-difficulty-select {
-    min-width: 58px;
-    max-width: 69px;
+    min-width: 46px; /* Reduced by 20% */
+    max-width: 55px; /* Reduced by 20% */
   }
   
   .input-boss-party-select {
-    width: 30px;
-    min-width: 30px;
+    width: 24px; /* Reduced by 20% */
+    min-width: 24px; /* Reduced by 20% */
   }
   
   .input-boss-name {
-    font-size: 0.98em;
+    font-size: 0.78em; /* Reduced by 20% */
   }
 }
 

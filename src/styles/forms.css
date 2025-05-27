@@ -66,8 +66,6 @@
   transition: background-color 0.2s;
 }
 
-
-
 .character-name-edit-btn:hover {
   background-color: rgba(255, 255, 255, 0.1);
 }
@@ -95,12 +93,6 @@
   border-radius: 6px;
   max-width: 600px;
   margin: 0 auto 20px auto;
-}
-
-.character-error-message {
-  color: red;
-  margin-bottom: 1rem;
-  font-weight: 600;
 }
 
 /* ===== SNACKBAR NOTIFICATIONS ===== */

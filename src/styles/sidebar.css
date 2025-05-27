@@ -105,9 +105,10 @@
 /* Sidebar header section - title and crystal icons */
 .sidebar-header {
   text-align: center; /* Center-align header content */
-  margin-bottom: 1.5rem; /* Space below header */
+  margin-bottom: 2.5rem; /* Space below header */
   padding-bottom: 1rem; /* Internal spacing */
   border-bottom: 1px solid rgba(162, 89, 247, 0.15); /* Separator line */
+  margin-top: 36px; /* Added top margin to align with toggle button with highest specificity */
 }
 
 /* Sidebar main title - "Characters" heading */
@@ -115,7 +116,7 @@
   font-size: 1.3rem; /* Large, prominent title */
   font-weight: 700; /* Bold weight for emphasis */
   margin: 0; /* Remove default margins */
-  margin-bottom: 0.5rem; /* Space below title */
+  margin-bottom: 1.5rem; /* Space below title */
   color: #e6e0ff; /* Light purple text color */
 }
 
@@ -394,7 +395,9 @@
 
 /* Character stats section - boss completion and meso info */
 .sidebar-character-stats {
-  /* Spacing and layout handled by parent container */
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
 /* No bosses configured message */
@@ -424,12 +427,12 @@
 .sidebar-toggle {
   /* Fixed positioning - stays in place during scroll */
   position: fixed; /* Fixed positioning relative to viewport */
-  top: calc(80px + 20px); /* Position below navbar with margin */
+  top: calc(80px + 34px); /* Fine-tuned to align with the Characters title */
   z-index: 200; /* Above sidebar but below modals */
   
   /* Button styling */
-  width: 44px; /* Fixed button width */
-  height: 44px; /* Fixed button height */
+  width: 44px; /* Original button width */
+  height: 44px; /* Original button height */
   cursor: pointer; /* Indicate clickable element */
   
   /* Layout and alignment */
@@ -445,11 +448,13 @@
   transition: all 0.3s ease; /* Smooth position and scale transitions */
   transform: scale(1) translateZ(0); /* Default scale with GPU acceleration */
   will-change: transform, opacity; /* Optimize for animations */
+  /* Removed box-shadow for invisible container look */
+  background: transparent; /* Transparent background */
 }
 
 /* Toggle button visible state - positioned next to visible sidebar */
 .sidebar-toggle.visible {
-  left: calc(270px - 44px); /* Position to the right of sidebar (280px - 10px margin) */
+  left: calc(280px - 22px); /* Adjusted to show only the icon at the edge of the sidebar */
 }
 
 /* Toggle button hidden state - positioned at left edge */

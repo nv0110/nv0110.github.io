@@ -112,31 +112,109 @@
   align-items: center;
   justify-content: center;
   margin: 0 auto 16px auto;
-  background: #352d58;
+  background: linear-gradient(135deg, #3a2a5d 0%, #2d2045 100%);
   border-radius: 12px;
-  padding: 10px 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  max-width: 200px;
+  padding: 8px 14px;
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.25),
+    0 1px 0 rgba(255, 255, 255, 0.05) inset;
+  border: 1px solid rgba(162, 89, 247, 0.15);
+  max-width: 180px;
   text-align: center;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
 }
 
 .crystals-counter-main {
   font-weight: 700;
   font-size: 1.2em;
-  color: #d4c1ff;
+  color: #e6e0ff;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .crystals-counter-number {
+  position: relative;
+  z-index: 2;
+  background: linear-gradient(135deg, #a259f7, #6a11cb);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 800;
+  font-size: 1.3em;
+}
+
+/* Special styling for maximum crystal count */
+.crystals-counter-max {
+  justify-content: center;
+  margin-top: 0.2rem;
+}
+
+.crystals-counter-number-max {
+  position: relative;
+  z-index: 2;
+  background: linear-gradient(135deg, #ff9d00, #ff2c95, #a259f7, #ff9d00);
+  background-size: 200% 200%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 800;
+  font-size: 1.8em;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  display: block;
+  text-align: center;
+  animation: gradient-breathe 4s ease-in-out infinite;
+}
+
+@keyframes gradient-breathe {
+  0% {
+    background-position: 0% 50%;
+    opacity: 1;
+  }
+  50% {
+    background-position: 100% 50%;
+    opacity: 0.92;
+  }
+  100% {
+    background-position: 0% 50%;
+    opacity: 1;
+  }
 }
 
 .crystals-counter-total {
   opacity: 0.8;
+  color: #cebbe4;
+  font-weight: 500;
+  font-size: 0.9em;
+  align-self: flex-end;
+  margin-bottom: 2px;
 }
 
 .crystals-counter-label {
-  font-size: 0.875rem;
-  color: #9d8bbc;
-  margin-top: 4px;
+  font-size: 0.75rem;
+  color: #a89fc8;
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  position: relative;
+  z-index: 2;
+}
+
+.crystals-counter-container::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 80px;
+  background: radial-gradient(circle, rgba(162, 89, 247, 0.15) 0%, rgba(106, 17, 203, 0) 70%);
+  z-index: 1;
+  pointer-events: none;
 }
 
 /* Responsive Design */
@@ -184,4 +262,19 @@
   .crystals-counter-main {
     font-size: 1.1em;
   }
+}
+
+.crystals-cap-error-text {
+  color: #ff6b6b;
+  font-weight: 700;
+  font-size: 1.15em;
+  text-align: center;
+  padding: 0.5em 0;
+  letter-spacing: 0.02em;
+  animation: fadeIn 0.2s;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 } 

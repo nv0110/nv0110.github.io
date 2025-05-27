@@ -15,7 +15,9 @@
 
 /* Table scroll wrapper - enables horizontal scrolling for large tables */
 .table-scroll {
-  /* Container class for organization - no specific styles needed */
+  display: block;
+  width: 100%;
+  overflow-x: auto;
 }
 
 /* Table container with hover effects */
@@ -52,11 +54,27 @@
 
 /* ===== BOSS TABLE COMPONENT ===== */
 
-/* BossTable main container */
+/* BossTable scroll container */
 .boss-table-scroll {
   display: flex;
   justify-content: center;
   width: 100%;
+  margin-top: -0.5rem; /* Negative margin to bring it closer to the elements above */
+  max-height: 400px; /* Limit height to enable scrolling */
+  overflow-y: auto;
+  /* Set max-width to match the table max-width */
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Make the header sticky to the top when scrolling */
+.boss-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #3a2a5d;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 /* BossTable main table */
@@ -65,9 +83,30 @@
   min-width: 700px;
   max-width: 800px;
   width: 100%;
+  overflow: hidden;
   border: 1px solid #e0e0ef;
   border-radius: 12px;
-  overflow: hidden;
+}
+
+/* No explicit column widths - using the original layout */
+
+/* Header table specific styling */
+.boss-table.boss-table-header {
+  border-top: 1px solid #e0e0ef;
+  border-left: 1px solid #e0e0ef;
+  border-right: 1px solid #e0e0ef;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Body table specific styling */
+.boss-table.boss-table-body {
+  border-left: 1px solid #e0e0ef;
+  border-right: 1px solid #e0e0ef;
+  border-bottom: 1px solid #e0e0ef;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
 }
 
 /* Historical week table - optimized 2-column layout */
@@ -82,11 +121,14 @@
   color: #e6e0ff;
 }
 
-/* BossTable header cells */
+/* Boss name column (first column) */
 .boss-table-header-cell {
-  padding: 6px 14px;
+  width: 45%;
   text-align: left;
-  font-weight: 600;
+  padding: 12px 18px;
+  color: #fff;
+  font-weight: 700;
+  box-sizing: border-box;
   font-size: 0.9em;
   min-width: 180px;
 }

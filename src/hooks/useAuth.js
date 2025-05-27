@@ -110,9 +110,10 @@ export function useAuth() {
   const handleDeleteAccount = async () => {
     try {
       const supabase = await getSupabase();
-      const { error } = await supabase.from('user_data').delete().eq('id', userCode);
+      const { error: deleteError } = await supabase.from('user_data').delete().eq('id', userCode);
       
-      if (error) {
+      if (deleteError) {
+        console.error('Delete error:', deleteError);
         return { success: false, error: 'Failed to delete account. Try again.' };
       }
       

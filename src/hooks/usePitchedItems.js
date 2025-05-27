@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getCurrentWeekKey } from '../utils/weekUtils';
 import { getPitchedKey } from '../utils/stringUtils';
-import { getPitchedItems, getAllPitchedItems } from '../pitched-data-service';
+import { getAllPitchedItems } from '../pitched-data-service';
 
-export function usePitchedItems(userCode, characterBossSelections, checked, setChecked, weekKey, preservingCheckedStateRef = null, selectedCharIdx = null) {
+export function usePitchedItems(userCode, characterBossSelections, checked, setChecked, weekKey, preservingCheckedStateRef = null) {
   const [pitchedChecked, setPitchedChecked] = useState({});
   const [cloudPitchedItems, setCloudPitchedItems] = useState([]);
   const [isRefreshingPitchedItems, setIsRefreshingPitchedItems] = useState(false);
@@ -19,7 +19,7 @@ export function usePitchedItems(userCode, characterBossSelections, checked, setC
   // });
 
   // Helper function to normalize week keys for comparison
-  const normalizeWeekKey = (weekKey) => {
+  const normalizeWeekKey = useCallback((weekKey) => {
     if (!weekKey) return weekKey;
     
     const parts = weekKey.split('-');
@@ -31,7 +31,7 @@ export function usePitchedItems(userCode, characterBossSelections, checked, setC
       return `${year}-${mw}-${cw}`;
     }
     return weekKey;
-  };
+  }, []);
 
   // Function to refresh pitched items from database
   const refreshPitchedItems = async (userCodeValue) => {
@@ -85,58 +85,19 @@ export function usePitchedItems(userCode, characterBossSelections, checked, setC
     }
   };
 
-  // Load pitched items from cloud
-  const loadPitchedItems = useCallback(async () => {
-    if (!userCode) return;
-    
-    try {
-      const result = await getPitchedItems(userCode);
-      if (result.success) {
-        setCloudPitchedItems(result.data || []);
-        
-        // Update pitched checked state based on current week
-        const normalizedWeekKey = normalizeWeekKey(weekKey);
-        const currentWeekItems = (result.data || []).filter(item => 
-          normalizeWeekKey(item.weekKey) === normalizedWeekKey
-        );
-        const newPitchedChecked = {};
-        
-        currentWeekItems.forEach(item => {
-          // Use the stored characterIdx from the pitched item data instead of findIndex
-          // This prevents issues with cloned characters having the same name
-          const charIdx = item.characterIdx !== undefined ? item.characterIdx : characterBossSelections.findIndex(c => c.name === item.character);
-          
-          // Verify the character still exists at that index
-          const character = characterBossSelections[charIdx];
-          if (character && character.name === item.character) {
-            const key = getPitchedKey(item.character, charIdx, item.boss, item.item, weekKey);
-            newPitchedChecked[key] = true;
-            // console.log(`🎯 PITCHED: Adding pitched item for ${item.character} (idx: ${charIdx}): ${item.boss} - ${item.item}`);
-          } else {
-            // console.log(`⚠️ PITCHED: Character mismatch or not found for pitched item: ${item.character} (stored idx: ${item.characterIdx}, found character: ${character?.name || 'none'})`);
-          }
-        });
-        
-        setPitchedChecked(newPitchedChecked);
-      }
-    } catch (error) {
-      console.error('Error refreshing pitched items:', error);
-    }
-  }, [userCode, weekKey, characterBossSelections]);
-
   // Fetch pitched items from database
   useEffect(() => {
+    if (!userCode) return;
+
     const fetchPitchedItemsFromDatabase = async () => {
       try {
-        if (!userCode) return;
-        
         const { supabase } = await import('../supabaseClient');
         const { data, error } = await supabase
           .from('user_data')
           .select('pitched_items')
           .eq('id', userCode)
           .single();
-          
+
         if (error) {
           console.error('Error fetching pitched items:', error);
           return;
@@ -153,7 +114,7 @@ export function usePitchedItems(userCode, characterBossSelections, checked, setC
     };
     
     fetchPitchedItemsFromDatabase();
-  }, [userCode]);
+  }, [userCode, setCloudPitchedItems]);
 
   // Sync pitched items with boss checks - only on initial load
   useEffect(() => {
@@ -168,6 +129,9 @@ export function usePitchedItems(userCode, characterBossSelections, checked, setC
         const currentWeekKey = getCurrentWeekKey();
         const normalizedCurrentWeekKey = normalizeWeekKey(currentWeekKey);
         
+        // Only sync if we're viewing the current week
+        if (normalizedWeekKey !== normalizedCurrentWeekKey) return;
+        
         const currentWeekItems = cloudPitchedItems.filter(item => 
           normalizeWeekKey(item.weekKey) === normalizedWeekKey
         );
@@ -178,16 +142,11 @@ export function usePitchedItems(userCode, characterBossSelections, checked, setC
           let updatedChecks = false;
           
           currentWeekItems.forEach(item => {
-            // Use the stored characterIdx from the pitched item data instead of findIndex
-            // This prevents issues with cloned characters having the same name
             const charIdx = item.characterIdx !== undefined ? item.characterIdx : characterBossSelections.findIndex(c => c.name === item.character);
             
             // Verify the character still exists at that index
             const character = characterBossSelections[charIdx];
-            if (!character || character.name !== item.character) {
-              // console.log(`⚠️ PITCHED SYNC: Character mismatch or not found for pitched item: ${item.character} (stored idx: ${item.characterIdx}, found character: ${character?.name || 'none'})`);
-              return;
-            }
+            if (!character || character.name !== item.character) return;
             
             const charInfo = `${item.character}-${charIdx}`;
             
@@ -195,10 +154,7 @@ export function usePitchedItems(userCode, characterBossSelections, checked, setC
               newChecked[charInfo] = {};
             }
             
-            // Use the character we already verified exists
-            const char = character;
-            
-            const boss = char.bosses.find(b => b.name === item.boss);
+            const boss = character.bosses.find(b => b.name === item.boss);
             if (!boss) return;
             
             const bossKey = `${boss.name}-${boss.difficulty}`;
@@ -207,9 +163,8 @@ export function usePitchedItems(userCode, characterBossSelections, checked, setC
             // Always add pitched items from database to the pitched checked state
             newPitchedChecked[pitchedKey] = true;
             
-            // CRITICAL FIX: Only auto-check boss if we're in the CURRENT week
-            // Historical weeks should NOT auto-check bosses in the current week's state
-            if (normalizedWeekKey === normalizedCurrentWeekKey && !newChecked[charInfo][bossKey]) {
+            // Only auto-check boss if we're in the CURRENT week
+            if (!newChecked[charInfo][bossKey]) {
               newChecked[charInfo][bossKey] = true;
               updatedChecks = true;
             }
@@ -224,22 +179,16 @@ export function usePitchedItems(userCode, characterBossSelections, checked, setC
           }
         }
       } catch (error) {
-        console.error('Error synchronizing pitched items:', error);
+        console.error('Error in syncPitchedWithBossChecks:', error);
       }
     };
-    
-    syncPitchedWithBossChecks();
-  }, [cloudPitchedItems, weekKey, characterBossSelections]); // Removed checked and pitchedChecked from dependencies
 
-  // Separate effect to handle week changes and update pitched checked state
+    syncPitchedWithBossChecks();
+  }, [cloudPitchedItems, weekKey, normalizeWeekKey, userInteractionRef, characterBossSelections, checked, setChecked, preservingCheckedStateRef]);
+
+  // Update pitched checked state when week changes
   useEffect(() => {
-    // console.log('🎯 PITCHED WEEK EFFECT: Rebuilding pitched state for week change/character change');
-    // console.log('🎯 PITCHED WEEK EFFECT: Input data:', {
-    //   weekKey,
-    //   selectedCharIdx,
-    //   charactersCount: characterBossSelections.length,
-    //   cloudPitchedItemsCount: cloudPitchedItems.length
-    // });
+    if (!weekKey || !cloudPitchedItems.length) return;
 
     const normalizedWeekKey = normalizeWeekKey(weekKey);
     
@@ -249,15 +198,9 @@ export function usePitchedItems(userCode, characterBossSelections, checked, setC
       return normalizedItemWeekKey === normalizedWeekKey;
     });
     
-    // console.log(`🎯 PITCHED WEEK EFFECT: Found ${currentWeekItems.length} items for week ${weekKey}:`, 
-    //   currentWeekItems.map(item => `${item.character}(${item.characterIdx})-${item.boss}-${item.item}`)
-    // );
-    
     // Update pitched checked state based on current week items
     const newPitchedChecked = {};
     currentWeekItems.forEach(item => {
-      // Use the stored characterIdx from the pitched item data instead of findIndex
-      // This prevents issues with cloned characters having the same name
       const charIdx = item.characterIdx !== undefined ? item.characterIdx : characterBossSelections.findIndex(c => c.name === item.character);
       
       // Verify the character still exists at that index
@@ -265,15 +208,11 @@ export function usePitchedItems(userCode, characterBossSelections, checked, setC
       if (character && character.name === item.character) {
         const key = getPitchedKey(item.character, charIdx, item.boss, item.item, weekKey);
         newPitchedChecked[key] = true;
-        // console.log(`🎯 PITCHED WEEK: Adding pitched item for ${item.character} (idx: ${charIdx}): ${item.boss} - ${item.item} (week: ${weekKey})`);
-      } else {
-        // console.log(`⚠️ PITCHED WEEK: Character mismatch or not found for pitched item: ${item.character} (stored idx: ${item.characterIdx}, found character: ${character?.name || 'none'})`);
       }
     });
     
-    // console.log('🎯 PITCHED WEEK EFFECT: Final pitched checked state:', Object.keys(newPitchedChecked));
     setPitchedChecked(newPitchedChecked);
-  }, [weekKey, cloudPitchedItems, characterBossSelections, selectedCharIdx]); // Added selectedCharIdx to dependencies
+  }, [weekKey, cloudPitchedItems, characterBossSelections, normalizeWeekKey, setPitchedChecked]);
 
   return {
     pitchedChecked,

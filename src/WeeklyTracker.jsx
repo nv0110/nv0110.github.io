@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { savePitchedItem, removeManyPitchedItems } from './pitched-data-service';
 import { getCurrentWeekKey } from './utils/weekUtils';
 import { STORAGE_KEYS } from './constants';
@@ -22,6 +22,9 @@ import { useWeekNavigation } from './hooks/useWeekNavigation';
 import { usePitchedItems } from './hooks/usePitchedItems';
 import { useBossActions } from './hooks/useBossActions';
 import { useStatsManagement } from './hooks/useStatsManagement';
+
+// Styles
+import './styles/weekly-tracker.css';
 
 function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked, userCode, preservingCheckedStateRef }) {
   // Helper function to get boss price
@@ -77,17 +80,8 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
     setChecked, 
     weekNavigation.selectedWeekKey,
     preservingCheckedStateRef,
-    selectedCharIdx // Add selectedCharIdx parameter
+    selectedCharIdx
   );
-
-  // console.log('🎯 WEEKLY TRACKER: Current state:', {
-  //   selectedCharIdx,
-  //   selectedCharName: characterBossSelections[selectedCharIdx]?.name,
-  //   weekKey: weekNavigation.selectedWeekKey,
-  //   pitchedCheckedKeys: Object.keys(pitchedItems.pitchedChecked),
-  //   pitchedCheckedState: pitchedItems.pitchedChecked,
-  //   characterBosses: characterBossSelections[selectedCharIdx]?.bosses?.map(b => `${b.name}-${b.difficulty}`) || []
-  // });
   
   const bossActions = useBossActions({
     characterBossSelections,
@@ -100,7 +94,6 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
     weekKey: weekNavigation.selectedWeekKey,
     selectedWeekKey: weekNavigation.selectedWeekKey,
     isHistoricalWeek: weekNavigation.isHistoricalWeek,
-  
     userCode,
     userInteractionRef: pitchedItems.userInteractionRef,
     setCrystalAnimation,
@@ -113,12 +106,16 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
 
   // Enhanced week change handler that passes current data for caching
   const handleWeekChangeWithData = (newWeekKey) => {
-    weekNavigation.handleWeekChange(
-      newWeekKey, 
-      checked, 
-      pitchedItems.cloudPitchedItems, 
-      pitchedItems.pitchedChecked
-    );
+    try {
+      weekNavigation.handleWeekChange(
+        newWeekKey, 
+        checked, 
+        pitchedItems.cloudPitchedItems, 
+        pitchedItems.pitchedChecked
+      );
+    } catch (error) {
+      setError(`Failed to change week: ${error.message}`);
+    }
   };
 
   // Reset selectedCharIdx if out of bounds
@@ -138,7 +135,8 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
       const priceA = getBossPrice(a.name, a.difficulty) / (a.partySize || 1);
       const priceB = getBossPrice(b.name, b.difficulty) / (b.partySize || 1);
       return priceB - priceA;
-    } catch (err) {
+    } catch (error) {
+      setError(`Error sorting bosses: ${error.message}`);
       return 0;
     }
   });
@@ -176,51 +174,27 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
   const visibleCharSummaries = hideCompleted ? charSummaries.filter(cs => !cs.allCleared) : charSummaries;
   const showCharacterDetails = charBosses.length > 0;
 
-
-
   if (error) {
     return (
-      <div className="App dark" style={{ padding: '2rem', color: '#e6e0ff', fontSize: '1.2rem', textAlign: 'center' }}>
-        <div style={{ color: '#ff6b6b', marginBottom: '1rem' }}>{error}</div>
-        <button onClick={() => setError(null)} style={{ marginRight: '1rem' }}>Try Again</button>
+      <div className="weekly-tracker-error">
+        <div className="weekly-tracker-error-message">{error}</div>
+        <button onClick={() => setError(null)}>Try Again</button>
       </div>
     );
   }
 
   if (!characterBossSelections.length) {
     return (
-      <div className="App dark" style={{ padding: '2rem', color: '#e6e0ff', fontSize: '1.2rem', textAlign: 'center' }}>
-        <div 
-          style={{ 
-            opacity: showNoCharactersMessage ? 1 : 0,
-            transition: 'opacity 0.5s ease-in-out',
-            animation: showNoCharactersMessage ? 'fadeInMessage 0.5s ease-in-out' : 'none'
-          }}
-        >
+      <div className="weekly-tracker-no-characters">
+        <div className={`weekly-tracker-no-characters-message ${showNoCharactersMessage ? 'visible' : ''}`}>
           No characters found. Go back and add a character first.
         </div>
-        <style>
-          {`
-            @keyframes fadeInMessage {
-              from {
-                opacity: 0;
-                transform: translateY(10px);
-              }
-              to {
-                opacity: 1;
-                transform: translateY(0);
-              }
-            }
-          `}
-        </style>
       </div>
     );
   }
 
   return (
-    <div className="App dark" style={{ 
-
-    }}>
+    <div className="weekly-tracker">
       {crystalAnimation && (
         <CrystalAnimation
           startPosition={crystalAnimation.startPosition}
@@ -229,14 +203,7 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
         />
       )}
 
-      <div style={{
-        display: 'flex',
-        maxWidth: 1200,
-        margin: '0 auto',
-        width: '100%',
-        minHeight: '100vh',
-        boxSizing: 'border-box'
-      }}>
+      <div className="weekly-tracker-container">
         {/* Sidebar */}
         <CharacterSidebar
           sidebarVisible={sidebarVisible}
@@ -260,19 +227,14 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
 
         {/* Main Content */}
         <div className="weekly-tracker-main fade-in">
-          <div style={{
-            maxWidth: 900,
-            margin: '0 auto',
-            padding: '2rem',
-            width: '100%',
-          }}>
-            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              <h2 style={{ fontWeight: 700, fontSize: '2rem', marginBottom: '0.5rem' }}>
+          <div className="weekly-tracker-content">
+            <div className="weekly-tracker-header">
+              <h2 className="weekly-tracker-title">
                 Weekly Boss Tracker
               </h2>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}>
+            <div className="weekly-tracker-navigator-wrapper">
               <WeekNavigator
                 selectedWeekKey={weekNavigation.selectedWeekKey}
                 onWeekChange={handleWeekChangeWithData}
@@ -290,35 +252,13 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
 
             <ModeIndicator
               selectedWeekKey={weekNavigation.selectedWeekKey}
+              showTickAll={showCharacterDetails && !weekNavigation.isHistoricalWeek}
+              onTickAll={bossActions.handleTickAll}
+              allTicked={charBosses.every(b => checked[charKey]?.[b.name + '-' + b.difficulty]) && charBosses.length > 0}
             />
 
             {showCharacterDetails && (
               <div>
-                {!weekNavigation.isHistoricalWeek && (
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    gap: 12, 
-                    marginBottom: 24 
-                  }}>
-                    <button 
-                      onClick={bossActions.handleTickAll} 
-                      style={{ 
-                        padding: '0.5rem 1.2rem', 
-                        borderRadius: 6, 
-                        background: '#805ad5', 
-                        color: '#fff', 
-                        fontWeight: 600, 
-                        cursor: 'pointer',
-                        border: '1px solid #9f7aea'
-                      }}
-                    >
-                      {charBosses.every(b => checked[charKey]?.[b.name + '-' + b.difficulty]) && charBosses.length > 0 ? 'Untick All' : 'Tick All'}
-                    </button>
-                  </div>
-                )}
-
                 <BossTable
                   isHistoricalWeek={weekNavigation.isHistoricalWeek}
                   characterBossSelections={characterBossSelections}
@@ -353,165 +293,137 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, marginTop: '2rem' }}>
+            <div className="weekly-tracker-stats-button-container">
               <button
-                style={{
-                  background: 'linear-gradient(135deg, #805ad5, #9f7aea)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 12,
-                  padding: '0.8rem 2.5rem',
-                  fontWeight: 700,
-                  fontSize: '1.1em',
-                  cursor: 'pointer',
-                  width: '100%',
-                  maxWidth: 320,
-                  boxShadow: '0 4px 12px rgba(128, 90, 213, 0.4)',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-                }}
+                className="weekly-tracker-stats-button"
                 onClick={() => statsManagement.setShowStats(true)}
               >
                 View Stats
               </button>
             </div>
-            
-
           </div>
         </div>
 
         {/* Modals */}
         <StatsModal
-        showStats={statsManagement.showStats}
-        setShowStats={statsManagement.setShowStats}
-        allYears={statsManagement.allYears}
-        selectedYear={statsManagement.selectedYear}
-        setSelectedYear={statsManagement.setSelectedYear}
-        yearlyPitchedSummary={statsManagement.yearlyPitchedSummary}
-        isLoadingCloudStats={statsManagement.isLoadingCloudStats}
-        setPitchedModalItem={statsManagement.setPitchedModalItem}
-        setShowPitchedModal={statsManagement.setShowPitchedModal}
-        setShowStatsResetConfirm={statsManagement.setShowStatsResetConfirm}
-      />
+          showStats={statsManagement.showStats}
+          setShowStats={statsManagement.setShowStats}
+          allYears={statsManagement.allYears}
+          selectedYear={statsManagement.selectedYear}
+          setSelectedYear={statsManagement.setSelectedYear}
+          yearlyPitchedSummary={statsManagement.yearlyPitchedSummary}
+          isLoadingCloudStats={statsManagement.isLoadingCloudStats}
+          setPitchedModalItem={statsManagement.setPitchedModalItem}
+          setShowPitchedModal={statsManagement.setShowPitchedModal}
+          setShowStatsResetConfirm={statsManagement.setShowStatsResetConfirm}
+        />
 
-      <StatsResetConfirmDialog
-        showStatsResetConfirm={statsManagement.showStatsResetConfirm}
-        setShowStatsResetConfirm={statsManagement.setShowStatsResetConfirm}
-        onConfirm={() => statsManagement.handleStatsReset(setError)}
-      />
+        <StatsResetConfirmDialog
+          showStatsResetConfirm={statsManagement.showStatsResetConfirm}
+          setShowStatsResetConfirm={statsManagement.setShowStatsResetConfirm}
+          onConfirm={() => statsManagement.handleStatsReset(setError)}
+        />
 
-      <CharacterPurgeDialog
-        showCharacterPurgeConfirm={statsManagement.showCharacterPurgeConfirm}
-        setShowCharacterPurgeConfirm={statsManagement.setShowCharacterPurgeConfirm}
-        purgeTargetCharacter={statsManagement.purgeTargetCharacter}
-        purgeInProgress={statsManagement.purgeInProgress}
-        onConfirm={() => statsManagement.handleCharacterPurge(
-          pitchedItems.pitchedChecked,
-          pitchedItems.setPitchedChecked,
-          weekNavigation.selectedWeekKey,
-          pitchedItems.userInteractionRef,
-          setError
+        <CharacterPurgeDialog
+          showCharacterPurgeConfirm={statsManagement.showCharacterPurgeConfirm}
+          setShowCharacterPurgeConfirm={statsManagement.setShowCharacterPurgeConfirm}
+          purgeTargetCharacter={statsManagement.purgeTargetCharacter}
+          purgeInProgress={statsManagement.purgeInProgress}
+          onConfirm={() => statsManagement.handleCharacterPurge(
+            pitchedItems.pitchedChecked,
+            pitchedItems.setPitchedChecked,
+            weekNavigation.selectedWeekKey,
+            pitchedItems.userInteractionRef,
+            setError
+          )}
+        />
+
+        <SuccessDialog
+          resetSuccessVisible={statsManagement.resetSuccessVisible}
+          closeResetSuccess={statsManagement.closeResetSuccess}
+          purgeSuccess={statsManagement.purgeSuccess}
+          setPurgeSuccess={statsManagement.setPurgeSuccess}
+        />
+
+        <PitchedItemDetailsModal
+          showPitchedModal={statsManagement.showPitchedModal}
+          setShowPitchedModal={statsManagement.setShowPitchedModal}
+          pitchedModalItem={statsManagement.pitchedModalItem}
+          pitchedModalDetails={statsManagement.pitchedModalDetails}
+        />
+
+        {statsManagement.showHistoricalPitchedModal && statsManagement.historicalPitchedData && (
+          <div className="weekly-tracker-modal-backdrop"
+            onClick={() => statsManagement.setShowHistoricalPitchedModal(false)}
+          >
+            <HistoricalPitchedModal
+              data={statsManagement.historicalPitchedData}
+              characterBossSelections={characterBossSelections}
+              onClose={() => statsManagement.setShowHistoricalPitchedModal(false)}
+              onConfirm={async (dateStr, selectedCharacter) => {
+                try {
+                  console.log('🏛️ Historical pitched item logging:', {
+                    character: selectedCharacter,
+                    boss: statsManagement.historicalPitchedData.bossName,
+                    item: statsManagement.historicalPitchedData.itemName,
+                    date: dateStr,
+                    weekKey: statsManagement.historicalPitchedData.weekKey
+                  });
+
+                  // Find character index
+                  const characterIdx = characterBossSelections.findIndex(c => c.name === selectedCharacter);
+                  if (characterIdx === -1) {
+                    setError('Selected character not found');
+                    return;
+                  }
+
+                  // Save the historical pitched item
+                  const result = await savePitchedItem(userCode, {
+                    character: selectedCharacter,
+                    characterIdx: characterIdx,
+                    bossName: statsManagement.historicalPitchedData.bossName,
+                    bossDifficulty: 'Unknown', // Historical items may not have difficulty info
+                    itemName: statsManagement.historicalPitchedData.itemName,
+                    itemImage: statsManagement.historicalPitchedData.itemImage,
+                    date: dateStr
+                  }, false, statsManagement.historicalPitchedData.weekKey);
+
+                  if (result.success) {
+                    console.log('✅ Historical pitched item saved successfully');
+                    
+                    // Update the local pitched checked state using the proper key format
+                    const { getPitchedKey } = await import('./utils/stringUtils');
+                    const key = getPitchedKey(
+                      selectedCharacter, 
+                      characterIdx, 
+                      statsManagement.historicalPitchedData.bossName, 
+                      statsManagement.historicalPitchedData.itemName, 
+                      statsManagement.historicalPitchedData.weekKey
+                    );
+                    pitchedItems.setPitchedChecked(prev => ({
+                      ...prev,
+                      [key]: true
+                    }));
+
+                    // Refresh pitched items to sync with database
+                    await pitchedItems.refreshPitchedItems(userCode);
+                    
+                    // Refresh historical analysis to update navigation
+                    await weekNavigation.refreshHistoricalAnalysis();
+                    
+                    statsManagement.setShowHistoricalPitchedModal(false);
+                  } else {
+                    console.error('❌ Failed to save historical pitched item:', result.error);
+                    setError('Failed to save historical pitched item: ' + (result.error || 'Unknown error'));
+                  }
+                } catch (error) {
+                  console.error('❌ Error in historical pitched item save:', error);
+                  setError('Error saving historical pitched item: ' + error.message);
+                }
+              }}
+            />
+          </div>
         )}
-      />
-
-      <SuccessDialog
-        resetSuccessVisible={statsManagement.resetSuccessVisible}
-        closeResetSuccess={statsManagement.closeResetSuccess}
-        purgeSuccess={statsManagement.purgeSuccess}
-        setPurgeSuccess={statsManagement.setPurgeSuccess}
-      />
-
-      <PitchedItemDetailsModal
-        showPitchedModal={statsManagement.showPitchedModal}
-        setShowPitchedModal={statsManagement.setShowPitchedModal}
-        pitchedModalItem={statsManagement.pitchedModalItem}
-        pitchedModalDetails={statsManagement.pitchedModalDetails}
-      />
-
-      {statsManagement.showHistoricalPitchedModal && statsManagement.historicalPitchedData && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(40,32,74,0.96)',
-          zIndex: 6000,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}
-          onClick={() => statsManagement.setShowHistoricalPitchedModal(false)}
-        >
-          <HistoricalPitchedModal
-            data={statsManagement.historicalPitchedData}
-            characterBossSelections={characterBossSelections}
-            onClose={() => statsManagement.setShowHistoricalPitchedModal(false)}
-            onConfirm={async (dateStr, selectedCharacter) => {
-              try {
-                console.log('🏛️ Historical pitched item logging:', {
-                  character: selectedCharacter,
-                  boss: statsManagement.historicalPitchedData.bossName,
-                  item: statsManagement.historicalPitchedData.itemName,
-                  date: dateStr,
-                  weekKey: statsManagement.historicalPitchedData.weekKey
-                });
-
-                // Find character index
-                const characterIdx = characterBossSelections.findIndex(c => c.name === selectedCharacter);
-                if (characterIdx === -1) {
-                  setError('Selected character not found');
-                  return;
-                }
-
-                // Save the historical pitched item
-                const result = await savePitchedItem(userCode, {
-                  character: selectedCharacter,
-                  characterIdx: characterIdx,
-                  bossName: statsManagement.historicalPitchedData.bossName,
-                  bossDifficulty: 'Unknown', // Historical items may not have difficulty info
-                  itemName: statsManagement.historicalPitchedData.itemName,
-                  itemImage: statsManagement.historicalPitchedData.itemImage,
-                  date: dateStr
-                }, false, statsManagement.historicalPitchedData.weekKey);
-
-                if (result.success) {
-                  console.log('✅ Historical pitched item saved successfully');
-                  
-                  // Update the local pitched checked state using the proper key format
-                  const { getPitchedKey } = await import('./utils/stringUtils');
-                  const key = getPitchedKey(
-                    selectedCharacter, 
-                    characterIdx, 
-                    statsManagement.historicalPitchedData.bossName, 
-                    statsManagement.historicalPitchedData.itemName, 
-                    statsManagement.historicalPitchedData.weekKey
-                  );
-                  pitchedItems.setPitchedChecked(prev => ({
-                    ...prev,
-                    [key]: true
-                  }));
-
-                  // Refresh pitched items to sync with database
-                  await pitchedItems.refreshPitchedItems(userCode);
-                  
-                  // Refresh historical analysis to update navigation
-                  await weekNavigation.refreshHistoricalAnalysis();
-                  
-              statsManagement.setShowHistoricalPitchedModal(false);
-                } else {
-                  console.error('❌ Failed to save historical pitched item:', result.error);
-                  setError('Failed to save historical pitched item: ' + (result.error || 'Unknown error'));
-                }
-              } catch (error) {
-                console.error('❌ Error in historical pitched item save:', error);
-                setError('Error saving historical pitched item: ' + error.message);
-              }
-            }}
-          />
-        </div>
-      )}
-
-
       </div>
     </div>
   );

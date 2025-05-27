@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { getWeekDateRange } from '../utils/weekUtils'; // Adjusted path
 import '../styles/historical-modal.css';
 
@@ -15,9 +15,9 @@ function HistoricalPitchedModal({ data, characterBossSelections, onClose, onConf
   }, [data.weekKey]);
 
   // Format date for input field (YYYY-MM-DD)
-  const formatDateForInput = (date) => {
+  const formatDateForInput = useCallback((date) => {
     return date.toISOString().split('T')[0];
-  };
+  }, []);
 
   // Get available dates for this week
   const availableDates = useMemo(() => {
@@ -44,7 +44,7 @@ function HistoricalPitchedModal({ data, characterBossSelections, onClose, onConf
     if (characterBossSelections.length > 0 && !selectedCharacter) {
       setSelectedCharacter(characterBossSelections[0].name);
     }
-  }, [availableDates, selectedDate, characterBossSelections, selectedCharacter]);
+  }, [availableDates, selectedDate, characterBossSelections, selectedCharacter, formatDateForInput]);
 
   const handleConfirm = async () => {
     if (!selectedDate || !selectedCharacter) return;

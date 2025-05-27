@@ -5,12 +5,9 @@ import { useAuth } from '../hooks/useAuth';
 function LoginPage() {
   const navigate = useNavigate();
   const {
-    userCode,
     isLoggedIn,
     loginInput,
     setLoginInput,
-    loginError,
-    setLoginError,
     isCreating,
     createCooldown,
     showPassword,
@@ -24,6 +21,14 @@ function LoginPage() {
   const [newUserCode, setNewUserCode] = useState('');
   const [countdown, setCountdown] = useState(8);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
+
+  // Define handleSuccessModalClose before it's used in useEffect
+  const handleSuccessModalClose = () => {
+    setShowSuccessModal(false);
+    setNewUserCode('');
+    setCountdown(8);
+    navigate('/', { replace: true });
+  };
 
   // Countdown timer for success modal
   useEffect(() => {
@@ -56,13 +61,6 @@ function LoginPage() {
       setShowSuccessModal(true);
       setCountdown(8);
     }
-  };
-
-  const handleSuccessModalClose = () => {
-    setShowSuccessModal(false);
-    setNewUserCode('');
-    setCountdown(8);
-    navigate('/', { replace: true });
   };
 
   const handleLoginWrapper = async () => {
@@ -279,22 +277,6 @@ function LoginPage() {
         >
           Login
         </button>
-        
-        {loginError && (
-          <div style={{ 
-            color: '#ff6b6b', 
-            fontSize: '0.95rem', 
-            textAlign: 'center', 
-            marginTop: 8,
-            padding: '0.5rem',
-            background: 'rgba(255, 107, 107, 0.1)',
-            border: '1px solid rgba(255, 107, 107, 0.3)',
-            borderRadius: 6,
-            animation: 'fadeInShake 0.5s ease-out'
-          }}>
-            {loginError}
-          </div>
-        )}
         
         <div style={{ 
           fontSize: '0.85rem', 

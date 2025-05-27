@@ -1,14 +1,10 @@
 // Test the fixed week key format
-import { getCurrentWeekKey, getWeekLabel, getWeekDateRange, parseWeekKey } from './src/utils/weekUtils.js';
+import { getCurrentWeekKey, getWeekDateRange, parseWeekKey } from './src/utils/weekUtils.js';
 
 // console.log('=== Fixed MapleStory Week Key Test ===');
 
 const currentWeek = getCurrentWeekKey();
 // console.log('Current week key:', currentWeek);
-// console.log('Current week label:', getWeekLabel(currentWeek));
-
-const parsed = parseWeekKey(currentWeek);
-// console.log('Parsed week key:', parsed);
 
 const dateRange = getWeekDateRange(currentWeek);
 if (dateRange) {
