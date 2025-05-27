@@ -10,6 +10,21 @@ export function usePitchedItems(userCode, characters, checked, setChecked, weekK
   const [loadingPitchedItems, setLoadingPitchedItems] = useState({});
   const userInteractionRef = useRef(false);
 
+  // Helper function to normalize week keys for comparison
+  const normalizeWeekKey = (weekKey) => {
+    if (!weekKey) return weekKey;
+    
+    const parts = weekKey.split('-');
+    if (parts.length === 3) {
+      // Format: YYYY-MW-CW, normalize to remove leading zeros
+      const year = parts[0];
+      const mw = parseInt(parts[1]).toString(); // Remove leading zeros
+      const cw = parseInt(parts[2]).toString(); // Remove leading zeros
+      return `${year}-${mw}-${cw}`;
+    }
+    return weekKey;
+  };
+
   // Function to refresh pitched items from database
   const refreshPitchedItems = async (userCodeValue) => {
     if (isRefreshingPitchedItems) return;
@@ -27,7 +42,10 @@ export function usePitchedItems(userCode, characters, checked, setChecked, weekK
         
         // Only update local state if not during user interaction
         if (!userInteractionRef.current) {
-          const currentWeekItems = (result.items || []).filter(item => item.weekKey === weekKey);
+          const normalizedWeekKey = normalizeWeekKey(weekKey);
+          const currentWeekItems = (result.items || []).filter(item => 
+            normalizeWeekKey(item.weekKey) === normalizedWeekKey
+          );
           
           // Update pitched checked state based on current week
           const newPitchedChecked = {};
@@ -61,7 +79,10 @@ export function usePitchedItems(userCode, characters, checked, setChecked, weekK
         setCloudPitchedItems(result.data || []);
         
         // Update pitched checked state based on current week
-        const currentWeekItems = (result.data || []).filter(item => item.weekKey === weekKey);
+        const normalizedWeekKey = normalizeWeekKey(weekKey);
+        const currentWeekItems = (result.data || []).filter(item => 
+          normalizeWeekKey(item.weekKey) === normalizedWeekKey
+        );
         const newPitchedChecked = {};
         
         currentWeekItems.forEach(item => {
@@ -119,7 +140,10 @@ export function usePitchedItems(userCode, characters, checked, setChecked, weekK
         // Skip sync during user interactions to prevent conflicts
         if (userInteractionRef.current) return;
         
-        const currentWeekItems = cloudPitchedItems.filter(item => item.weekKey === weekKey);
+        const normalizedWeekKey = normalizeWeekKey(weekKey);
+        const currentWeekItems = cloudPitchedItems.filter(item => 
+          normalizeWeekKey(item.weekKey) === normalizedWeekKey
+        );
         
         if (currentWeekItems.length > 0) {
           const newChecked = { ...checked };
@@ -177,6 +201,54 @@ export function usePitchedItems(userCode, characters, checked, setChecked, weekK
     
     syncPitchedWithBossChecks();
   }, [cloudPitchedItems, weekKey, characters]); // Removed checked and pitchedChecked from dependencies
+
+  // Separate effect to handle week changes and update pitched checked state
+  useEffect(() => {
+    console.log(`🔄 PITCHED: Week changed to ${weekKey}, updating pitched checked state...`);
+    console.log(`🔄 PITCHED: Total cloud pitched items: ${cloudPitchedItems.length}`);
+    
+    const normalizedWeekKey = normalizeWeekKey(weekKey);
+    console.log(`🔄 PITCHED: Normalized week key: ${weekKey} → ${normalizedWeekKey}`);
+    
+    // Filter pitched items for the current week with normalization
+    const currentWeekItems = cloudPitchedItems.filter(item => {
+      const normalizedItemWeekKey = normalizeWeekKey(item.weekKey);
+      const matches = normalizedItemWeekKey === normalizedWeekKey;
+      
+      if (!matches) {
+        console.log(`🔄 PITCHED: Week key mismatch: item(${item.weekKey}→${normalizedItemWeekKey}) vs target(${weekKey}→${normalizedWeekKey})`);
+      }
+      
+      return matches;
+    });
+    
+    console.log(`🔄 PITCHED: Items for week ${weekKey}:`, currentWeekItems.map(item => ({
+      character: item.character,
+      boss: item.boss,
+      item: item.item,
+      difficulty: item.difficulty,
+      weekKey: item.weekKey,
+      normalizedWeekKey: normalizeWeekKey(item.weekKey)
+    })));
+    
+    // Update pitched checked state based on current week items
+    const newPitchedChecked = {};
+    currentWeekItems.forEach(item => {
+      const charIdx = characters.findIndex(c => c.name === item.character);
+      if (charIdx !== -1) {
+        const key = getPitchedKey(item.character, charIdx, item.boss, item.item, weekKey);
+        newPitchedChecked[key] = true;
+        console.log(`🔄 PITCHED: Adding key: ${key}`);
+      } else {
+        console.log(`🔄 PITCHED: Character not found: ${item.character}`);
+      }
+    });
+    
+    console.log(`🔄 PITCHED: Found ${currentWeekItems.length} pitched items for week ${weekKey}`);
+    console.log('🔄 PITCHED: Setting pitched checked state:', newPitchedChecked);
+    
+    setPitchedChecked(newPitchedChecked);
+  }, [weekKey, cloudPitchedItems, characters]); // This effect specifically handles week changes
 
   return {
     pitchedChecked,

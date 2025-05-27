@@ -381,18 +381,25 @@ export async function savePitchedItem(userCode, data, remove = false, weekKey = 
         console.log('🧹 PITCHED CLEANUP: Valid boss combinations for character:', Array.from(validBossCombinations));
         
         // Remove pitched items for this character that don't match valid combinations
+        // ONLY for current week items - preserve all historical data
         const beforeCount = currentPitched.length;
         const filteredPitched = currentPitched.filter(item => {
-          // Only check items for this character and current week
-          if (item.character !== character || item.weekKey !== currentWeekKey) {
-            return true; // Keep items for other characters/weeks
+          // Keep all items for other characters
+          if (item.character !== character) {
+            return true;
           }
           
+          // Keep all historical items (non-current week) regardless of difficulty
+          if (item.weekKey !== currentWeekKey) {
+            return true;
+          }
+          
+          // Only validate current week items for this character
           const itemCombination = `${item.boss}-${item.difficulty || 'Unknown'}`;
           const isValid = validBossCombinations.has(itemCombination);
           
           if (!isValid) {
-            console.log(`🗑️ PITCHED CLEANUP: Removing invalid pitched item: ${item.character}-${item.boss}-${item.difficulty || 'Unknown'} - ${item.item}`);
+            console.log(`🗑️ PITCHED CLEANUP: Removing invalid current week pitched item: ${item.character}-${item.boss}-${item.difficulty || 'Unknown'} - ${item.item}`);
           }
           
           return isValid;
