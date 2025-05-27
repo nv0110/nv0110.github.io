@@ -336,43 +336,31 @@ function InputPage() {
               <h3 className="modal-section-title">Getting Started</h3>
               <p>1. Create an account or log in with your existing code</p>
               <p>2. Add characters using the input field at the top</p>
-              <p>3. Select a character and choose their bosses</p>
-              <p>4. Adjust party sizes for each boss as needed</p>
+              <p>3. Select a character and choose their bosses & difficulties</p>
+              <p>4. Head to Weekly Tracker to mark completions and track pitched items!</p>
             </div>
 
             <div className="modal-section-content" style={{ marginBottom: 24 }}>
-              <h3 className="modal-section-title">Weekly Tracker</h3>
-              <p>• <strong>Progress bar:</strong> Shows current mesos earned vs. maximum possible mesos</p>
-              <p>• <strong>Hide completed:</strong> Toggle to hide characters with all bosses cleared</p>
-              <p>• <strong>Character summary:</strong> Shows each character's completion status</p>
-              <p>• <strong>Tick All button:</strong> Quickly mark all bosses as completed for a character</p>
-              <p>• <strong>Reset timer:</strong> Shows time until the weekly reset (Thursday 00:00 UTC)</p>
+              <h3 className="modal-section-title">Boss Selection</h3>
+              <p>• <strong>Smart presets:</strong> Use Quick Select or save custom presets for easy setup</p>
+              <p>• <strong>Party sizes:</strong> Adjust party size for each boss to calculate split mesos</p>
+              <p>• <strong>Clone characters:</strong> Copy a character's entire boss setup instantly</p>
+              <p>• <strong>Difficulty matters:</strong> Higher difficulties = more mesos and pitched items</p>
             </div>
 
             <div className="modal-section-content" style={{ marginBottom: 24 }}>
-              <h3 className="modal-section-title">Export / Import</h3>
-              <p>• <strong>Export:</strong> Creates a JSON file with all your character data and presets</p>
-              <p>• <strong>Import:</strong> Loads character data and presets from a previously exported file</p>
-              <p>• <strong>Backup regularly:</strong> Export your data periodically as a backup</p>
-              <p>• <strong>Transfer between devices:</strong> Export from one device and import on another</p>
-            </div>
-
-            <div className="modal-section-content" style={{ marginBottom: 24 }}>
-              <h3 className="modal-section-title">Other Features</h3>
-              <p>• <strong>Cloud saving:</strong> Data is automatically saved to the cloud with your account</p>
-              <p>• <strong>Page memory:</strong> The app remembers which page you were on last</p>
-              <p>• <strong>Character editing:</strong> Click the pencil icon to edit a character's name</p>
-              <p>• <strong>Cloning:</strong> Create an exact copy of a character with the Clone button</p>
-              <p>• <strong>Party size:</strong> Adjust the party size for each boss to calculate split mesos</p>
+              <h3 className="modal-section-title">Data Management</h3>
+              <p>• <strong>Auto-save:</strong> All changes are automatically saved to the cloud</p>
+              <p>• <strong>Export/Import:</strong> Backup your data or transfer between devices</p>
+              <p>• <strong>Smart cleanup:</strong> Changing boss selections automatically cleans up old tracking data</p>
             </div>
 
             <div className="modal-section-content">
               <h3 className="modal-section-title">Quick Tips</h3>
-              <p>• Hover over buttons and elements for helpful tooltips</p>
-              <p>• Click on a boss row to toggle selection (not just the checkbox)</p>
-              <p>• Use the Price Table to see all boss values sorted by price</p>
-              <p>• Save your account code somewhere safe - you'll need it to log in!</p>
-              <p>• Weekly reset happens every Thursday at 00:00 UTC</p>
+              <p>• Click anywhere on a boss row to toggle selection</p>
+              <p>• Use presets to quickly set up multiple characters with similar boss lists</p>
+              <p>• Your account code is your login - keep it safe!</p>
+              <p>• Check out the Boss Table page to see which bosses give the most mesos</p>
             </div>
           </div>
         </div>

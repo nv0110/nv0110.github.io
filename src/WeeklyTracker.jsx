@@ -465,6 +465,7 @@ function WeeklyTracker({ characters, bossData, checked, setChecked, userCode, pr
                   character: selectedCharacter,
                   characterIdx: characterIdx,
                   bossName: statsManagement.historicalPitchedData.bossName,
+                  bossDifficulty: 'Unknown', // Historical items may not have difficulty info
                   itemName: statsManagement.historicalPitchedData.itemName,
                   itemImage: statsManagement.historicalPitchedData.itemImage,
                   date: dateStr

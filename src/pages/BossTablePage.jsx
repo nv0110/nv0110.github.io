@@ -146,24 +146,25 @@ function BossTablePage() {
             <h2 className="modal-title">Help & FAQ</h2>
             
             <div className="modal-section-content" style={{ marginBottom: 24 }}>
-              <h3 className="modal-section-title">Boss Price Table</h3>
-              <p>This table shows all bosses sorted by crystal value (highest to lowest)</p>
-              <p>Use this to plan which bosses give the most mesos for your time</p>
-              <p>Crystal prices are based on current market rates</p>
+              <h3 className="modal-section-title">Boss Crystal Values</h3>
+              <p>All bosses and difficulties sorted by crystal value (highest to lowest)</p>
+              <p>Use this reference to plan your weekly boss priorities</p>
+              <p>Values shown are for solo runs - adjust for your party size</p>
             </div>
 
             <div className="modal-section-content" style={{ marginBottom: 24 }}>
-              <h3 className="modal-section-title">Navigation</h3>
-              <p>• <strong>Calculator:</strong> Main page for character and boss management</p>
-              <p>• <strong>Weekly Tracker:</strong> Track your weekly boss completion progress</p>
-              <p>• <strong>Boss Table:</strong> This page - reference for all boss crystal values</p>
+              <h3 className="modal-section-title">Planning Your Week</h3>
+              <p>• <strong>Prioritize high-value bosses:</strong> Focus on the top of the list for maximum mesos</p>
+              <p>• <strong>Consider time investment:</strong> Some bosses take longer but give more mesos</p>
+              <p>• <strong>Difficulty scaling:</strong> Higher difficulties = more mesos + pitched items</p>
             </div>
 
             <div className="modal-section-content">
               <h3 className="modal-section-title">Quick Tips</h3>
-              <p>• Higher difficulty bosses generally give more mesos</p>
-              <p>• Party size affects mesos earned (displayed values are for solo)</p>
-              <p>• Use this table when deciding which bosses to prioritize</p>
+              <p>• Use this table when setting up characters in the Calculator</p>
+              <p>• Remember that party size divides the mesos shown</p>
+              <p>• Higher difficulties also unlock pitched item tracking</p>
+              <p>• Weekly reset happens every Thursday at 00:00 UTC</p>
             </div>
           </div>
         </div>

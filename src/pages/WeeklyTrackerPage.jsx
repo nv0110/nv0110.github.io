@@ -100,25 +100,33 @@ function WeeklyTrackerPage() {
             <h2 className="modal-title">Help & FAQ</h2>
             
             <div className="modal-section-content" style={{ marginBottom: 24 }}>
-              <h3 className="modal-section-title">Weekly Tracker</h3>
-              <p>Track your weekly boss completion progress and earnings</p>
-              <p>Check off bosses as you complete them to see your progress</p>
-              <p>Use the navigation arrows to view different weeks</p>
+              <h3 className="modal-section-title">Weekly Tracking</h3>
+              <p>Track your boss completions and see your weekly mesos progress</p>
+              <p>Check off bosses as you complete them throughout the week</p>
+              <p>Click on pitched item icons to track rare drops from bosses</p>
             </div>
 
             <div className="modal-section-content" style={{ marginBottom: 24 }}>
-              <h3 className="modal-section-title">Features</h3>
-              <p>• <strong>Progress tracking:</strong> Visual progress bars and completion status</p>
-              <p>• <strong>Week navigation:</strong> Navigate between weeks to view historical data</p>
-              <p>• <strong>Hide completed:</strong> Toggle to hide characters with all bosses completed</p>
-              <p>• <strong>Reset timer:</strong> See when the weekly reset occurs</p>
+              <h3 className="modal-section-title">Pitched Items & Stats</h3>
+              <p>• <strong>Pitched tracking:</strong> Click item icons to track rare boss drops</p>
+              <p>• <strong>Historical data:</strong> Navigate between weeks to view past progress</p>
+              <p>• <strong>Stats overview:</strong> View detailed statistics of all your pitched items</p>
+              <p>• <strong>Character management:</strong> Purge data for specific characters if needed</p>
+            </div>
+
+            <div className="modal-section-content" style={{ marginBottom: 24 }}>
+              <h3 className="modal-section-title">Week Navigation</h3>
+              <p>• <strong>Current week:</strong> Full editing capabilities for this week's progress</p>
+              <p>• <strong>Historical weeks:</strong> View-only mode for past weeks (toggle edit mode if needed)</p>
+              <p>• <strong>Smart navigation:</strong> Only shows weeks where you have data</p>
             </div>
 
             <div className="modal-section-content">
               <h3 className="modal-section-title">Quick Tips</h3>
+              <p>• Use "Tick All" to quickly mark all bosses completed for a character</p>
+              <p>• Hide completed characters to focus on remaining work</p>
               <p>• Weekly reset happens every Thursday at 00:00 UTC</p>
-              <p>• Check off bosses as you complete them throughout the week</p>
-              <p>• Use "Tick All" to quickly mark all bosses as completed for a character</p>
+              <p>• Pitched items are automatically linked to boss completions</p>
             </div>
           </div>
         </div>

@@ -122,6 +122,7 @@ function BossTable({
                                       character: characterWithItem,
                                       characterIdx: characters.findIndex(c => c.name === characterWithItem),
                                       bossName: bossObj.name,
+                                      bossDifficulty: 'Unknown', // Historical items may not have difficulty info
                                       itemName: item.name,
                                       itemImage: item.image,
                                       date: new Date().toISOString()
@@ -329,6 +330,7 @@ function BossTable({
                                     character: characters[selectedCharIdx].name,
                                     characterIdx: selectedCharIdx,
                                     bossName: b.name,
+                                    bossDifficulty: b.difficulty, // Include difficulty for proper cleanup
                                     itemName: item.name,
                                     itemImage: item.image,
                                     date: new Date().toISOString()
