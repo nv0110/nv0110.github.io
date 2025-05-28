@@ -46,6 +46,25 @@
   }
 }
 
+/* Custom animation for current week indicator */
+@keyframes currentWeekIndicator {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(162, 89, 247, 0.5);
+    transform: translate(-50%, -50%) scale(1);
+    background: #a259f7;
+  }
+  33% {
+    box-shadow: 0 0 10px rgba(162, 89, 247, 0.7), inset 0 0 2px rgba(255, 255, 255, 0.5);
+    transform: translate(-50%, -50%) scale(1.1) rotate(45deg);
+    background: #9645f4;
+  }
+  66% {
+    box-shadow: 0 0 8px rgba(96, 44, 150, 0.6), inset 0 0 4px rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%) scale(0.95) rotate(0deg);
+    background: #8a35f0;
+  }
+}
+
 
 
 /* ===== MAIN CONTAINER WITH FIXED GRID LAYOUT ===== */
@@ -117,6 +136,7 @@
   font-weight: 700;
   margin-bottom: 0.25rem;
   transition: all 0.3s ease;
+  position: relative; /* Add position relative to allow absolute positioning of the dot */
 }
 
 .week-navigator-title.current-week {
@@ -129,14 +149,19 @@
   text-shadow: 0 0 10px rgba(162, 89, 247, 0.5);
 }
 
-/* Subtle current week dot indicator */
-.week-navigator-current-dot {
+/* Title text wrapper to ensure consistent width */
+.week-title-text {
   display: inline-block;
-  margin-left: 0.5rem;
-  position: relative;
+}
+
+/* Subtle current week dot indicator - positioned absolutely to prevent text shifting */
+.week-navigator-current-dot {
+  position: absolute;
+  top: 50%;
+  right: -14px; /* Position to the right of the text */
   width: 8px;
   height: 8px;
-  vertical-align: middle;
+  transform: translateY(-50%);
 }
 
 .week-navigator-current-dot-inner {
@@ -149,7 +174,7 @@
   background: #a259f7;
   border-radius: 50%;
   box-shadow: 0 0 8px rgba(162, 89, 247, 0.6);
-  animation: currentWeekPulse 2s ease-in-out infinite;
+  animation: currentWeekIndicator 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 .week-navigator-current-dot-inner::before {

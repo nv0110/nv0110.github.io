@@ -174,8 +174,8 @@ function WeekNavigator({
       {/* Header section - fixed height */}
       <div className="week-navigator-header">
         <div className={`week-navigator-title ${isCurrentWeek ? 'current-week' : 'historical-week'}`}>
-          {weekInfo.label.replace(/\s*\(Current\)/i, '')}
-          {/* Subtle current week indicator */}
+          <span className="week-title-text">{weekInfo.label.replace(/\s*\(Current\)/i, '')}</span>
+          {/* Subtle current week indicator - positioned absolutely */}
           {isCurrentWeek && (
             <span className="week-navigator-current-dot">
               <span className="week-navigator-current-dot-inner"></span>

@@ -504,4 +504,111 @@
 .sidebar-toggle-hamburger-line:hover {
   /* Enhanced glow on hover */
   filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 12px rgba(255, 255, 255, 0.4));
-} 
+}
+
+/* ===== CHARACTER CARD ACTIONS ===== */
+.sidebar-character-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sidebar-character-pitched-btn {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(162, 89, 247, 0.08);
+  border: 1px solid rgba(162, 89, 247, 0.2);
+  color: #e6e0ff;
+  opacity: 0; /* Hidden by default */
+  transform: scale(0.9);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 5;
+  padding: 0;
+  line-height: 1;
+  overflow: hidden;
+  /* Disable pointer events entirely for non-selected characters */
+  pointer-events: none;
+  cursor: default;
+}
+
+/* Remove hover effect for non-selected character cards */
+/* Pitched button only appears on selected character */
+
+.pitched-btn-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.pitched-btn-glow {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at center, 
+    rgba(162, 89, 247, 0.2) 0%,
+    rgba(162, 89, 247, 0.1) 40%,
+    transparent 70%
+  );
+  opacity: 0; /* Hidden by default */
+  transition: opacity 0.3s ease;
+}
+
+/* Hover styles only apply to selected character's button */
+.sidebar-character-card.selected .sidebar-character-pitched-btn:hover {
+  background: rgba(162, 89, 247, 0.15);
+  border-color: rgba(162, 89, 247, 0.4);
+  transform: scale(1.1);
+  box-shadow: 
+    0 0 20px rgba(162, 89, 247, 0.2),
+    0 0 40px rgba(162, 89, 247, 0.1),
+    inset 0 0 20px rgba(162, 89, 247, 0.1);
+}
+
+.sidebar-character-card.selected .sidebar-character-pitched-btn:hover .pitched-btn-glow {
+  opacity: 1;
+  animation: pulse-glow 2s infinite;
+}
+
+@keyframes pitched-btn-pulse {
+  0%, 100% {
+    transform: scale(0.9);
+    border-color: rgba(162, 89, 247, 0.2);
+  }
+  50% {
+    transform: scale(0.95);
+    border-color: rgba(162, 89, 247, 0.4);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.2);
+  }
+}
+
+/* Show and animate the pitched button only on selected character */
+.sidebar-character-card.selected .sidebar-character-pitched-btn {
+  opacity: 0.8; /* More visible on selected character */
+  animation: pitched-btn-pulse 3s infinite ease-in-out;
+  pointer-events: auto; /* Enable interactions only for selected character */
+  cursor: pointer; /* Show pointer cursor only for selected character */
+}
+
+/* Apply glow animation only on selected character */
+.sidebar-character-card.selected .pitched-btn-glow {
+  opacity: 0.3;
+  animation: pulse-glow 3s infinite ease-in-out;
+}

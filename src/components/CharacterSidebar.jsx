@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { formatMesoBillions } from '../utils/formatUtils';
+import PitchedItemsModal from './PitchedItemsModal';
+import { useAuth } from '../hooks/useAuth';
+import { usePitchedItems } from '../hooks/usePitchedItems';
 
 function CharacterSidebar({
   sidebarVisible,
@@ -17,8 +20,21 @@ function CharacterSidebar({
 }) {
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
+  const [showPitchedModal, setShowPitchedModal] = useState(false);
+  const [selectedCharacterPitched, setSelectedCharacterPitched] = useState(null);
   const characterListRef = useRef(null);
   const scrollTimeoutRef = useRef(null);
+
+  // Get userCode from auth
+  const { userCode } = useAuth();
+  // Get all pitched items from the cloud
+  const { cloudPitchedItems } = usePitchedItems(userCode, visibleCharSummaries, {}, () => {}, selectedWeekKey);
+
+  // Filter pitched items for the selected character
+  const selectedCharacterIdx = selectedCharacterPitched?.idx;
+  const pitchedItemsForCharacter = selectedCharacterIdx !== undefined && selectedCharacterIdx !== null
+    ? cloudPitchedItems.filter(item => item.characterIdx === selectedCharacterIdx)
+    : [];
 
   // Check if scroll indicator should be shown
   useEffect(() => {
@@ -78,6 +94,12 @@ function CharacterSidebar({
       }, 100); // Small delay to ensure sidebar is fully rendered
     }
   }, [sidebarVisible, isScrolling]);
+
+  const handlePitchedClick = (e, character) => {
+    e.stopPropagation();
+    setSelectedCharacterPitched(character);
+    setShowPitchedModal(true);
+  };
 
   return (
     <>
@@ -158,12 +180,41 @@ function CharacterSidebar({
                       <span className={`sidebar-character-name ${selectedCharIdx === cs.idx ? 'selected' : 'default'}`}>
                         {cs.name}
                       </span>
-                      {cs.allCleared && (
-                        <svg className="sidebar-character-checkmark" width="16" height="16" viewBox="0 0 22 22">
-                          <circle cx="11" cy="11" r="11" fill="#38a169"/>
-                          <polyline points="6,12 10,16 16,7" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      )}
+                      <div className="sidebar-character-actions">
+                        {cs.allCleared && (
+                          <svg className="sidebar-character-checkmark" width="16" height="16" viewBox="0 0 22 22">
+                            <circle cx="11" cy="11" r="11" fill="#38a169"/>
+                            <polyline points="6,12 10,16 16,7" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                        <button 
+                          className="sidebar-character-pitched-btn"
+                          onClick={(e) => handlePitchedClick(e, cs)}
+                          title="View pitched items"
+                        >
+                          <div className="pitched-btn-content">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                              <path
+                                d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+                                fill="url(#starGradient)"
+                                stroke="url(#starStrokeGradient)"
+                                strokeWidth="1.5"
+                              />
+                              <defs>
+                                <linearGradient id="starGradient" x1="0" y1="0" x2="24" y2="24">
+                                  <stop stopColor="#a259f7" />
+                                  <stop offset="1" stopColor="#805ad5" />
+                                </linearGradient>
+                                <linearGradient id="starStrokeGradient" x1="0" y1="0" x2="24" y2="24">
+                                  <stop stopColor="#d6b4ff" />
+                                  <stop offset="1" stopColor="#a259f7" />
+                                </linearGradient>
+                              </defs>
+                            </svg>
+                            <span className="pitched-btn-glow"></span>
+                          </div>
+                        </button>
+                      </div>
                     </div>
 
                     <div className="sidebar-character-stats">
@@ -207,6 +258,12 @@ function CharacterSidebar({
             </div>
           </div>
       </div>
+      <PitchedItemsModal
+        isOpen={showPitchedModal}
+        onClose={() => setShowPitchedModal(false)}
+        characterName={selectedCharacterPitched?.name}
+        pitchedItems={pitchedItemsForCharacter}
+      />
     </>
   );
 }
