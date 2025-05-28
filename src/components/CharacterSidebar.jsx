@@ -1,10 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { formatMesoBillions } from '../utils/formatUtils';
 import PitchedItemsModal from './PitchedItemsModal';
 import { useAuth } from '../hooks/useAuth';
 import { usePitchedItems } from '../hooks/usePitchedItems';
 
-function CharacterSidebar({
+// Helper to create a stable hash for characterBossSelections
+function hashCharacterSelections(chars) {
+  return JSON.stringify(
+    (chars || []).map(c => ({
+      name: c.name,
+      idx: c.idx ?? c.index ?? 0,
+      bosses: (c.bosses || []).map(b => `${b.name}-${b.difficulty}`)
+    }))
+  );
+}
+
+const CharacterSidebar = React.memo(function CharacterSidebar({
   sidebarVisible,
   isHistoricalWeek,
   totalMeso,
@@ -16,7 +27,8 @@ function CharacterSidebar({
   selectedCharIdx,
   setSelectedCharIdx,
   setPurgeTargetCharacter,
-  setShowCharacterPurgeConfirm
+  setShowCharacterPurgeConfirm,
+  characterBossSelections = []
 }) {
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
@@ -27,14 +39,34 @@ function CharacterSidebar({
 
   // Get userCode from auth
   const { userCode } = useAuth();
-  // Get all pitched items from the cloud
-  const { cloudPitchedItems } = usePitchedItems(userCode, visibleCharSummaries, {}, () => {}, selectedWeekKey);
+
+  // Memoize character data with bosses to prevent unnecessary re-renders
+  const charHash = useMemo(() => hashCharacterSelections(characterBossSelections), [characterBossSelections]);
+  const charLength = characterBossSelections.length;
+  const stableCharacterData = useMemo(() => {
+    return characterBossSelections.map(char => ({
+      ...char,
+      bosses: char.bosses || []
+    }));
+  }, [charHash, charLength]);
+
+  // Get all pitched items from the cloud - use stable character data
+  const { cloudPitchedItems } = usePitchedItems(
+    userCode,
+    stableCharacterData,
+    {},
+    () => {},
+    selectedWeekKey
+  );
 
   // Filter pitched items for the selected character
   const selectedCharacterIdx = selectedCharacterPitched?.idx;
-  const pitchedItemsForCharacter = selectedCharacterIdx !== undefined && selectedCharacterIdx !== null
-    ? cloudPitchedItems.filter(item => item.characterIdx === selectedCharacterIdx)
-    : [];
+  const pitchedItemsForCharacter = useMemo(() => {
+    if (selectedCharacterIdx === undefined || selectedCharacterIdx === null) {
+      return [];
+    }
+    return cloudPitchedItems.filter(item => item.characterIdx === selectedCharacterIdx);
+  }, [cloudPitchedItems, selectedCharacterIdx]);
 
   // Check if scroll indicator should be shown
   useEffect(() => {
@@ -42,7 +74,7 @@ function CharacterSidebar({
       const element = characterListRef.current;
       if (element) {
         const hasScrollableContent = element.scrollHeight > element.clientHeight;
-        const isAtBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 5; // 5px tolerance
+        const isAtBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 5;
         const canScrollDown = hasScrollableContent && !isAtBottom;
         setShowScrollIndicator(canScrollDown && !isScrolling);
       }
@@ -51,23 +83,16 @@ function CharacterSidebar({
     const handleScroll = () => {
       setIsScrolling(true);
       setShowScrollIndicator(false);
-      
-      // Clear existing timeout
       if (scrollTimeoutRef.current) {
         clearTimeout(scrollTimeoutRef.current);
       }
-      
-      // Set timeout to show indicator again after scrolling stops
       scrollTimeoutRef.current = setTimeout(() => {
         setIsScrolling(false);
         checkScrollable();
-      }, 1000); // Show indicator 1 second after scrolling stops
+      }, 1000);
     };
 
-    // Check initially and when characters change
     checkScrollable();
-    
-    // Add scroll listener
     const element = characterListRef.current;
     if (element) {
       element.addEventListener('scroll', handleScroll);
@@ -78,9 +103,8 @@ function CharacterSidebar({
         }
       };
     }
-  }, [visibleCharSummaries, isScrolling, characterListRef, scrollTimeoutRef]);
+  }, [visibleCharSummaries, isScrolling]);
 
-  // Also check when sidebar visibility changes
   useEffect(() => {
     if (sidebarVisible) {
       setTimeout(() => {
@@ -91,105 +115,95 @@ function CharacterSidebar({
           const canScrollDown = hasScrollableContent && !isAtBottom;
           setShowScrollIndicator(canScrollDown && !isScrolling);
         }
-      }, 100); // Small delay to ensure sidebar is fully rendered
+      }, 100);
     }
   }, [sidebarVisible, isScrolling]);
 
-  const handlePitchedClick = (e, character) => {
+  const handlePitchedClick = useCallback((e, character) => {
     e.stopPropagation();
     setSelectedCharacterPitched(character);
     setShowPitchedModal(true);
-  };
+  }, []);
 
   return (
     <>
       <div
         className={`sidebar-scroll fade-in-no-slide ${sidebarVisible ? 'visible' : 'hidden'}`}
       >
-          <div className="sidebar-content">
-            {/* Sidebar Header */}
-            <div className="sidebar-header">
-              <h3 className="sidebar-title">
-                Characters
-              </h3>
+        <div className="sidebar-content">
+          {/* Sidebar Header */}
+          <div className="sidebar-header">
+            <h3 className="sidebar-title">Characters</h3>
+          </div>
+
+          {/* Progress Bar - only for current week */}
+          {!isHistoricalWeek && (
+            <div className="sidebar-progress-section">
+              <div className="sidebar-progress-title">Weekly Progress</div>
+              <div className="sidebar-progress-track week-navigator-progress-bar-container">
+                <div
+                  className="sidebar-progress-fill week-navigator-progress-bar"
+                  style={{
+                    width: `${obtainableMeso > 0 ? Math.min((totalMeso / obtainableMeso) * 100, 100) : 0}%`
+                  }}
+                >
+                  {obtainableMeso > 0 && totalMeso > 0 && (
+                    <div className="week-navigator-progress-shimmer" />
+                  )}
+                </div>
+              </div>
+              <div className="sidebar-progress-numbers">
+                <span>{formatMesoBillions(totalMeso)}</span>
+                <span>{formatMesoBillions(obtainableMeso)}</span>
+              </div>
             </div>
+          )}
 
-            {/* Progress Bar - only for current week */}
-            {!isHistoricalWeek && (
-              <div className="sidebar-progress-section">
-                <div className="sidebar-progress-title">
-                  Weekly Progress
-                </div>
-                <div className="sidebar-progress-track week-navigator-progress-bar-container">
-                  <div 
-                    className="sidebar-progress-fill week-navigator-progress-bar"
-                    style={{ 
-                      width: `${obtainableMeso > 0 ? Math.min((totalMeso / obtainableMeso) * 100, 100) : 0}%`
-                    }} 
-                  >
-                    {obtainableMeso > 0 && totalMeso > 0 && (
-                      <div className="week-navigator-progress-shimmer" />
-                    )}
-                  </div>
-                </div>
-                <div className="sidebar-progress-numbers">
-                  <span>{formatMesoBillions(totalMeso)}</span>
-                  <span>{formatMesoBillions(obtainableMeso)}</span>
-                </div>
+          {/* Historical week indicator */}
+          {isHistoricalWeek && (
+            <div className="sidebar-historical-section">
+              <div className="sidebar-historical-title">
+                Week {selectedWeekKey.split('-').slice(1).join('-')}
               </div>
-            )}
+              <div className="sidebar-historical-subtitle">Historical Data</div>
+            </div>
+          )}
 
-            {/* Historical week indicator */}
-            {isHistoricalWeek && (
-              <div className="sidebar-historical-section">
-                <div className="sidebar-historical-title">
-                  Week {selectedWeekKey.split('-').slice(1).join('-')}
+          {/* Character Cards - Scrollable Container */}
+          <div className="sidebar-character-list-container">
+            <div className="sidebar-character-list" ref={characterListRef}>
+              {visibleCharSummaries.length === 0 ? (
+                <div className="sidebar-empty-state">
+                  {hideCompleted ? 'No characters with bosses left to clear.' : 'No characters found.'}
                 </div>
-                <div className="sidebar-historical-subtitle">
-                  Historical Data
-                </div>
-              </div>
-            )}
-
-            {/* Character Cards - Scrollable Container */}
-            <div className="sidebar-character-list-container">
-              <div className="sidebar-character-list" ref={characterListRef}>
-                {visibleCharSummaries.length === 0 ? (
-                  <div className="sidebar-empty-state">
-                    {hideCompleted ? 'No characters with bosses left to clear.' : 'No characters found.'}
-                  </div>
-                ) : (
-                  visibleCharSummaries.map(cs => (
+              ) : (
+                visibleCharSummaries.map(cs => (
                   <div
                     key={cs.name + '-' + cs.idx}
-                    onClick={() => {
-                      setSelectedCharIdx(cs.idx);
-                    }}
-                    onContextMenu={(e) => {
+                    onClick={() => setSelectedCharIdx(cs.idx)}
+                    onContextMenu={e => {
                       e.preventDefault();
                       setPurgeTargetCharacter({ name: cs.name, idx: cs.idx });
                       setShowCharacterPurgeConfirm(true);
                     }}
                     className={`sidebar-character-card ${
-                      selectedCharIdx === cs.idx 
-                        ? `selected ${isHistoricalWeek ? 'historical-week' : 'current-week'}` 
+                      selectedCharIdx === cs.idx
+                        ? `selected ${isHistoricalWeek ? 'historical-week' : 'current-week'}`
                         : 'default'
                     }`}
                   >
                     <div className="sidebar-character-header">
-                      <span className={`sidebar-character-name ${selectedCharIdx === cs.idx ? 'selected' : 'default'}`}>
-                        {cs.name}
-                      </span>
+                      <span className={`sidebar-character-name ${selectedCharIdx === cs.idx ? 'selected' : 'default'}`}>{cs.name}</span>
                       <div className="sidebar-character-actions">
                         {cs.allCleared && (
                           <svg className="sidebar-character-checkmark" width="16" height="16" viewBox="0 0 22 22">
-                            <circle cx="11" cy="11" r="11" fill="#38a169"/>
-                            <polyline points="6,12 10,16 16,7" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            <circle cx="11" cy="11" r="11" fill="#38a169" />
+                            <polyline points="6,12 10,16 16,7" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         )}
-                        <button 
+                        <button
                           className="sidebar-character-pitched-btn"
-                          onClick={(e) => handlePitchedClick(e, cs)}
+                          onClick={e => handlePitchedClick(e, cs)}
                           title="View pitched items"
                         >
                           <div className="pitched-btn-content">
@@ -219,44 +233,37 @@ function CharacterSidebar({
 
                     <div className="sidebar-character-stats">
                       {cs.total === 0 ? (
-                        <div className="sidebar-character-no-bosses">
-                          No bosses configured
-                        </div>
+                        <div className="sidebar-character-no-bosses">No bosses configured</div>
                       ) : (
                         <>
-                          <div className="sidebar-character-completion">
-                            {cs.cleared} / {cs.total} bosses cleared
-                          </div>
-                          <div className="sidebar-character-meso">
-                            {formatMesoBillions(cs.totalMeso)} meso
-                          </div>
+                          <div className="sidebar-character-completion">{cs.cleared} / {cs.total} bosses cleared</div>
+                          <div className="sidebar-character-meso">{formatMesoBillions(cs.totalMeso)} meso</div>
                         </>
                       )}
                     </div>
                   </div>
                 ))
-                )}
-              </div>
-              
-              {/* Scroll Indicator Arrow */}
-              {showScrollIndicator && (
-                <div className="sidebar-scroll-indicator">
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M11.0001 3.67157L13.0001 3.67157L13.0001 16.4999L16.2426 13.2574L17.6568 14.6716L12 20.3284L6.34314 14.6716L7.75735 13.2574L11.0001 16.5001L11.0001 3.67157Z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                </div>
               )}
             </div>
+            {/* Scroll Indicator Arrow */}
+            {showScrollIndicator && (
+              <div className="sidebar-scroll-indicator">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M11.0001 3.67157L13.0001 3.67157L13.0001 16.4999L16.2426 13.2574L17.6568 14.6716L12 20.3284L6.34314 14.6716L7.75735 13.2574L11.0001 16.5001L11.0001 3.67157Z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </div>
+            )}
           </div>
+        </div>
       </div>
       <PitchedItemsModal
         isOpen={showPitchedModal}
@@ -266,6 +273,6 @@ function CharacterSidebar({
       />
     </>
   );
-}
+});
 
 export default CharacterSidebar; 

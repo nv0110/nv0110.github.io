@@ -1,10 +1,11 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Suspense, lazy, Component } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { ForceUpdateProvider } from './hooks/ForceUpdateContext';
 import ViewTransitionWrapper from './components/ViewTransitionWrapper';
 import { AppDataProvider } from './hooks/AppDataContext.jsx';
 import './App.css';
+import React from 'react';
 
 // Lazy load page components for code splitting
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -103,18 +104,21 @@ function NotFound() {
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
-  const { isLoggedIn } = useAuth();
-  
+  const { isLoggedIn, userCode } = useAuth();
+  const location = useLocation();
+  console.log('ProtectedRoute: isLoggedIn:', isLoggedIn, 'userCode:', userCode, 'path:', location.pathname);
+
   if (!isLoggedIn) {
-    return <Navigate to="/login" replace />;
+    console.log('ProtectedRoute: Redirecting to /login from', location.pathname);
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
-  
   return children;
 }
 
 // Main App Component
 function App() {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, userCode } = useAuth();
+  console.log('App.jsx: isLoggedIn:', isLoggedIn, 'userCode:', userCode);
 
   return (
     <ErrorBoundary>

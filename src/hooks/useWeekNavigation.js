@@ -48,27 +48,11 @@ export function useWeekNavigation(userCode) {
     }
   }, [userCode, setHistoricalAnalysis]);
 
-  // Week change handler - now takes optional parameters for caching
-  const handleWeekChange = async (newWeekKey, checked = {}, cloudPitchedItems = [], pitchedChecked = {}) => {
+  // Simplified week change handler
+  const handleWeekChange = useCallback((newWeekKey) => {
     if (newWeekKey === selectedWeekKey) return;
-    
-    console.log(`Navigating from week ${selectedWeekKey} to ${newWeekKey}`);
-    
-    // Cache current week data before switching if data is provided
-    if (selectedWeekKey && !weekDataCache[selectedWeekKey] && (Object.keys(checked).length > 0 || cloudPitchedItems.length > 0)) {
-      setWeekDataCache(prev => ({
-        ...prev,
-        [selectedWeekKey]: {
-          checkedState: checked,
-          pitchedItems: cloudPitchedItems,
-          pitchedChecked: pitchedChecked,
-          hasData: Object.keys(checked).length > 0 || cloudPitchedItems.length > 0
-        }
-      }));
-    }
-    
     setSelectedWeekKey(newWeekKey);
-  };
+  }, [selectedWeekKey]);
 
   // Fetch available weeks and historical analysis
   useEffect(() => {

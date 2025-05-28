@@ -482,7 +482,7 @@ function InputPage() {
       />
 
       {/* CSS Animations */}
-      <style jsx>{`
+      <style>{`
         @keyframes modalFadeIn {
           from {
             opacity: 0;

@@ -104,18 +104,9 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
 
   const statsManagement = useStatsManagement(userCode, pitchedItems.refreshPitchedItems);
 
-  // Enhanced week change handler that passes current data for caching
-  const handleWeekChangeWithData = (newWeekKey) => {
-    try {
-      weekNavigation.handleWeekChange(
-        newWeekKey, 
-        checked, 
-        pitchedItems.cloudPitchedItems, 
-        pitchedItems.pitchedChecked
-      );
-    } catch (error) {
-      setError(`Failed to change week: ${error.message}`);
-    }
+  // Enhanced week change handler - remove parameters causing re-renders
+  const handleWeekChange = (newWeekKey) => {
+    weekNavigation.handleWeekChange(newWeekKey);
   };
 
   // Reset selectedCharIdx if out of bounds
@@ -218,6 +209,7 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
           setSelectedCharIdx={setSelectedCharIdx}
           setPurgeTargetCharacter={statsManagement.setPurgeTargetCharacter}
           setShowCharacterPurgeConfirm={statsManagement.setShowCharacterPurgeConfirm}
+          characterBossSelections={characterBossSelections}
         />
 
         <SidebarToggle 
@@ -237,7 +229,7 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
             <div className="weekly-tracker-navigator-wrapper">
               <WeekNavigator
                 selectedWeekKey={weekNavigation.selectedWeekKey}
-                onWeekChange={handleWeekChangeWithData}
+                onWeekChange={handleWeekChange}
                 availableWeeks={weekNavigation.availableWeeks}
                 isHistoricalWeek={weekNavigation.isHistoricalWeek}
                 historicalAnalysis={weekNavigation.historicalAnalysis}

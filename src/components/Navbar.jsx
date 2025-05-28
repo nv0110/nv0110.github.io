@@ -19,10 +19,9 @@ function Navbar({ onShowHelp, onShowDeleteConfirm }) {
   
   // Update hasCharacters state whenever characterBossSelections changes OR when forceUpdate is triggered
   useEffect(() => {
-    console.log('Navbar: Checking character count after update', lastUpdate);
     const characterCount = characterBossSelections?.length || 0;
     setHasCharacters(characterCount > 0);
-  }, [characterBossSelections, lastUpdate]); // Include lastUpdate in dependencies
+  }, [characterBossSelections, lastUpdate]);
 
   // Timer state managed within navbar
   const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilReset());
