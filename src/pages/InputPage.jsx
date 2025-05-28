@@ -2,7 +2,6 @@ import { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useViewTransition } from '../hooks/useViewTransition';
 import { useAppData } from '../hooks/AppDataContext.jsx';
-import { usePresets } from '../hooks/usePresets';
 import { useQuickSelect } from '../hooks/useQuickSelect';
 import { bossData } from '../data/bossData';
 import { LIMITS } from '../constants';
@@ -10,7 +9,6 @@ import Navbar from '../components/Navbar';
 import ActionButtons from '../components/ActionButtons';
 import CharacterManagement from '../components/CharacterManagement';
 import BossSelectionTable from '../components/BossSelectionTable';
-import PresetModal from '../components/PresetModal';
 import QuickSelectModal from '../components/QuickSelectModal';
 import ViewTransitionWrapper from '../components/ViewTransitionWrapper';
 
@@ -55,11 +53,11 @@ function InputPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [showDeleteLoading, setShowDeleteLoading] = useState(false);
-  const [showPresetModal, setShowPresetModal] = useState(false);
+  // Preset modal functionality removed
   const [showQuickSelectModal, setShowQuickSelectModal] = useState(false);
 
   // Custom hooks
-  const presetHook = usePresets();
+  // Preset hook removed
   const quickSelectHook = useQuickSelect();
 
   // Redirect if not logged in - using useEffect to prevent navigation during render
@@ -264,13 +262,7 @@ function InputPage() {
   };
 
   // Close handlers for modals
-  const handleClosePresetModal = () => {
-    setShowPresetModal(false);
-    presetHook.setNewPresetName('');
-    presetHook.setPresetError('');
-    presetHook.setPresetCreationMode(false);
-    presetHook.setPresetBosses({});
-  };
+  // Preset modal handlers removed
 
   const handleCloseQuickSelectModal = () => {
     setShowQuickSelectModal(false);
@@ -299,7 +291,7 @@ function InputPage() {
         <ActionButtons
           onExport={handleExport}
           onImport={handleImport}
-          onShowPresets={() => setShowPresetModal(true)}
+          onShowPresets={undefined}
           onShowQuickSelect={() => setShowQuickSelectModal(true)}
           fileInputRef={fileInputRef}
         />
@@ -397,7 +389,7 @@ function InputPage() {
 
             <div className="modal-section-content" style={{ marginBottom: 24 }}>
               <h3 className="modal-section-title">Boss Selection</h3>
-              <p>• <strong>Smart presets:</strong> Use Quick Select or save custom presets for easy setup</p>
+              <p>• <strong>Quick Select:</strong> Use Quick Select for easy boss setup</p>
               <p>• <strong>Party sizes:</strong> Adjust party size for each boss to calculate split mesos</p>
               <p>• <strong>Clone characters:</strong> Copy a character's entire boss setup instantly</p>
               <p>• <strong>Difficulty matters:</strong> Higher difficulties = more mesos and pitched items</p>
@@ -413,7 +405,7 @@ function InputPage() {
             <div className="modal-section-content">
               <h3 className="modal-section-title">Quick Tips</h3>
               <p>• Click anywhere on a boss row to toggle selection</p>
-              <p>• Use presets to quickly set up multiple characters with similar boss lists</p>
+              <p>• Use Quick Select to efficiently set up your boss lists</p>
               <p>• Your account code is your login - keep it safe!</p>
               <p>• Check out the Boss Table page to see which bosses give the most mesos</p>
             </div>
@@ -469,31 +461,6 @@ function InputPage() {
           </div>
         </div>
       )}
-
-      {/* Preset Modal */}
-      <PresetModal
-        show={showPresetModal}
-        onClose={handleClosePresetModal}
-        presets={presetHook.presets}
-        newPresetName={presetHook.newPresetName}
-        setNewPresetName={presetHook.setNewPresetName}
-        presetError={presetHook.presetError}
-        presetCreationMode={presetHook.presetCreationMode}
-        setPresetCreationMode={presetHook.setPresetCreationMode}
-        presetBosses={presetHook.presetBosses}
-        getSortedBossesByPrice={getSortedBossesByPrice}
-        getBossDifficulties={getBossDifficulties}
-        formatPrice={formatPrice}
-        handlePresetBossSelect={presetHook.handlePresetBossSelect}
-        createPreset={() => presetHook.createPreset(selectedCharIdx, characterBossSelections, batchSetBosses)}
-        applyPreset={(preset) => {
-          presetHook.applyPreset(preset, selectedCharIdx, characterBossSelections, batchSetBosses);
-          setShowPresetModal(false);
-        }}
-        deletePreset={presetHook.deletePreset}
-        selectedCharIdx={selectedCharIdx}
-        characterBossSelections={characterBossSelections}
-      />
 
       {/* Quick Select Modal */}
       <QuickSelectModal

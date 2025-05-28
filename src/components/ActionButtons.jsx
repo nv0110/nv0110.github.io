@@ -3,7 +3,6 @@ import { Tooltip } from './Tooltip';
 function ActionButtons({ 
   onExport, 
   onImport, 
-  onShowPresets, 
   onShowQuickSelect, 
   fileInputRef 
 }) {
@@ -89,42 +88,7 @@ function ActionButtons({
         </button>
       </Tooltip>
       
-      <Tooltip text="Create and manage boss configuration presets">
-        <button 
-          onClick={onShowPresets} 
-          style={{ 
-            background: '#38a169', 
-            color: '#fff', 
-            border: 'none', 
-            borderRadius: '6px', 
-            padding: '0.5rem 1.2rem', 
-            fontWeight: 'bold', 
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: 'translateY(0)'
-          }}
-          onMouseOver={e => {
-            e.currentTarget.style.background = '#48bb78';
-            e.currentTarget.style.transform = 'translateY(-2px)';
-            e.currentTarget.style.boxShadow = '0 4px 16px rgba(56, 161, 105, 0.4)';
-          }}
-          onMouseOut={e => {
-            e.currentTarget.style.background = '#38a169';
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = 'none';
-          }}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-            <circle cx="8.5" cy="8.5" r="1.5"/>
-            <path d="M20.4 14.5L16 10 4 20"/>
-          </svg>
-          Presets
-        </button>
-      </Tooltip>
+      {/* Preset button removed */}
       
       <Tooltip text="Quick select up to 14 bosses sorted by highest price">
         <button 
