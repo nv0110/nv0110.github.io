@@ -1,34 +1,31 @@
-import { getCurrentWeekKey } from '../utils/weekUtils';
-import { getPitchedKey } from '../utils/stringUtils';
-import { removeManyPitchedItems } from '../pitched-data-service';
+import { useState, useRef } from 'react';
+import { toggleBossClearStatus, clearAllBossesForCharacter, markAllBossesForCharacter } from '../../services/userWeeklyDataService.js';
+import { getCurrentMapleWeekStartDate } from '../../utils/mapleWeekUtils.js';
 
+/**
+ * Hook for managing boss clear actions in the new schema
+ * Integrates with user_boss_data table via userWeeklyDataService
+ */
 export function useBossActions({
+  userId,
   characterBossSelections,
   selectedCharIdx,
   checked,
   setChecked,
-  bossData,
-  pitchedChecked,
-  setPitchedChecked,
-  weekKey,
-  selectedWeekKey,
-
-  userCode,
-  userInteractionRef,
   setCrystalAnimation,
   setError,
-  startStatsTrackingIfNeeded,
-  refreshHistoricalAnalysis
+  onDataChange
 }) {
-  const currentWeekKey = getCurrentWeekKey();
+  const [isUpdating, setIsUpdating] = useState(false);
+  const lastUpdateRef = useRef(null);
 
+  /**
+   * Handle individual boss check/uncheck
+   */
   const handleCheck = async (bossOrEvent, checkedValOrBoss, event = null) => {
     try {
-      // Historical weeks are now always editable for pitched items
-      
-      // Set user interaction flag to prevent sync conflicts
-      userInteractionRef.current = true;
-      
+      if (isUpdating || !userId) return;
+
       let boss, checkedVal, e;
       
       if (bossOrEvent && bossOrEvent.name) {
@@ -44,6 +41,8 @@ export function useBossActions({
         return;
       }
       
+      setIsUpdating(true);
+
       // Handle animation if this is from a UI click
       if (e && e.clientX && setCrystalAnimation) {
         const startPosition = { x: e.clientX, y: e.clientY };
@@ -58,13 +57,19 @@ export function useBossActions({
         }
       }
 
-      const charName = characterBossSelections[selectedCharIdx]?.name || '';
-      const charIdx = selectedCharIdx;
-      const charKey = `${charName}-${charIdx}`;
+      const character = characterBossSelections[selectedCharIdx];
+      if (!character) {
+        throw new Error('No character selected');
+      }
+
+      const charName = character.name || '';
+      const charIdx = selectedCharIdx.toString();
+      const charKey = `${charName}-${selectedCharIdx}`;
       const bossName = boss.name;
       const bossDifficulty = boss.difficulty;
       const bossKey = `${bossName}-${bossDifficulty}`;
       
+      // Update UI state immediately for responsiveness
       const newChecked = {
         ...checked,
         [charKey]: {
@@ -72,230 +77,161 @@ export function useBossActions({
           [bossKey]: checkedVal
         }
       };
-
       setChecked(newChecked);
+
+      // Convert boss name and difficulty to boss code
+      // This assumes boss code format like "DH" for "Darknell Hard"
+      const bossCode = getBossCodeFromNameAndDifficulty(bossName, bossDifficulty);
       
-      // Save to database for current week only
-      if (userCode && selectedWeekKey === currentWeekKey) {
-        try {
-          const { saveBossRun } = await import('../pitched-data-service');
-          const bossRunData = {
-            character: charName,
-            characterIdx: charIdx,
-            bossName: bossName,
-            bossDifficulty: bossDifficulty,
-            isCleared: checkedVal,
-            date: new Date().toISOString()
-          };
-          
-          const result = await saveBossRun(userCode, bossRunData);
-          if (!result.success) {
-            console.error('Error saving boss run:', result.error);
-          } else {
-            console.log('✅ Boss run saved successfully');
-          }
-        } catch (dbError) {
-          console.error('Error saving boss state to database:', dbError);
-        }
+      if (!bossCode) {
+        throw new Error(`Could not determine boss code for ${bossName} ${bossDifficulty}`);
       }
-      
-      // If boss is being unticked, also untick all pitched items
-      if (!checkedVal && selectedWeekKey === currentWeekKey) {
-        const bossObj = bossData.find(bd => bd.name === bossName);
-        if (bossObj && bossObj.pitchedItems) {
-          setPitchedChecked(prev => {
-            const updated = { ...prev };
-            bossObj.pitchedItems.forEach(item => {
-              const key = getPitchedKey(charName, charIdx, bossName, item.name, weekKey);
-              if (updated[key]) delete updated[key];
-            });
-            return updated;
-          });
-          
-          const itemsToRemove = bossObj.pitchedItems.map(item => ({
-            character: charName,
-            bossName: bossName,
-            itemName: item.name,
-            weekKey
-          }));
-          
-          if (itemsToRemove.length > 0 && userCode) {
-            removeManyPitchedItems(userCode, itemsToRemove).then(async () => {
-              // Refresh historical analysis after removing pitched items
-              if (refreshHistoricalAnalysis) {
-                await refreshHistoricalAnalysis();
-              }
-            }).catch(err => {
-              console.error('Error removing pitched items:', err);
-            });
-          }
-        }
+
+      // Update database
+      const currentWeekStart = getCurrentMapleWeekStartDate();
+      const result = await toggleBossClearStatus(
+        userId,
+        currentWeekStart,
+        charIdx,
+        bossCode,
+        checkedVal
+      );
+
+      if (!result.success) {
+        // Revert UI state on error
+        setChecked(checked);
+        throw new Error(result.error);
       }
+
+      // Notify parent of data change
+      if (onDataChange) {
+        onDataChange();
+      }
+
+      lastUpdateRef.current = Date.now();
       
-      startStatsTrackingIfNeeded();
     } catch (err) {
       console.error('Error in handleCheck:', err);
-      setError('Failed to update boss status. Please try again.');
+      // Revert UI state on error
+      setChecked(checked);
+      if (setError) {
+        setError(`Failed to update boss status: ${err.message}`);
+      }
     } finally {
-      // Clear user interaction flag after a delay to allow UI to settle
-      setTimeout(() => {
-        userInteractionRef.current = false;
-        console.log('🖱️ USER: Boss interaction flag cleared, sync can resume');
-      }, 1000);
+      setIsUpdating(false);
     }
   };
 
+  /**
+   * Handle tick all bosses for current character
+   */
   const handleTickAll = async () => {
     try {
-      // Historical weeks are now always editable for pitched items
-      
-      const char = characterBossSelections[selectedCharIdx];
-      const charBosses = char?.bosses || [];
-      const charKey = `${char?.name || ''}-${selectedCharIdx}`;
+      if (isUpdating || !userId) return;
+
+      setIsUpdating(true);
+
+      const character = characterBossSelections[selectedCharIdx];
+      if (!character) {
+        throw new Error('No character selected');
+      }
+
+      const charBosses = character.bosses || [];
+      const charKey = `${character.name || ''}-${selectedCharIdx}`;
       const currentState = checked[charKey] || {};
+      
+      // Check if all bosses are currently checked
       const allChecked = charBosses.every(b => currentState[b.name + '-' + b.difficulty]);
       const targetState = !allChecked;
       
-      userInteractionRef.current = true;
-      
-      // Update UI state instantly
+      // Update UI state immediately
       const newChecked = {
         ...checked,
         [charKey]: Object.fromEntries(charBosses.map(b => [b.name + '-' + b.difficulty, targetState]))
       };
       setChecked(newChecked);
-      
-      // Handle pitched items UI state
-      if (!targetState) {
-        const newPitchedChecked = { ...pitchedChecked };
-        charBosses.forEach(boss => {
-          const bossObj = bossData.find(bd => bd.name === boss.name);
-          if (bossObj?.pitchedItems) {
-            bossObj.pitchedItems.forEach(item => {
-              const key = getPitchedKey(characterBossSelections[selectedCharIdx].name, selectedCharIdx, boss.name, item.name, weekKey);
-              if (newPitchedChecked[key]) {
-                delete newPitchedChecked[key];
-              }
-            });
-          }
-        });
-        setPitchedChecked(newPitchedChecked);
+
+      const charIdx = selectedCharIdx.toString();
+      const currentWeekStart = getCurrentMapleWeekStartDate();
+
+      let result;
+      if (targetState) {
+        // Mark all bosses as cleared
+        result = await markAllBossesForCharacter(userId, currentWeekStart, charIdx);
+      } else {
+        // Clear all bosses
+        result = await clearAllBossesForCharacter(userId, currentWeekStart, charIdx);
       }
-      
-      // Process database operations in a single batch
-      if (userCode) {
-        try {
-          console.log(`🔄 Batch updating ${charBosses.length} bosses to ${targetState ? 'checked' : 'unchecked'}`);
-          
-          // Create a single batch update function
-          const { saveBatchBossRuns } = await import('../pitched-data-service');
-          
-          const bossRunsData = charBosses.map(boss => ({
-            character: characterBossSelections[selectedCharIdx].name,
-            characterIdx: selectedCharIdx,
-            bossName: boss.name,
-            bossDifficulty: boss.difficulty,
-            isCleared: targetState,
-            date: new Date().toISOString()
-          }));
-          
-          const result = await saveBatchBossRuns(userCode, bossRunsData);
-          
-          if (result.success) {
-            console.log(`✅ Batch update successful: ${charBosses.length} bosses updated`);
-          } else {
-            console.error('Batch update failed:', result.error);
-            setError('Failed to save all boss updates. Please try again.');
-          }
-          
-          // Handle pitched items removal if unticking
-          if (!targetState) {
-            const itemsToRemove = [];
-            charBosses.forEach(boss => {
-              const bossObj = bossData.find(bd => bd.name === boss.name);
-              if (bossObj?.pitchedItems) {
-                bossObj.pitchedItems.forEach(item => {
-                  const key = getPitchedKey(characterBossSelections[selectedCharIdx].name, selectedCharIdx, boss.name, item.name, weekKey);
-                  if (pitchedChecked[key]) {
-                    itemsToRemove.push({
-                      character: characterBossSelections[selectedCharIdx].name,
-                      bossName: boss.name,
-                      itemName: item.name,
-                      weekKey,
-                    });
-                  }
-                });
-              }
-            });
-            
-            if (itemsToRemove.length > 0) {
-              await removeManyPitchedItems(userCode, itemsToRemove);
-              // Refresh historical analysis after removing pitched items
-              if (refreshHistoricalAnalysis) {
-                await refreshHistoricalAnalysis();
-              }
-            }
-          }
-          
-        } catch (error) {
-          console.error('Error in batch boss update:', error);
-          setError('Failed to update all bosses. Please try again.');
-        }
+
+      if (!result.success) {
+        // Revert UI state on error
+        setChecked(checked);
+        throw new Error(result.error);
       }
+
+      // Notify parent of data change
+      if (onDataChange) {
+        onDataChange();
+      }
+
+      lastUpdateRef.current = Date.now();
       
     } catch (err) {
       console.error('Error in handleTickAll:', err);
-      setError('Failed to update all bosses. Please try again.');
+      // Revert UI state on error
+      setChecked(checked);
+      if (setError) {
+        setError(`Failed to update all bosses: ${err.message}`);
+      }
     } finally {
-      setTimeout(() => {
-        userInteractionRef.current = false;
-      }, 1000);
+      setIsUpdating(false);
     }
   };
 
-  // Function to refresh checked state from boss runs in database
+  /**
+   * Refresh checked state from database
+   */
   const refreshCheckedStateFromDatabase = async () => {
-    if (!userCode) return;
-    
     try {
-      console.log('🔄 Refreshing checked state from boss runs...');
-      
-      const { supabase } = await import('../supabaseClient');
-      const { data, error } = await supabase
-        .from('user_data')
-        .select('data')
-        .eq('id', userCode)
-        .single();
+      if (!userId) return null;
 
-      if (!error && data && data.data && data.data.boss_runs) {
-        const reconstructedChecked = {};
-        
-        data.data.boss_runs.forEach(run => {
-          if (run.cleared) {
-            const charKey = `${run.character}-${run.characterIdx || 0}`;
-            const bossKey = `${run.boss}-${run.difficulty}`;
-            
-            if (!reconstructedChecked[charKey]) {
-              reconstructedChecked[charKey] = {};
-            }
-            reconstructedChecked[charKey][bossKey] = true;
-          }
-        });
-        
-        console.log('✅ Refreshed checked state from boss_runs after boss action');
-        setChecked(reconstructedChecked);
-        return reconstructedChecked;
+      // This would need to fetch current weekly data and reconstruct checked state
+      // For now, we'll let the parent component handle this
+      if (onDataChange) {
+        onDataChange();
       }
+      
+      return true;
     } catch (error) {
-      console.error('Error refreshing checked state from boss runs:', error);
+      console.error('Error refreshing checked state:', error);
+      return null;
     }
-    
-    return null;
   };
 
   return {
     handleCheck,
     handleTickAll,
-    refreshCheckedStateFromDatabase
+    refreshCheckedStateFromDatabase,
+    isUpdating,
+    lastUpdate: lastUpdateRef.current
   };
-} 
+}
+
+/**
+ * Helper function to convert boss name and difficulty to boss code
+ * Creates a consistent code from any boss name and difficulty
+ */
+function getBossCodeFromNameAndDifficulty(bossName, difficulty) {
+  if (!bossName || !difficulty) return null;
+  
+  // Create a consistent boss code by combining first letters of boss name with difficulty
+  const bossInitials = bossName
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase())
+    .join('');
+  
+  const difficultyCode = difficulty.charAt(0).toUpperCase();
+  
+  // Return format: BossInitials + DifficultyCode (e.g., "DH" for Darknell Hard)
+  return `${bossInitials}${difficultyCode}`;
+}

@@ -71,19 +71,27 @@ export function useAuth() {
     setCreateCooldown(COOLDOWNS.CREATE_ACCOUNT);
     const code = Math.random().toString(36).slice(2, 10).toUpperCase();
     try {
-      const initialData = { characters: [], checked: {}, lastUpdated: new Date().toISOString() };
       const supabase = await getSupabase();
-      const { error } = await supabase.from('user_data').upsert([{ id: code, data: initialData, pitched_items: [] }]);
-      setIsCreating(false);
-      if (!error) {
-        setCreateCooldown(0);
-        console.log('✅ Created new account:', code);
-        return { success: true, code }; // LoginPage will call handleLogin with this code
-      } else {
+      
+      // Create minimal user_data entry (for login validation and pitched_items)
+      const { error: userDataError } = await supabase.from('user_data').upsert([{
+        id: code,
+        pitched_items: []
+        // No 'data' field - using user_boss_data instead
+      }]);
+      
+      if (userDataError) {
+        setIsCreating(false);
         setLoginError('Failed to create account. Try again.');
         return { success: false, error: 'Failed to create account. Try again.' };
       }
+      
+      setIsCreating(false);
+      setCreateCooldown(0);
+      console.log('✅ Created new account:', code);
+      return { success: true, code }; // LoginPage will call handleLogin with this code
     } catch (error) {
+      console.error('Account creation error:', error);
       setIsCreating(false);
       setLoginError('Failed to create account. Try again.');
       return { success: false, error: 'Failed to create account. Try again.' };
@@ -123,17 +131,32 @@ export function useAuth() {
   const handleDeleteAccount = async () => {
     try {
       const supabase = await getSupabase();
-      const { error: deleteError } = await supabase.from('user_data').delete().eq('id', userCode);
-      if (deleteError) {
-        console.error('Delete error:', deleteError);
+      
+      // Delete from both user_data and user_boss_data tables
+      const [userDataResult, userBossDataResult] = await Promise.allSettled([
+        supabase.from('user_data').delete().eq('id', userCode),
+        supabase.from('user_boss_data').delete().eq('user_id', userCode)
+      ]);
+      
+      // Check for errors in user_data deletion (critical)
+      if (userDataResult.status === 'rejected' || userDataResult.value?.error) {
+        console.error('Delete error (user_data):', userDataResult.value?.error || userDataResult.reason);
         return { success: false, error: 'Failed to delete account. Try again.' };
       }
+      
+      // Log but don't fail on user_boss_data deletion errors (non-critical if no data exists)
+      if (userBossDataResult.status === 'rejected' || userBossDataResult.value?.error) {
+        console.warn('Delete warning (user_boss_data):', userBossDataResult.value?.error || userBossDataResult.reason);
+        // Continue with account deletion even if user_boss_data fails (might not exist)
+      }
+      
       localStorage.removeItem(STORAGE_KEYS.USER_CODE);
       // Consider if localStorage.clear() is appropriate or too broad.
       // For now, just removing the specific user code.
       setUserCode(''); // Update this instance's state
       dispatchAuthChange(''); // Notify other instances
       navigate('/login', { replace: true });
+      console.log('✅ Account deleted successfully from both tables');
       return { success: true };
     } catch (error) {
       console.error('Delete error:', error);

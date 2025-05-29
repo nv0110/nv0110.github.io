@@ -1,33 +1,18 @@
 import React from 'react';
-import { getPitchedKey } from '../utils/stringUtils';
 import CustomCheckbox from './CustomCheckbox';
 
 function BossTable({
   isHistoricalWeek,
   characterBossSelections,
-  selectedCharIdx,
   sortedBosses,
   bossData,
   checked,
   charKey,
   getBossPrice,
-  pitchedChecked,
-  weekKey,
   handleCheck,
-  userInteractionRef,
-  userCode,
-  savePitchedItem,
-  setPitchedChecked,
-  setError,
-  startStatsTrackingIfNeeded,
-  setHistoricalPitchedData,
-  setShowHistoricalPitchedModal,
-  loadingPitchedItems,
-  setLoadingPitchedItems,
-  refreshPitchedItems,
-  refreshHistoricalAnalysis
+  context = 'weekly' // Added context prop to distinguish usage
 }) {
-  // Historical week card layout
+  // Historical week card layout - Visual structure preserved, functionality removed
   if (isHistoricalWeek) {
     // Get all unique bosses across all characters
     const allBosses = new Map();
@@ -60,54 +45,17 @@ function BossTable({
               {(bossObj.pitchedItems || []).length > 0 ? (
                 <div className="historical-pitched-grid">
                   {(bossObj.pitchedItems || []).map(item => {
-                    const key = getPitchedKey(characterBossSelections[selectedCharIdx].name, selectedCharIdx, bossObj.name, item.name, weekKey);
-                    const hasPitchedItem = !!pitchedChecked[key];
-                    const characterWithItem = hasPitchedItem ? characterBossSelections[selectedCharIdx].name : null;
+                    // Visual state preserved but no tracking logic
+                    const hasPitchedItem = false; // Always false since tracking is disabled
 
                     return (
                       <div
                         key={item.name}
                         className={`historical-pitched-item ${hasPitchedItem ? 'obtained' : ''}`}
-                        title={hasPitchedItem 
-                          ? `Click to remove: ${item.name} (obtained by ${characterWithItem})`
-                          : `Click to track: ${item.name}`
-                        }
-                        onClick={async (e) => {
+                        title={`${item.name} (tracking disabled)`}
+                        onClick={(e) => {
                           e.stopPropagation();
-                          if (hasPitchedItem) {
-                            try {
-                              const result = await savePitchedItem(userCode, {
-                                character: characterWithItem,
-                                characterIdx: characterBossSelections.findIndex(c => c.name === characterWithItem),
-                                bossName: bossObj.name,
-                                bossDifficulty: 'Unknown',
-                                itemName: item.name,
-                                itemImage: item.image,
-                                date: new Date().toISOString()
-                              }, true, weekKey);
-                              
-                              if (result.success) {
-                                await refreshPitchedItems(userCode);
-                                if (refreshHistoricalAnalysis) {
-                                  await refreshHistoricalAnalysis();
-                                }
-                              } else {
-                                setError('Failed to remove historical pitched item: ' + (result.error || 'Unknown error'));
-                              }
-                            } catch (error) {
-                              setError('Error removing historical pitched item: ' + error.message);
-                            }
-                          } else {
-                            setHistoricalPitchedData({
-                              character: '',
-                              characterIdx: -1,
-                              bossName: bossObj.name,
-                              itemName: item.name,
-                              itemImage: item.image,
-                              weekKey: weekKey
-                            });
-                            setShowHistoricalPitchedModal(true);
-                          }
+                          // No functionality - UI preserved but non-functional
                         }}
                       >
                         <img
@@ -134,18 +82,34 @@ function BossTable({
     );
   }
 
+  // Apply context-specific classes to isolate styling
+  const contextClasses = {
+    wrapper: context === 'weekly' ? 'boss-table-wrapper-weekly' : 'boss-table-wrapper-price',
+    headerContainer: context === 'weekly' ? 'boss-table-header-container-weekly' : 'boss-table-header-container-price',
+    bodyContainer: context === 'weekly' ? 'boss-table-body-container-weekly' : 'boss-table-body-container-price',
+    table: context === 'weekly' ? 'boss-table-weekly' : 'boss-table-price'
+  };
+
   return (
-    <div className="boss-table-scroll">
-      <table className={`boss-table ${isHistoricalWeek ? 'historical-week' : ''}`}>
-        <thead>
-          <tr className="boss-table-header-row">
-            <th className="boss-table-header-cell">Boss</th>
-            <th className="boss-table-header-cell-difficulty">Difficulty</th>
-            <th className="boss-table-header-cell-mesos">Mesos</th>
-            <th className="boss-table-header-cell-cleared">Cleared</th>
-          </tr>
-        </thead>
-        <tbody>
+    <div className={contextClasses.wrapper}>
+      {/* Fixed Header Table */}
+      <div className={contextClasses.headerContainer}>
+        <table className={`${contextClasses.table} boss-table-header ${isHistoricalWeek ? 'historical-week' : ''}`}>
+          <thead>
+            <tr className="boss-table-header-row">
+              <th className="boss-table-header-cell">Boss</th>
+              <th className="boss-table-header-cell-difficulty">Difficulty</th>
+              <th className="boss-table-header-cell-mesos">Mesos</th>
+              <th className="boss-table-header-cell-cleared">Cleared</th>
+            </tr>
+          </thead>
+        </table>
+      </div>
+      
+      {/* Scrollable Body Table */}
+      <div className={contextClasses.bodyContainer}>
+        <table className={`${contextClasses.table} boss-table-body ${isHistoricalWeek ? 'historical-week' : ''}`}>
+          <tbody>
           {sortedBosses.map((b, idx) => {
             const bossObj = bossData.find(bd => bd.name === b.name);
             const isChecked = !!checked[charKey]?.[b.name + '-' + b.difficulty];
@@ -172,136 +136,33 @@ function BossTable({
                   {pitched.length > 0 && (
                     <div className="boss-table-pitched-container inline">
                       {pitched.map(item => {
+                        // Visual structure preserved, functionality removed
                         // Special case for Kalos and Kaling Grindstone - show on all difficulties
                         if ((b.name === 'Watcher Kalos' || b.name === 'Kaling') && item.name === 'Grindstone of Life') {
-                          const key = getPitchedKey(characterBossSelections[selectedCharIdx].name, selectedCharIdx, b.name, item.name, weekKey);
-                          const got = !!pitchedChecked[key];
+                          const got = false; // Always false since tracking is disabled
                           return (
                             <span
                               key={item.name}
                               className={`pitched-item-icon inline ${got ? 'obtained' : ''}`}
-                              title={got ? `Click to remove: ${item.name}` : `Click to track: ${item.name}`}
-                              onClick={async (e) => {
+                              title={`${item.name} (tracking disabled)`}
+                              onClick={(e) => {
                                 e.stopPropagation();
-                                if (isHistoricalWeek) {
-                                  setHistoricalPitchedData({
-                                    character: '',
-                                    characterIdx: -1,
-                                    bossName: b.name,
-                                    itemName: item.name,
-                                    itemImage: item.image,
-                                    weekKey: weekKey
-                                  });
-                                  setShowHistoricalPitchedModal(true);
-                                  return;
-                                }
-
-                                const charKey = `${characterBossSelections[selectedCharIdx].name}-${selectedCharIdx}`;
-                                const key = getPitchedKey(characterBossSelections[selectedCharIdx].name, selectedCharIdx, b.name, item.name, weekKey);
-                                const got = !!pitchedChecked[key];
-                                
-                                userInteractionRef.current = true;
-                                
-                                if (!isHistoricalWeek) {
-                                  const bossCleared = !!checked[charKey]?.[b.name + '-' + b.difficulty];
-                                  if (!bossCleared) {
-                                    handleCheck(b, true, e);
-                                  }
-                                }
-                                
-                                setLoadingPitchedItems(prev => ({ ...prev, [key]: true }));
-                                
-                                try {
-                                  if (!userCode) {
-                                    setError('Please log in to save pitched items to cloud.');
-                                    return;
-                                  }
-
-                                  const newGotState = !got;
-                                  
-                                  setPitchedChecked(prev => {
-                                    const newState = { ...prev };
-                                    if (newGotState) {
-                                      newState[key] = true;
-                                    } else {
-                                      delete newState[key];
-                                    }
-                                    return newState;
-                                  });
-                                  
-                                  const result = await savePitchedItem(userCode, {
-                                    character: characterBossSelections[selectedCharIdx].name,
-                                    characterIdx: selectedCharIdx,
-                                    bossName: b.name,
-                                    bossDifficulty: b.difficulty,
-                                    itemName: item.name,
-                                    itemImage: item.image,
-                                    date: new Date().toISOString()
-                                  }, got, weekKey);
-                                  
-                                  if (!result.success) {
-                                    setError('Failed to save to cloud. Reverting changes.');
-                                    setPitchedChecked(prev => {
-                                      const revertState = { ...prev };
-                                      if (got) {
-                                        revertState[key] = true;
-                                      } else {
-                                        delete revertState[key];
-                                      }
-                                      return revertState;
-                                    });
-                                  } else {
-                                    if (refreshHistoricalAnalysis) {
-                                      refreshHistoricalAnalysis().catch(err => {
-                                        console.error('Error refreshing historical analysis:', err);
-                                      });
-                                    }
-                                  }
-                                } catch (error) {
-                                  setError('Failed to update pitched item. Please try again.');
-                                  setPitchedChecked(prev => {
-                                    const revertState = { ...prev };
-                                    if (got) {
-                                      revertState[key] = true;
-                                    } else {
-                                      delete revertState[key];
-                                    }
-                                    return revertState;
-                                  });
-                                } finally {
-                                  setLoadingPitchedItems(prev => {
-                                    const newState = { ...prev };
-                                    delete newState[key];
-                                    return newState;
-                                  });
-                                  
-                                  setTimeout(() => {
-                                    userInteractionRef.current = false;
-                                  }, 1000);
-                                }
-                                
-                                startStatsTrackingIfNeeded();
+                                // No functionality - UI preserved but non-functional
                               }}
                             >
-                              {loadingPitchedItems[key] ? (
-                                <div className="pitched-item-loading inline">
-                                  <div className="pitched-item-spinner inline" />
-                                </div>
-                              ) : (
-                                <img
-                                  src={item.image}
-                                  alt={item.name}
-                                  className={`pitched-item-image inline ${got ? 'obtained' : 'not-obtained'}`}
-                                />
-                              )}
-                              {got && !loadingPitchedItems[key] && (
+                              <img
+                                src={item.image}
+                                alt={item.name}
+                                className={`pitched-item-image inline ${got ? 'obtained' : 'not-obtained'}`}
+                              />
+                              {got && (
                                 <span className="pitched-item-checkmark inline">✓</span>
                               )}
                             </span>
                           );
                         }
 
-                        // For other items, check difficulty requirements
+                        // For other items, check difficulty requirements (preserved for visual consistency)
                         if (b.name === 'Lotus') {
                           if (item.name === 'Total Control' && b.difficulty !== 'Extreme') return null;
                           if ((item.name === 'Berserked' || item.name === 'Black Heart') && !['Hard', 'Extreme'].includes(b.difficulty)) return null;
@@ -313,130 +174,26 @@ function BossTable({
                         // For Kaling, Helmet of Loyalty only on Extreme
                         if (b.name === 'Kaling' && item.name === 'Helmet of Loyalty' && b.difficulty !== 'Extreme') return null;
                         // For all other bosses, only show on Hard or higher
-                        if (b.name !== 'Lotus' && b.name !== 'Watcher Kalos' && b.name !== 'Kaling' && 
+                        if (b.name !== 'Lotus' && b.name !== 'Watcher Kalos' && b.name !== 'Kaling' &&
                             !['Hard', 'Chaos', 'Extreme', 'Hell'].includes(b.difficulty)) return null;
 
-                        const key = getPitchedKey(characterBossSelections[selectedCharIdx].name, selectedCharIdx, b.name, item.name, weekKey);
-                        const got = !!pitchedChecked[key];
+                        const got = false; // Always false since tracking is disabled
                         return (
                           <span
                             key={item.name}
                             className={`pitched-item-icon inline ${got ? 'obtained' : ''}`}
-                            title={got ? `Click to remove: ${item.name}` : `Click to track: ${item.name}`}
-                            onClick={async (e) => {
+                            title={`${item.name} (tracking disabled)`}
+                            onClick={(e) => {
                               e.stopPropagation();
-                              if (isHistoricalWeek) {
-                                setHistoricalPitchedData({
-                                  character: '',
-                                  characterIdx: -1,
-                                  bossName: b.name,
-                                  itemName: item.name,
-                                  itemImage: item.image,
-                                  weekKey: weekKey
-                                });
-                                setShowHistoricalPitchedModal(true);
-                                return;
-                              }
-
-                              const charKey = `${characterBossSelections[selectedCharIdx].name}-${selectedCharIdx}`;
-                              const key = getPitchedKey(characterBossSelections[selectedCharIdx].name, selectedCharIdx, b.name, item.name, weekKey);
-                              const got = !!pitchedChecked[key];
-                              
-                              userInteractionRef.current = true;
-                              
-                              if (!isHistoricalWeek) {
-                                const bossCleared = !!checked[charKey]?.[b.name + '-' + b.difficulty];
-                                if (!bossCleared) {
-                                  handleCheck(b, true, e);
-                                }
-                              }
-                              
-                              setLoadingPitchedItems(prev => ({ ...prev, [key]: true }));
-                              
-                              try {
-                                if (!userCode) {
-                                  setError('Please log in to save pitched items to cloud.');
-                                  return;
-                                }
-
-                                const newGotState = !got;
-                                
-                                setPitchedChecked(prev => {
-                                  const newState = { ...prev };
-                                  if (newGotState) {
-                                    newState[key] = true;
-                                  } else {
-                                    delete newState[key];
-                                  }
-                                  return newState;
-                                });
-                                
-                                const result = await savePitchedItem(userCode, {
-                                  character: characterBossSelections[selectedCharIdx].name,
-                                  characterIdx: selectedCharIdx,
-                                  bossName: b.name,
-                                  bossDifficulty: b.difficulty,
-                                  itemName: item.name,
-                                  itemImage: item.image,
-                                  date: new Date().toISOString()
-                                }, got, weekKey);
-                                
-                                if (!result.success) {
-                                  setError('Failed to save to cloud. Reverting changes.');
-                                  setPitchedChecked(prev => {
-                                    const revertState = { ...prev };
-                                    if (got) {
-                                      revertState[key] = true;
-                                    } else {
-                                      delete revertState[key];
-                                    }
-                                    return revertState;
-                                  });
-                                } else {
-                                  if (refreshHistoricalAnalysis) {
-                                    refreshHistoricalAnalysis().catch(err => {
-                                      console.error('Error refreshing historical analysis:', err);
-                                    });
-                                  }
-                                }
-                              } catch (error) {
-                                setError('Failed to update pitched item. Please try again.');
-                                setPitchedChecked(prev => {
-                                  const revertState = { ...prev };
-                                  if (got) {
-                                    revertState[key] = true;
-                                  } else {
-                                    delete revertState[key];
-                                  }
-                                  return revertState;
-                                });
-                              } finally {
-                                setLoadingPitchedItems(prev => {
-                                  const newState = { ...prev };
-                                  delete newState[key];
-                                  return newState;
-                                });
-                                
-                                setTimeout(() => {
-                                  userInteractionRef.current = false;
-                                }, 1000);
-                              }
-                              
-                              startStatsTrackingIfNeeded();
+                              // No functionality - UI preserved but non-functional
                             }}
                           >
-                            {loadingPitchedItems[key] ? (
-                              <div className="pitched-item-loading inline">
-                                <div className="pitched-item-spinner inline" />
-                              </div>
-                            ) : (
-                              <img
-                                src={item.image}
-                                alt={item.name}
-                                className={`pitched-item-image inline ${got ? 'obtained' : 'not-obtained'}`}
-                              />
-                            )}
-                            {got && !loadingPitchedItems[key] && (
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className={`pitched-item-image inline ${got ? 'obtained' : 'not-obtained'}`}
+                            />
+                            {got && (
                               <span className="pitched-item-checkmark inline">✓</span>
                             )}
                           </span>
@@ -462,8 +219,9 @@ function BossTable({
               </tr>
             );
           })}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

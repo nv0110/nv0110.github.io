@@ -42,21 +42,23 @@ function BossTablePage() {
   };
 
   return (
-    <div className="page-container">
-      <Navbar 
-        currentPage="bosstable" 
+    <div className="page-container boss-table-page">
+      <Navbar
+        currentPage="bosstable"
         onShowHelp={() => setShowHelp(true)}
         onShowDeleteConfirm={() => setShowDeleteConfirm(true)}
       />
       <ViewTransitionWrapper>
-        <div className="premium-content-container fade-in">
-          <h2 className="page-title-secondary">
-            Boss Crystal Price Table
-          </h2>
+        <div className="boss-table-main-container fade-in">
+          <div className="boss-table-header-section">
+            <h2 className="page-title-secondary">
+              Boss Crystal Price Table
+            </h2>
+          </div>
           
-          <div className="boss-table-wrapper">
+          <div className="boss-table-wrapper-price">
             {/* Fixed Header Table */}
-            <div className="boss-table-header-container">
+            <div className="boss-table-header-container-price">
               <table className="boss-price-table boss-table-header">
                 <thead>
                   <tr className="boss-table-header">
@@ -75,7 +77,7 @@ function BossTablePage() {
             </div>
 
             {/* Scrollable Body Table */}
-            <div className="boss-table-body-container">
+            <div className="boss-table-body-container-price">
               <table className="boss-price-table boss-table-body">
                 <tbody>
                   {(() => {

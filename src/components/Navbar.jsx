@@ -1,17 +1,17 @@
 import { useAuth } from '../hooks/useAuth';
 import { useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import { getTimeUntilReset } from '../utils/weekUtils';
+import { useState, useEffect, useRef } from 'react';
+import { getTimeUntilReset, getCurrentWeekKey } from '../utils/weekUtils';
 import { useViewTransition } from '../hooks/useViewTransition';
 import { useAppData } from '../hooks/AppDataContext.jsx';
 import { useForceUpdate } from '../hooks/ForceUpdateContext';
 import { Tooltip } from './Tooltip';
 
-function Navbar({ onShowHelp, onShowDeleteConfirm }) {
+function Navbar({ onShowHelp, onShowDeleteConfirm, onWeeklyReset }) {
   const { userCode, handleLogout } = useAuth();
   const { navigate } = useViewTransition();
   const location = useLocation();
-  const { characterBossSelections } = useAppData();
+  const { characterBossSelections, simulateWeekForward, revertWeekSimulation, isWeekSimulated } = useAppData();
   const { lastUpdate } = useForceUpdate(); // Get the force update trigger
   
   // State to track if weekly tracker should be enabled
@@ -25,14 +25,27 @@ function Navbar({ onShowHelp, onShowDeleteConfirm }) {
 
   // Timer state managed within navbar
   const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilReset());
+  const previousWeekKeyRef = useRef(getCurrentWeekKey()); // Keep track of the week key
 
-  // Update countdown timer
+  // Update countdown timer and check for week change
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeUntilReset(getTimeUntilReset());
-    }, 1000);
+
+      const currentWeek = getCurrentWeekKey();
+      const previousWeek = previousWeekKeyRef.current;
+
+      if (currentWeek !== previousWeek) {
+        console.log(`Weekly reset detected. Old week: ${previousWeek}, New week: ${currentWeek}`);
+        if (onWeeklyReset) {
+          onWeeklyReset(previousWeek); // Pass the week that just ENDED
+        }
+        previousWeekKeyRef.current = currentWeek; // Update to the new current week
+      }
+    }, 1000); // Check every second
+
     return () => clearInterval(timer);
-  }, []);
+  }, [onWeeklyReset]); // Add onWeeklyReset to dependency array
 
   const handleLogoutClick = async () => {
     await handleLogout();
@@ -143,6 +156,30 @@ function Navbar({ onShowHelp, onShowDeleteConfirm }) {
           >
             Help
           </button>
+
+          {/* Debug Buttons for Week Simulation */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="navbar-debug-controls" style={{ marginLeft: '10px', display: 'flex', gap: '5px' }}>
+              <button
+                onClick={simulateWeekForward}
+                disabled={isWeekSimulated} // Disable if already simulated forward
+                className="navbar-btn debug-sim-forward"
+                title="Simulate 1 Week Forward"
+                style={{ backgroundColor: isWeekSimulated ? '#555' : '#28a745', color: 'white', padding: '5px 8px', fontSize: '0.8em' }}
+              >
+                Sim W+1
+              </button>
+              <button
+                onClick={revertWeekSimulation}
+                disabled={!isWeekSimulated} // Disable if not currently simulated
+                className="navbar-btn debug-revert-sim"
+                title="Revert Week Simulation"
+                style={{ backgroundColor: !isWeekSimulated ? '#555' : '#dc3545', color: 'white', padding: '5px 8px', fontSize: '0.8em' }}
+              >
+                Revert Sim
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

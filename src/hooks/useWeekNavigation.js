@@ -1,30 +1,33 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getCurrentWeekKey } from '../utils/weekUtils';
-import { getAvailableWeeks, getHistoricalWeekAnalysis } from '../pitched-data-service';
+import { getCurrentWeekKey as getRealCurrentWeekKey } from '../utils/weekUtils';
+import { getHistoricalWeekAnalysis } from '../pitched-data-service';
 
-export function useWeekNavigation(userCode) {
-  const currentWeekKey = getCurrentWeekKey();
-  const [selectedWeekKey, setSelectedWeekKey] = useState(currentWeekKey);
-  const [availableWeeks, setAvailableWeeks] = useState([]);
-  const [weekDataCache, setWeekDataCache] = useState({});
-  // New state for sophisticated navigation
+export function useWeekNavigation(userCode, appWeekKeyFromProps) {
+  const [selectedWeekKey, setSelectedWeekKey] = useState(appWeekKeyFromProps || getRealCurrentWeekKey());
   const [historicalAnalysis, setHistoricalAnalysis] = useState({
     hasHistoricalData: false,
     oldestHistoricalWeek: null,
     userType: 'new',
     adaptiveWeekLimit: 8,
-    historicalWeeks: []
+    historicalWeeks: [],
+    analysis: null
   });
 
-  const isHistoricalWeek = selectedWeekKey !== currentWeekKey;
+  useEffect(() => {
+    if (appWeekKeyFromProps && appWeekKeyFromProps !== selectedWeekKey) {
+      console.log(`useWeekNavigation: appWeekKeyFromProps (${appWeekKeyFromProps}) differs from selectedWeekKey (${selectedWeekKey}). Updating selectedWeekKey.`);
+      setSelectedWeekKey(appWeekKeyFromProps);
+    }
+  }, [appWeekKeyFromProps]); // Removed selectedWeekKey to prevent circular updates
 
-  // Function to refresh historical analysis - can be called when pitched items change
+  const isHistoricalWeek = selectedWeekKey !== (appWeekKeyFromProps || getRealCurrentWeekKey());
+
   const refreshHistoricalAnalysis = useCallback(async () => {
     if (!userCode) return;
-    
+    const realCurrentWeek = getRealCurrentWeekKey();
     try {
-      console.log('🔄 Refreshing historical analysis...');
-      const analysisResult = await getHistoricalWeekAnalysis(userCode);
+      console.log(`🔄 Refreshing historical analysis (user: ${userCode}, relative to real week: ${realCurrentWeek})...`);
+      const analysisResult = await getHistoricalWeekAnalysis(userCode, appWeekKeyFromProps || realCurrentWeek);
       
       if (analysisResult.success) {
         setHistoricalAnalysis({
@@ -40,71 +43,37 @@ export function useWeekNavigation(userCode) {
           userType: analysisResult.userType,
           hasData: analysisResult.hasHistoricalData,
           oldestWeek: analysisResult.oldestHistoricalWeek,
-          adaptiveLimit: analysisResult.adaptiveWeekLimit
+          adaptiveLimit: analysisResult.adaptiveWeekLimit,
         });
+      } else {
+        console.error('Error in analysisResult:', analysisResult.error);
       }
     } catch (error) {
       console.error('Error refreshing historical analysis:', error);
     }
-  }, [userCode, setHistoricalAnalysis]);
+  }, [userCode, appWeekKeyFromProps, setHistoricalAnalysis]);
 
-  // Simplified week change handler
   const handleWeekChange = useCallback((newWeekKey) => {
-    if (newWeekKey === selectedWeekKey) return;
-    setSelectedWeekKey(newWeekKey);
+    if (newWeekKey !== selectedWeekKey) {
+      setSelectedWeekKey(newWeekKey);
+    }
   }, [selectedWeekKey]);
 
-  // Fetch available weeks and historical analysis
   useEffect(() => {
-    const fetchWeekData = async () => {
-      if (!userCode) return;
-      
-      try {
-        // Fetch both available weeks and historical analysis
-        const [availableResult, analysisResult] = await Promise.all([
-          getAvailableWeeks(userCode),
-          getHistoricalWeekAnalysis(userCode)
-        ]);
-        
-        if (availableResult.success) {
-          setAvailableWeeks(availableResult.weeks);
-        }
-        
-        if (analysisResult.success) {
-          setHistoricalAnalysis({
-            hasHistoricalData: analysisResult.hasHistoricalData,
-            oldestHistoricalWeek: analysisResult.oldestHistoricalWeek,
-            userType: analysisResult.userType,
-            adaptiveWeekLimit: analysisResult.adaptiveWeekLimit,
-            historicalWeeks: analysisResult.historicalWeeks,
-            analysis: analysisResult.analysis
-          });
-          
-          console.log('📊 Week navigation updated with historical analysis:', {
-            userType: analysisResult.userType,
-            hasData: analysisResult.hasHistoricalData,
-            oldestWeek: analysisResult.oldestHistoricalWeek,
-            adaptiveLimit: analysisResult.adaptiveWeekLimit
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching week navigation data:', error);
-      }
-    };
-    
-    fetchWeekData();
-  }, [userCode]);
+    if (userCode) {
+      // Use a timeout to prevent immediate cascading effects
+      const timeoutId = setTimeout(() => {
+        refreshHistoricalAnalysis();
+      }, 150);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [userCode, appWeekKeyFromProps]); // Removed refreshHistoricalAnalysis from deps to prevent loops
 
   return {
     selectedWeekKey,
-    availableWeeks,
-    weekDataCache,
-    setWeekDataCache,
     isHistoricalWeek,
     handleWeekChange,
-    // New sophisticated navigation data
     historicalAnalysis,
-    // Function to refresh historical analysis when data changes
     refreshHistoricalAnalysis
   };
 } 

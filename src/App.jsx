@@ -1,11 +1,14 @@
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { Suspense, lazy, Component } from 'react';
+import { Suspense, lazy, Component, useEffect } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { ForceUpdateProvider } from './hooks/ForceUpdateContext';
 import ViewTransitionWrapper from './components/ViewTransitionWrapper';
-import { AppDataProvider } from './hooks/AppDataContext.jsx';
+import { AppDataProvider, useAppData } from './hooks/AppDataContext.jsx';
 import './App.css';
 import React from 'react';
+import Navbar from './components/Navbar';
+import { clearPitchedItemsForWeek } from './pitched-data-service';
+import { getCurrentWeekKey } from './utils/weekUtils';
 
 // Lazy load page components for code splitting
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -106,68 +109,98 @@ function NotFound() {
 function ProtectedRoute({ children }) {
   const { isLoggedIn, userCode } = useAuth();
   const location = useLocation();
-  console.log('ProtectedRoute: isLoggedIn:', isLoggedIn, 'userCode:', userCode, 'path:', location.pathname);
+  // console.log('ProtectedRoute: isLoggedIn:', isLoggedIn, 'userCode:', userCode, 'path:', location.pathname);
 
   if (!isLoggedIn) {
-    console.log('ProtectedRoute: Redirecting to /login from', location.pathname);
+    // console.log('ProtectedRoute: Redirecting to /login from', location.pathname);
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
   return children;
 }
 
-// Main App Component
-function App() {
+// New MainAppContent component that uses AppData
+function MainAppContent() {
   const { isLoggedIn, userCode } = useAuth();
-  console.log('App.jsx: isLoggedIn:', isLoggedIn, 'userCode:', userCode);
+  const { setChecked, performWeeklyResetActions, characterBossSelections } = useAppData();
+  const navigate = useNavigate();
 
+  // console.log('MainAppContent: isLoggedIn:', isLoggedIn, 'userCode:', userCode);
+
+  const handleWeeklyReset = async (endedWeekKey) => {
+    // console.log(`MainAppContent: handleWeeklyReset called for ended week: ${endedWeekKey}`);
+    if (userCode && endedWeekKey) {
+      try {
+        // 1. Clear UI for boss clears (current week)
+        setChecked({});
+        // console.log('Boss clears UI reset for the new week.');
+
+        // 2. Clear pitched items in DB for the week that just ENDED
+        const clearResult = await clearPitchedItemsForWeek(userCode, endedWeekKey);
+        if (clearResult.success) {
+          // console.log(`Successfully cleared ${clearResult.itemsCleared} pitched items from DB for week: ${endedWeekKey}`);
+        } else {
+          console.error(`Failed to clear pitched items from DB for week ${endedWeekKey}:`, clearResult.error);
+        }
+
+        // 3. Update the reset timestamp to trigger UI refreshes for pitched items (e.g., in WeeklyTracker)
+        performWeeklyResetActions();
+
+        // Optional: force a reload or navigate to a specific page if desired
+        // navigate('/weeklytracker', { replace: true }); // Example
+
+      } catch (error) {
+        console.error('Error during weekly reset process:', error);
+        // Handle error (e.g., show a notification to the user)
+      }
+    }
+  };
+
+  return (
+    <>
+      {isLoggedIn && (
+        <Navbar 
+          onShowHelp={() => { /* Implement help modal logic if needed */ }}
+          onShowDeleteConfirm={() => { /* Implement delete confirm logic if needed */ }}
+          onWeeklyReset={handleWeeklyReset} 
+          characterBossSelections={characterBossSelections} 
+        />
+      )}
+      <div className="App dark main-content-scrollable-area"> 
+        <ViewTransitionWrapper>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route 
+                path="/login" 
+                element={isLoggedIn ? <Navigate to="/" replace /> : <LoginPage />} 
+              />
+              <Route 
+                path="/" 
+                element={<ProtectedRoute><InputPage /></ProtectedRoute>}
+              />
+              <Route 
+                path="/weeklytracker" 
+                element={<ProtectedRoute><WeeklyTrackerPage /></ProtectedRoute>}
+              />
+              <Route 
+                path="/bosstable" 
+                element={<ProtectedRoute><BossTablePage /></ProtectedRoute>}
+              />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </ViewTransitionWrapper>
+      </div>
+    </>
+  );
+}
+
+// Main App Component - Now primarily for Providers
+function App() {
   return (
     <ErrorBoundary>
       <ForceUpdateProvider>
         <AppDataProvider>
-          <div className="App dark">
-            <ViewTransitionWrapper>
-              <Suspense fallback={<PageLoader />}>
-                <Routes>
-                {/* Login Route - redirect to home if already logged in */}
-                <Route 
-                  path="/login" 
-                  element={isLoggedIn ? <Navigate to="/" replace /> : <LoginPage />} 
-                />
-                
-                {/* Protected Routes */}
-                <Route 
-                  path="/" 
-                  element={
-                    <ProtectedRoute>
-                      <InputPage />
-                    </ProtectedRoute>
-                  } 
-                />
-                
-                <Route 
-                  path="/weeklytracker" 
-                  element={
-                    <ProtectedRoute>
-                      <WeeklyTrackerPage />
-                    </ProtectedRoute>
-                  } 
-                />
-                
-                <Route 
-                  path="/bosstable" 
-                  element={
-                    <ProtectedRoute>
-                      <BossTablePage />
-                    </ProtectedRoute>
-                  } 
-                />
-                
-                {/* Catch all route - 404 */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-              </Suspense>
-            </ViewTransitionWrapper>
-          </div>
+          <MainAppContent />
         </AppDataProvider>
       </ForceUpdateProvider>
     </ErrorBoundary>

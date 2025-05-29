@@ -11,6 +11,8 @@ import CharacterManagement from '../components/CharacterManagement';
 import BossSelectionTable from '../components/BossSelectionTable';
 import QuickSelectModal from '../components/QuickSelectModal';
 import ViewTransitionWrapper from '../components/ViewTransitionWrapper';
+import PageLoader from '../components/PageLoader';
+import '../styles/components/page-loader.css';
 
 // Lazy load DataBackup component
 const DataBackup = lazy(() => import('../components/DataBackup'));
@@ -24,7 +26,6 @@ function InputPage() {
     newCharName,
     setNewCharName,
     selectedCharIdx,
-    error,
     cloneError,
     setCloneError,
     showUndo,
@@ -46,6 +47,7 @@ function InputPage() {
     updatePartySize,
     batchSetBosses,
     showCrystalCapError,
+    isLoading,
   } = useAppData();
 
   // Modal states
@@ -124,10 +126,8 @@ function InputPage() {
     reader.readAsText(file);
   };
 
-  // Clone character function
+  // Clone character function - UPDATED to use new service
   const cloneCharacter = async (idx) => {
-    // console.log('🔄 CLONE: Starting character clone process for index:', idx);
-    
     if (characterBossSelections.length >= LIMITS.CHARACTER_CAP) {
       setCloneError('Cannot clone: Maximum character limit reached');
       setTimeout(() => setCloneError(''), 3000);
@@ -140,8 +140,6 @@ function InputPage() {
       return;
     }
 
-    // console.log('🔄 CLONE: Character to clone:', charToClone);
-
     const totalCrystals = characterBossSelections.reduce((sum, char) => sum + (char.bosses ? char.bosses.length : 0), 0);
     const cloneCrystals = charToClone.bosses ? charToClone.bosses.length : 0;
 
@@ -151,68 +149,68 @@ function InputPage() {
       return;
     }
 
-    // Create new character with proper index
-    const newIndex = characterBossSelections.length > 0 ? Math.max(...characterBossSelections.map(c => c.index || 0)) + 1 : 0;
-    const clonedChar = {
-      ...charToClone,
-      name: `${charToClone.name} (Copy)`,
-      index: newIndex, // Assign new unique index
-      bosses: [...(charToClone.bosses || [])]
-    };
-
-    // console.log('🔄 CLONE: Cloned character created:', clonedChar);
-
-    const newCharacterBossSelections = [...characterBossSelections, clonedChar];
-    setCharacterBossSelections(newCharacterBossSelections);
-
-    // console.log('🔄 CLONE: Updated characters array:', newCharacterBossSelections.map(c => ({ name: c.name, index: c.index, bosses: c.bosses?.length || 0 })));
-
-    // Save to database - this is the missing piece!
     try {
-      // console.log('🔄 CLONE: Saving to database...');
-      const { supabase } = await import('../supabaseClient');
+      // Import necessary services
+      const { addCharacterToWeeklySetup, updateCharacterBossConfigInWeeklySetup } = await import('../../services/userWeeklyDataService.js');
+      const { getCurrentMapleWeekStartDate } = await import('../../utils/mapleWeekUtils.js');
       
-      // Get current data to preserve existing fields
-      const { data: currentData, error: fetchError } = await supabase
-        .from('user_data')
-        .select('data')
-        .eq('id', userCode)
-        .single();
-        
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        throw fetchError;
+      const currentWeekStart = getCurrentMapleWeekStartDate();
+      const clonedName = `${charToClone.name} (Copy)`;
+      
+      // 1. Add the character to user_boss_data
+      const addResult = await addCharacterToWeeklySetup(userCode, currentWeekStart, clonedName);
+      
+      if (!addResult.success) {
+        setCloneError(addResult.error || 'Failed to clone character');
+        setTimeout(() => setCloneError(''), 3000);
+        return;
       }
-      
-      // Merge with existing data to preserve boss_runs and other fields
-      const existingData = currentData?.data || {};
-      const updatedData = {
-        ...existingData,
-        characterBossSelections: newCharacterBossSelections,
-        lastUpdated: new Date().toISOString()
+
+      // 2. If the original character has bosses, clone their boss configuration
+      if (charToClone.bosses && charToClone.bosses.length > 0) {
+        // Convert bosses array to boss config string format
+        const bossConfigString = charToClone.bosses
+          .map(boss => {
+            // Find boss data to get crystal value
+            const bossInfo = bossData.find(b => b.name === boss.name);
+            const difficultyInfo = bossInfo?.difficulties.find(d => d.name === boss.difficulty);
+            const crystalValue = difficultyInfo?.price || 1;
+            const partySize = boss.partySize || 1;
+            
+            return `${boss.name}-${boss.difficulty}:${crystalValue}:${partySize}`;
+          })
+          .join(',');
+
+        const configResult = await updateCharacterBossConfigInWeeklySetup(
+          userCode,
+          currentWeekStart,
+          addResult.characterIndex,
+          bossConfigString
+        );
+
+        if (!configResult.success) {
+          console.warn('Failed to clone boss configuration:', configResult.error);
+          // Don't fail the whole operation, just log warning
+        }
+      }
+
+      // 3. Update local state
+      const clonedChar = {
+        ...charToClone,
+        name: clonedName,
+        index: addResult.characterIndex,
+        bosses: [...(charToClone.bosses || [])]
       };
+
+      const newCharacterBossSelections = [...characterBossSelections, clonedChar];
+      setCharacterBossSelections(newCharacterBossSelections);
       
-      // console.log('🔄 CLONE: Saving updated data to database:', { 
-      //   charactersCount: newCharacterBossSelections.length,
-      //   newCharacter: { name: clonedChar.name, index: clonedChar.index }
-      // });
+      console.log('✅ CLONE: Character successfully cloned using new service');
       
-      const { error: updateError } = await supabase
-        .from('user_data')
-        .update({ data: updatedData })
-        .eq('id', userCode);
-        
-      if (updateError) {
-        throw updateError;
-      }
-      
-      console.log('✅ CLONE: Character successfully cloned and saved to database');
     } catch (error) {
-      console.error('❌ CLONE: Error saving cloned character to database:', error);
-      setCloneError('Failed to save cloned character to database');
+      console.error('❌ CLONE: Error cloning character:', error);
+      setCloneError('Failed to clone character');
       setTimeout(() => setCloneError(''), 3000);
-      
-      // Revert local state on database error
-      setCharacterBossSelections(characterBossSelections);
     }
   };
 
@@ -313,36 +311,42 @@ function InputPage() {
       {/* Main Content */}
       <ViewTransitionWrapper>
         <div className="table-container premium-content-container input-page-container fade-in">
-          {/* Character Management */}
-          <CharacterManagement
-            characterBossSelections={characterBossSelections}
-            newCharName={newCharName}
-            setNewCharName={setNewCharName}
-            selectedCharIdx={selectedCharIdx}
-            cloneError={cloneError}
-            onCharacterChange={handleCharacterChange}
-            onAddCharacter={addCharacter}
-            onUpdateCharacterName={updateCharacterName}
-            onCloneCharacter={cloneCharacter}
-            onRemoveCharacter={removeCharacter}
-            showCrystalCapError={showCrystalCapError}
-          />
-
-          {characterBossSelections.length === 0 ? (
-            <div className="empty-state-message">
-              <span role="img" aria-label="sparkles">✨</span> Welcome! Add your first character to get started.
-            </div>
+          {isLoading ? (
+            <PageLoader />
           ) : (
-            /* Boss Selection Table */
-            <BossSelectionTable
-              selectedCharIdx={selectedCharIdx}
-              characterBossSelections={characterBossSelections}
-              sortedBossData={sortedBossData}
-              getBossDifficulties={getBossDifficulties}
-              getAvailablePartySizes={getAvailablePartySizes}
-              onToggleBoss={toggleBoss}
-              onUpdatePartySize={updatePartySize}
-            />
+            <>
+              {/* Character Management */}
+              <CharacterManagement
+                characterBossSelections={characterBossSelections}
+                newCharName={newCharName}
+                setNewCharName={setNewCharName}
+                selectedCharIdx={selectedCharIdx}
+                cloneError={cloneError}
+                onCharacterChange={handleCharacterChange}
+                onAddCharacter={addCharacter}
+                onUpdateCharacterName={updateCharacterName}
+                onCloneCharacter={cloneCharacter}
+                onRemoveCharacter={removeCharacter}
+                showCrystalCapError={showCrystalCapError}
+              />
+
+              {characterBossSelections.length === 0 ? (
+                <div className="empty-state-message">
+                  <span role="img" aria-label="sparkles">✨</span> Welcome! Add your first character to get started.
+                </div>
+              ) : (
+                /* Boss Selection Table */
+                <BossSelectionTable
+                  selectedCharIdx={selectedCharIdx}
+                  characterBossSelections={characterBossSelections}
+                  sortedBossData={sortedBossData}
+                  getBossDifficulties={getBossDifficulties}
+                  getAvailablePartySizes={getAvailablePartySizes}
+                  onToggleBoss={toggleBoss}
+                  onUpdatePartySize={updatePartySize}
+                />
+              )}
+            </>
           )}
         </div>
       </ViewTransitionWrapper>

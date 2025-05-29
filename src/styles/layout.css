@@ -12,17 +12,57 @@
 
 /* ===== PAGE LAYOUTS & CONTAINERS ===== */
 
-/* Main page container - provides proper spacing for fixed navbar */
-.page-container {
-  padding: 80px 0 2rem 0; /* Top padding accounts for fixed navbar height */
-  width: 100%;
+/* Updated body styles for better full-height behavior if needed */
+body, #root {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-y: hidden;
+  margin: 0; /* Ensure no default body margin */
 }
 
-/* Premium content container - glass-morphism styling for main content areas */
+#root {
+  flex-grow: 1; /* Ensure #root also grows */
+}
+
+/* Main page container for overall layout */
+.page-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; /* Fallback if #root doesn't enforce it enough */
+  flex-grow: 1; /* Allow page-container to grow within #root or body */
+  width: 100%;
+  background-color: var(--background-color); 
+  color: var(--text-color);
+  overflow-x: hidden; 
+}
+
+/* Area for content that scrolls independently of the navbar */
+.main-content-scrollable-area {
+  flex-grow: 1; 
+  overflow-y: auto; 
+  padding: clamp(1rem, 2vw, 1.5rem); /* Responsive padding */
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background-color); /* Ensure this area also gets the theme background */
+}
+
+/* Optional wrapper for content to set a max-width and center it */
+.content-wrapper-max-width {
+  width: 100%;
+  max-width: 1800px; /* Increased max-width for wider screens */
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1; /* Allows this wrapper to fill the scrollable area if needed */
+}
+
+/* Ensure premium-content-container also adopts flex properties if it's going to be a direct child
+   of main-content-scrollable-area and needs to grow. */
 .premium-content-container {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1; /* If it should expand */
   background: linear-gradient(135deg, rgba(24, 22, 34, 0.95) 0%, rgba(28, 25, 40, 0.98) 50%, rgba(20, 18, 30, 0.95) 100%);
   backdrop-filter: blur(20px) saturate(1.2);
   -webkit-backdrop-filter: blur(20px) saturate(1.2);
@@ -39,6 +79,15 @@
   position: relative;
   overflow: hidden;
   min-height: 400px; /* Prevent layout shift during transitions */
+}
+
+/* Example: Applying to specific page main containers if needed */
+.input-page-layout, 
+.weekly-tracker-layout, 
+.boss-table-layout {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1; /* Make these layouts grow within their parent */
 }
 
 /* InputPage specific container - smaller max-width for character management */
@@ -183,12 +232,7 @@
 /* ===== WEEKLY TRACKER LAYOUT ===== */
 
 /* Weekly tracker main container - main content area with fade-in animation */
-.weekly-tracker-main {
-  width: 100%; /* Full width of the page */
-  display: flex;
-  justify-content: center; /* Center content horizontally */
-  align-items: flex-start;
-}
+
 
 /* Main layout container - flexbox layout for sidebar and content */
 .weekly-tracker-layout {
@@ -199,13 +243,7 @@
 }
 
 /* Content area wrapper - contains all main content */
-.weekly-tracker-content {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 2rem;
-  width: 100%;
-  flex: 1; /* Take remaining space after sidebar */
-}
+
 
 /* Header section - page title area */
 .weekly-tracker-header {

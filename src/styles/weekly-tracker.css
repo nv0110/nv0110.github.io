@@ -25,6 +25,13 @@
   --overlay-bg: rgba(40, 32, 74, 0.96);
 }
 
+/* Hide scrollbar */
+::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 .weekly-tracker {
   color: var(--text-light);
 }
@@ -51,13 +58,13 @@
   overflow-y: auto;
 }
 
+/* Main content area */
 .weekly-tracker-content {
   max-width: 900px;
   margin: 0 auto;
   padding: 2rem;
   width: 100%;
-  min-height: 0;  /* Allow content to shrink */
-  height: auto;   /* Grow with content */
+  flex: 1;
 }
 
 /* -----------------------------------------------------------------------------
@@ -86,9 +93,9 @@
 }
 
 /* -----------------------------------------------------------------------------
-   4. Content Area
+   4. Content Area & Actions
    ----------------------------------------------------------------------------- */
-.weekly-tracker .weekly-tracker-tick-all-container {
+.weekly-tracker-tick-all-container {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -96,30 +103,32 @@
   margin-bottom: 24px;
 }
 
-.weekly-tracker .weekly-tracker-stats-button-container {
+.weekly-tracker-stats-button-container {
   display: flex;
   justify-content: center;
-  margin-bottom: 12px;
-  margin-top: 2rem;
+  margin: 2rem 0;
+  padding: 0 1rem;
 }
 
 /* -----------------------------------------------------------------------------
    5. Button Styles
    ----------------------------------------------------------------------------- */
-.weekly-tracker .weekly-tracker-tick-all-button {
+.weekly-tracker-tick-all-button,
+.weekly-tracker-tick-all-btn {
   padding: 0.5rem 1.2rem;
   border-radius: 6px;
   background: var(--purple-primary);
-  color: var(--text-light);
+  color: #fff !important;
   font-weight: 600;
   cursor: pointer;
   border: 1px solid var(--purple-light);
   transition: all 0.3s ease;
 }
 
-.weekly-tracker .weekly-tracker-stats-button {
+.weekly-tracker-stats-button,
+.weekly-tracker-stats-btn {
   background: linear-gradient(135deg, #a259f7 0%, #805ad5 100%);
-  color: #fff;
+  color: #fff !important;
   border: none;
   border-radius: 10px;
   padding: 0.7rem 1.7rem;
@@ -141,46 +150,11 @@
   justify-content: center;
 }
 
-.weekly-tracker .weekly-tracker-stats-button:hover {
-  background: linear-gradient(135deg, #c084fc 0%, #a259f7 100%);
-  box-shadow: 0 0 14px 2px #c084fc, 0 4px 16px rgba(162, 89, 247, 0.22);
-  transform: scale(1.025) translateY(-1px);
-  color: #fff;
-}
-
-.weekly-tracker .weekly-tracker-stats-button:active {
-  background: linear-gradient(135deg, #805ad5 0%, #a259f7 100%);
-  box-shadow: 0 0 5px 1px #805ad5, 0 1px 4px rgba(128, 90, 213, 0.13);
-  transform: scale(0.98) translateY(1px);
-}
-
-.weekly-tracker .weekly-tracker-stats-button:focus {
-  outline: 2px solid #fff;
-  outline-offset: 2px;
-}
-
-/* Stats button container */
-.weekly-tracker .weekly-tracker-stats-button-container {
-  display: flex;
-  justify-content: center;
-  margin: 2rem 0;
-  padding: 0 1rem;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .weekly-tracker .weekly-tracker-stats-button {
-    padding: 0.6rem 1.1rem;
-    font-size: 0.97em;
-    min-width: 100px;
-    max-width: 98vw;
-  }
-}
-
 /* -----------------------------------------------------------------------------
    6. Modal & Overlay
    ----------------------------------------------------------------------------- */
-.weekly-tracker .weekly-tracker-modal-backdrop {
+.weekly-tracker-modal-backdrop,
+.weekly-tracker-historical-backdrop {
   position: fixed;
   top: 0;
   left: 0;
@@ -196,49 +170,48 @@
 /* -----------------------------------------------------------------------------
    7. States (Error, Empty, Loading)
    ----------------------------------------------------------------------------- */
-/* Error States */
-.weekly-tracker .weekly-tracker-error {
+.weekly-tracker-error {
   padding: 2rem;
   color: var(--text-light);
   font-size: 1.2rem;
   text-align: center;
 }
 
-.weekly-tracker .weekly-tracker-error-message {
+.weekly-tracker-error-message {
   color: var(--error-red);
   margin-bottom: 1rem;
 }
 
-.weekly-tracker .weekly-tracker-error-btn {
+.weekly-tracker-error-btn {
   margin-right: 1rem;
   padding: 0.5rem 1rem;
   background: var(--purple-primary);
-  color: var(--text-light);
+  color: #fff !important;
   border: none;
   border-radius: 6px;
   cursor: pointer;
 }
 
-/* Empty States */
-.weekly-tracker .weekly-tracker-no-characters {
+.weekly-tracker-no-characters {
   padding: 2rem;
   color: var(--text-light);
   font-size: 1.2rem;
   text-align: center;
 }
 
-.weekly-tracker .weekly-tracker-no-characters-message {
+.weekly-tracker-no-characters-message {
   opacity: 0;
   transition: opacity 0.5s ease-in-out;
 }
 
-.weekly-tracker .weekly-tracker-no-characters-message.visible {
+.weekly-tracker-no-characters-message.visible {
   opacity: 1;
   animation: fadeInMessage 0.5s ease-in-out;
 }
 
 /* Disabled States */
-.weekly-tracker .weekly-tracker-tick-all-button:disabled {
+.weekly-tracker-tick-all-button:disabled,
+.weekly-tracker-tick-all-btn:disabled {
   background: var(--purple-dark);
   cursor: not-allowed;
   opacity: 0.5;
@@ -262,12 +235,14 @@
    9. Interactive States
    ----------------------------------------------------------------------------- */
 /* Hover States */
-.weekly-tracker .weekly-tracker-tick-all-button:hover:not(:disabled) {
+.weekly-tracker-tick-all-button:hover:not(:disabled),
+.weekly-tracker-tick-all-btn:hover:not(:disabled) {
   background: var(--purple-light);
   transform: translateY(-1px);
 }
 
-.weekly-tracker .weekly-tracker-stats-button:hover {
+.weekly-tracker-stats-button:hover,
+.weekly-tracker-stats-btn:hover {
   background: linear-gradient(135deg, #c084fc 0%, #a259f7 100%);
   box-shadow: 0 0 14px 2px #c084fc, 0 4px 16px rgba(162, 89, 247, 0.22);
   transform: scale(1.025) translateY(-1px);
@@ -275,148 +250,39 @@
 }
 
 /* Active States */
-.weekly-tracker .weekly-tracker-tick-all-button:active:not(:disabled) {
+.weekly-tracker-tick-all-button:active:not(:disabled),
+.weekly-tracker-tick-all-btn:active:not(:disabled) {
   transform: translateY(1px);
 }
 
-.weekly-tracker .weekly-tracker-stats-button:active {
+.weekly-tracker-stats-button:active,
+.weekly-tracker-stats-btn:active {
   background: linear-gradient(135deg, #805ad5 0%, #a259f7 100%);
   box-shadow: 0 0 5px 1px #805ad5, 0 1px 4px rgba(128, 90, 213, 0.13);
   transform: scale(0.98) translateY(1px);
 }
 
 /* Focus States */
-.weekly-tracker .weekly-tracker-tick-all-button:focus,
-.weekly-tracker .weekly-tracker-stats-button:focus {
+.weekly-tracker-tick-all-button:focus,
+.weekly-tracker-tick-all-btn:focus,
+.weekly-tracker-stats-button:focus,
+.weekly-tracker-stats-btn:focus {
   outline: 2px solid #fff;
   outline-offset: 2px;
 }
 
-/* =====================================================================================
-   WEEKLY TRACKER COMPONENTS
-   =====================================================================================
-   
-   Weekly boss tracker specific styling including:
-   - Tracker layout and containers
-   - Action buttons and controls
-   - Progress indicators
-   - Error and loading states
-   
-   ===================================================================================== */
-
-/* ===== WEEKLY TRACKER ACTIONS ===== */
-
-/* Tick All button container - centers the tick all button */
-.weekly-tracker-tick-all-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin-bottom: 24px;
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .weekly-tracker-stats-button,
+  .weekly-tracker-stats-btn {
+    padding: 0.6rem 1.1rem;
+    font-size: 0.97em;
+    min-width: 100px;
+    max-width: 98vw;
+  }
 }
 
-/* Tick All button - purple gradient button for marking all bosses */
-.weekly-tracker-tick-all-btn {
-  padding: 0.5rem 1.2rem;
-  border-radius: 6px;
-  background: #805ad5; /* Purple background */
-  color: #fff !important; /* Ensure button text is white */
-  font-weight: 600;
-  cursor: pointer;
-  border: 1px solid #9f7aea; /* Lighter purple border */
-  transition: all 0.3s ease;
-}
-
-/* Tick All button disabled state - grayed out when read-only */
-.weekly-tracker-tick-all-btn:disabled {
-  background: #4a4a4a; /* Gray background for disabled state */
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-/* Action buttons container - contains View Stats and Refresh buttons */
-.weekly-tracker-actions {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 12px;
-  margin-top: 2rem;
-}
-
-/* View Stats button - refined neon purple, moderate size, subtle glow */
-.weekly-tracker-stats-btn {
-  background: linear-gradient(135deg, #805ad5, #9f7aea); /* Purple gradient */
-  color: #fff !important; /* Ensure button text is white */
-  border: none;
-  border-radius: 12px;
-  padding: 0.8rem 2.5rem;
-  font-weight: 700;
-  font-size: 1.1em;
-  cursor: pointer;
-  width: 100%;
-  max-width: 320px;
-  box-shadow: 0 4px 12px rgba(128, 90, 213, 0.4); /* Purple shadow */
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* ===== ERROR & LOADING STATES ===== */
-
-/* Error state container - displays error messages with red styling */
-.weekly-tracker-error {
-  padding: 2rem;
-  color: #e6e0ff; /* Light purple text */
-  font-size: 1.2rem;
-  text-align: center;
-}
-
-/* Error message text - red color for error text */
-.weekly-tracker-error-message {
-  color: #ff6b6b; /* Red error color */
-  margin-bottom: 1rem;
-}
-
-/* Error retry button - simple button for retrying after error */
-.weekly-tracker-error-btn {
-  margin-right: 1rem;
-  padding: 0.5rem 1rem;
-  background: #805ad5;
-  color: #fff !important; /* Ensure button text is white */
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-/* No characters state container - displays when no characters exist */
-.weekly-tracker-no-characters {
-  padding: 2rem;
-  color: #e6e0ff; /* Light purple text */
-  font-size: 1.2rem;
-  text-align: center;
-}
-
-/* No characters message - animated fade-in message */
-.weekly-tracker-no-characters-message {
-  transition: opacity 0.5s ease-in-out;
-}
-
-/* ===== MODAL OVERRIDES ===== */
-
-/* Historical pitched modal backdrop - full screen overlay */
-.weekly-tracker-historical-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(40, 32, 74, 0.96); /* Dark purple overlay */
-  z-index: 6000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* ===== LAYOUT OVERRIDES ===== */
-
-/* WeeklyTracker specific color overrides to prevent dark theme conflicts */
+/* Layout color override to prevent dark theme conflicts */
 .weekly-tracker-layout * {
-  color: inherit; /* Prevent global color overrides */
+  color: inherit;
 } 

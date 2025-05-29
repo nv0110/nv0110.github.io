@@ -1,6 +1,5 @@
 import { useMemo, useCallback } from 'react';
 import { 
-  getCurrentWeekKey, 
   getWeekKeyOffset, 
   getWeekLabel, 
   getWeekOffset,
@@ -11,135 +10,92 @@ import '../styles/week-navigator.css';
 import { formatMesoBillions } from '../utils/formatUtils';
 
 function WeekNavigator({
+  appWeekKey,
   selectedWeekKey,
   onWeekChange,
-  // Progress data for current week
-  characterBossSelections = [],
-  checked = {},
-  selectedCharIdx = 0,
-  totalMeso = 0,
-  obtainableMeso = 0,
-  // Add historicalAnalysis with default values
   historicalAnalysis = {
     hasHistoricalData: false,
     oldestHistoricalWeek: null,
     userType: 'new',
-    adaptiveWeekLimit: 8
+    adaptiveWeekLimit: 8,
+    historicalWeeks: []
   },
-  charSummaries
+  characterBossSelections = [],
+  checked = {},
+  selectedCharIdx = 0,
 }) {
-  const currentWeekKey = getCurrentWeekKey();
-  
-  // Calculate navigation boundaries using adaptive limits
   const navigationLimits = useMemo(() => {
-    const currentOffset = 0;
+    const currentOffsetBasedOnAppWeek = 0;
     const adaptiveLimit = historicalAnalysis?.adaptiveWeekLimit || 8;
     
-    // Always allow navigation to the full adaptive limit range
-    // This ensures users can navigate to weeks 6, 7, 8 even if they only have data from week 5
     const minPastOffset = -adaptiveLimit;
 
     return {
       min: minPastOffset,
-      max: currentOffset,
-      current: currentOffset,
+      max: currentOffsetBasedOnAppWeek,
+      current: currentOffsetBasedOnAppWeek,
       adaptiveLimit
     };
-  }, [historicalAnalysis]);
+  }, [historicalAnalysis, appWeekKey]);
 
-  // Current selected week offset from current week
-  const selectedOffset = getWeekOffset(selectedWeekKey);
+  const selectedOffset = useMemo(() => getWeekOffset(selectedWeekKey, appWeekKey), [selectedWeekKey, appWeekKey]);
   
-  // Navigation functions
   const goToWeek = useCallback((weekKey) => {
     if (weekKey === selectedWeekKey) return;
     onWeekChange(weekKey);
   }, [selectedWeekKey, onWeekChange]);
 
   const goToPreviousWeek = () => {
-    const newOffset = selectedOffset - 1;
-    if (newOffset >= navigationLimits.min) {
-      const newWeekKey = getWeekKeyOffset(newOffset);
-      goToWeek(newWeekKey);
+    const newViewedWeekOffsetFromApp = selectedOffset - 1;
+    if (newViewedWeekOffsetFromApp >= navigationLimits.min) {
+      const newWeekKeyToView = getWeekKeyOffset(newViewedWeekOffsetFromApp, appWeekKey);
+      goToWeek(newWeekKeyToView);
     }
-    // Don't wrap around - just stop at the limit
   };
 
   const goToNextWeek = () => {
-    const newOffset = selectedOffset + 1;
-    if (newOffset <= navigationLimits.max) {
-      const newWeekKey = getWeekKeyOffset(newOffset);
-      goToWeek(newWeekKey);
+    const newViewedWeekOffsetFromApp = selectedOffset + 1;
+    if (newViewedWeekOffsetFromApp <= navigationLimits.max) {
+      const newWeekKeyToView = getWeekKeyOffset(newViewedWeekOffsetFromApp, appWeekKey);
+      goToWeek(newWeekKeyToView);
     }
   };
 
   const goToOldestOrFallback = useCallback(() => {
-    // Debug logging
-    console.log('🔍 goToOldestOrFallback called with analysis:', {
-      hasHistoricalData: historicalAnalysis?.hasHistoricalData,
-      oldestHistoricalWeek: historicalAnalysis?.oldestHistoricalWeek,
-      userType: historicalAnalysis?.userType,
-      adaptiveLimit: navigationLimits.adaptiveLimit
-    });
-    
-    // Use sophisticated historical analysis for navigation
     if (historicalAnalysis?.hasHistoricalData && historicalAnalysis?.oldestHistoricalWeek) {
-      // Jump to the oldest registered historical data
-      console.log(`🎯 Jumping to oldest historical data: ${historicalAnalysis.oldestHistoricalWeek} (${historicalAnalysis.userType} user)`);
       goToWeek(historicalAnalysis.oldestHistoricalWeek);
     } else {
-      // Jump to adaptive limit weeks back if no historical data
-      const fallbackWeekKey = getWeekKeyOffset(-navigationLimits.adaptiveLimit);
-      console.log(`🎯 No historical data found, jumping to ${navigationLimits.adaptiveLimit} weeks back: ${fallbackWeekKey}`);
+      const fallbackWeekKey = getWeekKeyOffset(-navigationLimits.adaptiveLimit, appWeekKey);
       goToWeek(fallbackWeekKey);
     }
-  }, [historicalAnalysis, navigationLimits.adaptiveLimit, goToWeek]);
+  }, [historicalAnalysis, navigationLimits.adaptiveLimit, appWeekKey, goToWeek]);
 
-  const goToCurrentWeek = () => {
-    goToWeek(currentWeekKey);
+  const goToCurrentAppWeek = () => {
+    goToWeek(appWeekKey);
   };
 
-  const goToOldestWeek = () => {
-    if (historicalAnalysis?.hasHistoricalData && historicalAnalysis?.oldestHistoricalWeek) {
-      goToWeek(historicalAnalysis.oldestHistoricalWeek);
-    }
-  };
-
-  // Check if navigation is possible using sophisticated analysis
-  const canGoPrevious = selectedOffset > navigationLimits.min; // Can go to previous week within limits
-  const canGoNext = selectedOffset < navigationLimits.max; // Can go to next week (towards current)
+  const canGoPrevious = selectedOffset > navigationLimits.min;
+  const canGoNext = selectedOffset < navigationLimits.max; 
   const canGoToOldest = historicalAnalysis?.hasHistoricalData || selectedOffset > -navigationLimits.adaptiveLimit;
-  const isCurrentWeek = selectedWeekKey === currentWeekKey;
-  const hasOlderData = historicalAnalysis?.hasHistoricalData;
+  
+  const isSelectedWeekTheCurrentAppWeek = selectedWeekKey === appWeekKey;
 
-  // Get week display info
   const weekInfo = useMemo(() => {
     const parsed = parseWeekKey(selectedWeekKey);
     const dateRange = getWeekDateRange(selectedWeekKey);
-    
     return {
-      label: getWeekLabel(selectedWeekKey),
+      label: getWeekLabel(selectedWeekKey, appWeekKey),
       parsed,
       dateRange,
-      isCurrentWeek,
+      isSelectedWeekTheCurrentAppWeek,
       offset: selectedOffset
     };
-  }, [selectedWeekKey, isCurrentWeek, selectedOffset]);
+  }, [selectedWeekKey, appWeekKey, isSelectedWeekTheCurrentAppWeek, selectedOffset]);
 
-  // Calculate progress data for current week
   const currentChar = characterBossSelections[selectedCharIdx];
   const currentCharBosses = currentChar?.bosses || [];
-  const currentCharKey = `${currentChar?.name || ''}-${selectedCharIdx}`;
-  
-  // Count completed bosses for this character
-  const completedBosses = currentCharBosses.filter(b => {
-    return checked[currentCharKey]?.[`${b.name}-${b.difficulty}`];
-  }).length;
-  
-  const totalBosses = currentCharBosses.length;
-  const progressPercentage = totalBosses > 0 ? (completedBosses / totalBosses) * 100 : 0;
+  const charCheckedKey = `${currentChar?.name || 'char'}-${currentChar?.index !== undefined ? currentChar.index : selectedCharIdx}`;
 
-  // Calculate character's total obtainable meso - using the same logic as the sidebar
   let obtainableMesoForCurrentChar = 0;
   if (currentChar) {
     obtainableMesoForCurrentChar = currentCharBosses.reduce((sum, b) => {
@@ -149,12 +105,11 @@ function WeekNavigator({
     }, 0);
   }
   
-  // Calculate how much meso this character has earned - using the same logic as the sidebar
   let checkedMeso = 0;
-  if (currentChar) {
+  if (currentChar && checked[charCheckedKey]) {
     checkedMeso = currentCharBosses.reduce((sum, b) => {
       const bossKey = `${b.name}-${b.difficulty}`;
-      if (checked[currentCharKey]?.[bossKey]) {
+      if (checked[charCheckedKey]?.[bossKey]) {
         const price = b.price || 0;
         const partySize = b.partySize || 1;
         return sum + Math.ceil(price / partySize);
@@ -163,7 +118,6 @@ function WeekNavigator({
     }, 0);
   }
 
-  // Format meso values
   const formatMeso = (value) => {
     if (!value) return '0';
     return value.toLocaleString();
@@ -171,12 +125,10 @@ function WeekNavigator({
 
   return (
     <div key={selectedWeekKey} className="week-navigator-container">
-      {/* Header section - fixed height */}
       <div className="week-navigator-header">
-        <div className={`week-navigator-title ${isCurrentWeek ? 'current-week' : 'historical-week'}`}>
+        <div className={`week-navigator-title ${isSelectedWeekTheCurrentAppWeek ? 'current-week' : 'historical-week'}`}>
           <span className="week-title-text">{weekInfo.label.replace(/\s*\(Current\)/i, '')}</span>
-          {/* Subtle current week indicator - positioned absolutely */}
-          {isCurrentWeek && (
+          {isSelectedWeekTheCurrentAppWeek && (
             <span className="week-navigator-current-dot">
               <span className="week-navigator-current-dot-inner"></span>
             </span>
@@ -184,9 +136,7 @@ function WeekNavigator({
         </div>
       </div>
 
-      {/* Navigation controls - FIXED POSITION */}
       <div className="week-navigator-navigation">
-        {/* Previous week SVG icon */}
         <div className="week-navigator-arrow-container">
           <svg
             width="32"
@@ -196,7 +146,7 @@ function WeekNavigator({
             xmlns="http://www.w3.org/2000/svg"
             onClick={canGoPrevious ? goToPreviousWeek : undefined}
             className={`week-navigator-arrow arrow-left ${canGoPrevious ? 'enabled' : 'disabled'}`}
-            title={canGoPrevious ? 'Previous Week' : `Already at oldest week (${navigationLimits.adaptiveLimit} weeks back)`}
+            title={canGoPrevious ? 'Previous Week' : `Already at oldest allowed week (${navigationLimits.adaptiveLimit} weeks back from current)`}
           >
             <path
               d="M20.3284 11.0001V13.0001L7.50011 13.0001L10.7426 16.2426L9.32842 17.6568L3.67157 12L9.32842 6.34314L10.7426 7.75735L7.49988 11.0001L20.3284 11.0001Z"
@@ -205,14 +155,12 @@ function WeekNavigator({
           </svg>
         </div>
 
-        {/* Date range - always shown */}
         {weekInfo.dateRange && (
           <div className="week-navigator-date-range">
             {weekInfo.dateRange.start.toLocaleDateString()} - {weekInfo.dateRange.end.toLocaleDateString()}
           </div>
         )}
 
-        {/* Next week SVG icon */}
         <div className="week-navigator-arrow-container">
           <svg
             width="32"
@@ -220,15 +168,15 @@ function WeekNavigator({
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
-            onClick={isCurrentWeek ? (canGoToOldest ? goToOldestOrFallback : undefined) : (canGoNext ? goToNextWeek : undefined)}
-            className={`week-navigator-arrow arrow-right ${(isCurrentWeek ? canGoToOldest : canGoNext) ? 'enabled' : 'disabled'}`}
-            title={isCurrentWeek 
+            onClick={isSelectedWeekTheCurrentAppWeek ? (canGoToOldest ? goToOldestOrFallback : undefined) : (canGoNext ? goToNextWeek : undefined)}
+            className={`week-navigator-arrow arrow-right ${isSelectedWeekTheCurrentAppWeek ? (canGoToOldest ? 'enabled' : 'disabled') : (canGoNext ? 'enabled' : 'disabled')}`}
+            title={isSelectedWeekTheCurrentAppWeek 
               ? (canGoToOldest 
-                  ? (historicalAnalysis?.hasHistoricalData 
-                      ? `Jump to oldest data (${historicalAnalysis?.oldestHistoricalWeek})` 
+                  ? (historicalAnalysis?.hasHistoricalData && historicalAnalysis?.oldestHistoricalWeek 
+                      ? `Jump to oldest data (${getWeekLabel(historicalAnalysis.oldestHistoricalWeek, appWeekKey)})` 
                       : `Jump to ${navigationLimits.adaptiveLimit} weeks back`)
-                  : 'No historical data available')
-              : (canGoNext ? 'Next Week' : 'Already at current week')
+                  : 'No older data available to jump to')
+              : (canGoNext ? 'Next Week' : 'Already at current application week')
             }
           >
             <path
@@ -239,12 +187,9 @@ function WeekNavigator({
         </div>
       </div>
 
-      {/* Content area - flexible height */}
       <div className="week-navigator-content">
-        {/* Current week progress section */}
-        {isCurrentWeek && (
+        {isSelectedWeekTheCurrentAppWeek && currentChar && (
           <div className="week-navigator-progress">
-            {/* Meso progress - always show in current week */}
             <div className="week-navigator-progress-meso">
               <div className="sidebar-progress-track week-navigator-progress-bar-container">
                 <div 
@@ -267,35 +212,31 @@ function WeekNavigator({
         )}
       </div>
 
-      {/* Navigation buttons section - for historical weeks, spacer for current week */}
       <div className="week-navigator-buttons">
-        {!isCurrentWeek ? (
+        {!isSelectedWeekTheCurrentAppWeek ? (
           <>
             <button
-              onClick={goToCurrentWeek}
+              onClick={goToCurrentAppWeek}
               className="week-navigator-button current-week-btn"
-              title="Jump to current week"
+              title="Jump to current application week"
             >
               Current Week
             </button>
 
-            {hasOlderData && (
+            {historicalAnalysis?.hasHistoricalData && historicalAnalysis?.oldestHistoricalWeek && selectedWeekKey !== historicalAnalysis.oldestHistoricalWeek && (
               <button
-                onClick={goToOldestWeek}
+                onClick={goToOldestOrFallback}
                 className="week-navigator-button oldest-data-btn"
-                title={`Jump to oldest data (${historicalAnalysis.oldestHistoricalWeek})`}
+                title={`Jump to oldest recorded data (${getWeekLabel(historicalAnalysis.oldestHistoricalWeek, appWeekKey)})`}
               >
                 Oldest Data
               </button>
             )}
           </>
         ) : (
-          // Empty spacer for current week to maintain consistent layout
           <div className="week-navigator-spacer" />
         )}
       </div>
-
-
     </div>
   );
 }

@@ -9,9 +9,9 @@ import App from './App.jsx'
 document.body.classList.add('dark');
 
 createRoot(document.getElementById('root')).render(
-  <StrictMode>
+  //<StrictMode>
     <HashRouter>
     <App />
     </HashRouter>
-  </StrictMode>,
+ // </StrictMode>,
 )

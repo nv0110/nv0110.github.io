@@ -56,7 +56,7 @@ function CharacterManagement({
             
             <select
               value={selectedCharIdx ?? ''}
-              onChange={onCharacterChange}
+              onChange={onCharacterChange || (() => {})}
               className="character-select-dropdown"
             >
               <option value="">Select a Character</option>

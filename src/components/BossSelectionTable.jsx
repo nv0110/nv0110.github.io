@@ -1,5 +1,6 @@
 import { getBossPrice } from '../data/bossData';
 import CustomCheckbox from './CustomCheckbox';
+import { LIMITS } from '../constants';
 import './BossSelectionTable.css';
 
 function BossSelectionTable({
@@ -60,8 +61,19 @@ function BossSelectionTable({
                       // Only trigger if the click wasn't on a form control
                       if (!e.target.closest('select') && !e.target.closest('.checkbox-wrapper') && !e.target.closest('input')) {
                         if (selected) {
+                          // Always allow removal
                           onToggleBoss(selectedCharIdx, boss.name, '');
                         } else {
+                          // Check 14-boss limit before adding
+                          const currentChar = characterBossSelections[selectedCharIdx];
+                          const currentBossCount = currentChar?.bosses?.length || 0;
+                          
+                          if (currentBossCount >= LIMITS.CHARACTER_BOSS_CAP) {
+                            // Show error - could enhance this with a callback
+                            alert(`Cannot add more than ${LIMITS.CHARACTER_BOSS_CAP} bosses per character.`);
+                            return;
+                          }
+                          
                           onToggleBoss(selectedCharIdx, boss.name, difficulties[0]);
                         }
                       }
@@ -99,8 +111,19 @@ function BossSelectionTable({
                           checked={!!selected}
                           onChange={() => {
                             if (selected) {
+                              // Always allow removal
                               onToggleBoss(selectedCharIdx, boss.name, '');
                             } else {
+                              // Check 14-boss limit before adding
+                              const currentChar = characterBossSelections[selectedCharIdx];
+                              const currentBossCount = currentChar?.bosses?.length || 0;
+                              
+                              if (currentBossCount >= LIMITS.CHARACTER_BOSS_CAP) {
+                                // Show error - could enhance this with a callback
+                                alert(`Cannot add more than ${LIMITS.CHARACTER_BOSS_CAP} bosses per character.`);
+                                return;
+                              }
+                              
                               onToggleBoss(selectedCharIdx, boss.name, difficulties[0]);
                             }
                           }}

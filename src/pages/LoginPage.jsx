@@ -22,25 +22,38 @@ function LoginPage() {
   const [countdown, setCountdown] = useState(8);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
 
-  // Define handleSuccessModalClose before it's used in useEffect
+  const performLoginAndNavigate = async () => {
+    if (newUserCode && loginInput !== newUserCode) {
+      // setLoginInput(newUserCode); // handleCreateAccountWrapper already does this.
+                                 // handleLogin in useAuth should use its internal loginInput state,
+                                 // which is updated by setLoginInput.
+    }
+    const loginResult = await handleLogin();
+    if (loginResult.success) {
+      navigate('/', { replace: true });
+    } else {
+      // Auto-login failed. Modal will close, user can try manually.
+      setShowSuccessModal(false); 
+      // setNewUserCode(''); // Keep newUserCode so they can see it if modal is re-shown or for copy
+    }
+  };
+  
   const handleSuccessModalClose = () => {
     setShowSuccessModal(false);
-    setNewUserCode('');
-    setCountdown(8);
-    navigate('/', { replace: true });
+    setCountdown(8); // Reset countdown for next time
+    // Navigation is handled by performLoginAndNavigate or if user logs in manually
   };
 
-  // Countdown timer for success modal
   useEffect(() => {
+    let timer;
     if (showSuccessModal && countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-      return () => clearTimeout(timer);
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
     } else if (showSuccessModal && countdown === 0) {
-      handleSuccessModalClose();
+      performLoginAndNavigate();
     }
-  }, [showSuccessModal, countdown]);
+    return () => clearTimeout(timer);
+  }, [showSuccessModal, countdown, newUserCode, isLoggedIn]); // Added isLoggedIn to deps to avoid running if already logged in during redirect
 
-  // Auto-hide copied toast
   useEffect(() => {
     if (showCopiedToast) {
       const timer = setTimeout(() => setShowCopiedToast(false), 2000);
@@ -48,23 +61,24 @@ function LoginPage() {
     }
   }, [showCopiedToast]);
 
-  // Redirect if already logged in
   if (isLoggedIn) {
-    navigate('/', { replace: true });
-    return null;
+    // navigate('/', { replace: true }); // This can cause issues if modal effect runs after redirect
+    // Return null or a loader, the main App component will redirect ProtectedRoutes
+    return null; 
   }
 
   const handleCreateAccountWrapper = async () => {
     const result = await handleCreateAccount();
-    if (result.success) {
+    if (result.success && result.code) {
       setNewUserCode(result.code);
+      setLoginInput(result.code); // PRE-FILL LOGIN INPUT for useAuth's handleLogin
       setShowSuccessModal(true);
-      setCountdown(8);
+      setCountdown(8); 
     }
   };
 
   const handleLoginWrapper = async () => {
-    const result = await handleLogin();
+    const result = await handleLogin(); // Uses loginInput from useAuth state
     if (result.success) {
       navigate('/', { replace: true });
     }
@@ -199,94 +213,80 @@ function LoginPage() {
               paddingRight: '3rem'
             }}
           />
-          <button
+          <button 
             type="button"
             onClick={() => setShowPassword(!showPassword)}
             style={{
               position: 'absolute',
-              right: '0.5rem',
+              right: '10px',
               top: '50%',
               transform: 'translateY(-50%)',
               background: 'transparent',
               border: 'none',
-              color: '#a259f7',
+              color: '#b39ddb',
               cursor: 'pointer',
-              padding: '0.25rem',
-              fontSize: '0.9rem',
-              borderRadius: 4,
-              transition: 'all 0.2s ease'
+              padding: '0.3rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
-            title={showPassword ? 'Hide password' : 'Show password'}
-            onMouseOver={e => {
-              e.currentTarget.style.background = 'rgba(162, 89, 247, 0.1)';
-              e.currentTarget.style.color = '#b470ff';
-            }}
-            onMouseOut={e => {
-              e.currentTarget.style.background = 'transparent';
-              e.currentTarget.style.color = '#a259f7';
-            }}
+            title={showPassword ? "Hide code" : "Show code"}
           >
-            {showPassword ? '👁️' : '👁️‍🗨️'}
+            {showPassword ? (
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path><line x1="2" x2="22" y1="2" y2="22"></line></svg>
+            )}
           </button>
         </div>
-        
+
         <button
           onClick={handleLoginWrapper}
           disabled={!loginInput.trim()}
           style={{ 
-            background: loginInput.trim() ? '#805ad5' : '#555', 
+            background: !loginInput.trim() ? '#4a4570' : '#6b46c1', 
             color: '#fff', 
             border: 'none', 
             borderRadius: 6, 
             padding: '0.7rem 1.5rem', 
             fontWeight: 700, 
             fontSize: '1.1rem', 
-            cursor: loginInput.trim() ? 'pointer' : 'not-allowed', 
-            opacity: loginInput.trim() ? 1 : 0.6, 
-            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-            boxShadow: loginInput.trim() ? '0 2px 8px rgba(128, 90, 213, 0.3)' : 'none',
+            cursor: !loginInput.trim() ? 'not-allowed' : 'pointer', 
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', 
+            boxShadow: !loginInput.trim() ? 'none' : '0 2px 8px rgba(107, 70, 193, 0.3)',
             transform: 'translateY(0)',
             width: '100%'
           }}
           onMouseOver={e => {
             if (loginInput.trim()) {
-              e.currentTarget.style.background = '#9f7aea';
+              e.currentTarget.style.background = '#805ad5';
               e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 4px 16px rgba(128, 90, 213, 0.4)';
+              e.currentTarget.style.boxShadow = '0 4px 16px rgba(107, 70, 193, 0.4)';
             }
           }}
           onMouseOut={e => {
             if (loginInput.trim()) {
-              e.currentTarget.style.background = '#805ad5';
+              e.currentTarget.style.background = '#6b46c1';
               e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(128, 90, 213, 0.3)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(107, 70, 193, 0.3)';
             }
           }}
           onMouseDown={e => {
             if (loginInput.trim()) {
               e.currentTarget.style.transform = 'translateY(1px)';
-              e.currentTarget.style.boxShadow = '0 1px 4px rgba(128, 90, 213, 0.2)';
+              e.currentTarget.style.boxShadow = '0 1px 4px rgba(107, 70, 193, 0.2)';
             }
           }}
           onMouseUp={e => {
             if (loginInput.trim()) {
               e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 4px 16px rgba(128, 90, 213, 0.4)';
+              e.currentTarget.style.boxShadow = '0 4px 16px rgba(107, 70, 193, 0.4)';
             }
           }}
         >
           Login
         </button>
-        
-        <div style={{ 
-          fontSize: '0.85rem', 
-          color: '#888', 
-          textAlign: 'center', 
-          marginTop: 16, 
-          lineHeight: 1.4 
-        }}>
-          Your code acts as both username and password. Keep it safe!
-        </div>
+        {/* loginError from useAuth will be displayed here if present */}
       </div>
 
       {/* Success Modal */}
@@ -297,262 +297,149 @@ function LoginPage() {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(40, 32, 74, 0.95)',
-          zIndex: 4000,
+          background: 'rgba(0,0,0,0.7)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          animation: 'modalFadeIn 0.3s ease-out'
-        }}
-        onClick={handleSuccessModalClose}
-        >
+          zIndex: 1000,
+          backdropFilter: 'blur(5px)'
+        }}>
           <div style={{
             background: '#2d2540',
-            borderRadius: 16,
-            padding: '3rem 2.5rem',
-            maxWidth: 480,
-            color: '#e6e0ff',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-            position: 'relative',
-            minWidth: 400,
+            padding: '2rem',
+            borderRadius: 12,
             textAlign: 'center',
-            border: '2px solid #a259f7',
-            animation: 'modalSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
-          }}
-          onClick={e => e.stopPropagation()}
-          >
-            <div style={{ 
-              width: 80, 
-              height: 80, 
-              background: 'linear-gradient(135deg, #a259f7, #805ad5)', 
-              borderRadius: '50%', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              margin: '0 auto 24px',
-              boxShadow: '0 4px 20px rgba(162, 89, 247, 0.4)',
-              animation: 'checkmarkBounce 0.6s ease-out 0.2s both'
-            }}>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-
-            <h2 style={{ color: '#a259f7', fontWeight: 700, marginBottom: 20, fontSize: '1.8rem' }}>
+            boxShadow: '0 5px 25px rgba(0,0,0,0.3)',
+            width: '90%',
+            maxWidth: 420,
+            border: '1px solid #4a3b73',
+            animation: 'modalFadeIn 0.3s ease-out, modalSlideIn 0.4s ease-out'
+          }}>
+            <h2 style={{ fontSize: '1.8rem', color: '#a259f7', marginBottom: '1rem', fontWeight: 700 }}>
               Account Created!
             </h2>
-
-            <div style={{ 
-              background: 'rgba(162, 89, 247, 0.1)', 
-              border: '2px solid rgba(162, 89, 247, 0.3)',
-              borderRadius: 12, 
-              padding: '20px', 
-              marginBottom: 28 
-            }}>
-              <p style={{ marginBottom: 16, fontSize: '1.1rem', lineHeight: '1.5', color: '#e6e0ff' }}>
-                <strong>⚠️ IMPORTANT: Save this code immediately!</strong>
-                <br />
-                This is your unique login code. You cannot recover it if lost.
-              </p>
-              
-              <div style={{
-                background: '#3a335a',
-                borderRadius: 8,
-                padding: '16px',
-                margin: '16px 0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '12px'
-              }}>
-                <span style={{
-                  fontSize: '1.8rem',
-                  fontWeight: 700,
-                  fontFamily: 'monospace',
-                  color: '#a259f7',
-                  letterSpacing: '2px'
-                }}>
-                  {newUserCode}
-                </span>
-                <button
-                  onClick={copyToClipboard}
-                  style={{
-                    background: '#805ad5',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 6,
-                    padding: '8px 12px',
-                    cursor: 'pointer',
-                    fontSize: '0.9rem',
-                    fontWeight: 600,
-                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                    transform: 'translateY(0)'
-                  }}
-                  title="Copy to clipboard"
-                  onMouseOver={e => {
-                    e.currentTarget.style.background = '#9f7aea';
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(128, 90, 213, 0.4)';
-                  }}
-                  onMouseOut={e => {
-                    e.currentTarget.style.background = '#805ad5';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                  onMouseDown={e => {
-                    e.currentTarget.style.transform = 'translateY(1px)';
-                  }}
-                  onMouseUp={e => {
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                  }}
-                >
-                  📋 Copy
-                </button>
-              </div>
-
-              <p style={{ margin: 0, fontSize: '0.95rem', color: '#b39ddb' }}>
-                Write it down, take a screenshot, or save it in a password manager.
-              </p>
-            </div>
-
+            <p style={{ marginBottom: '1rem', fontSize: '1rem', color: '#e6e0ff' }}>
+              Your unique login code is:
+            </p>
             <div style={{
-              background: 'rgba(255, 193, 7, 0.1)',
-              border: '1px solid rgba(255, 193, 7, 0.3)',
-              borderRadius: 8,
-              padding: '12px',
-              marginBottom: 24,
-              fontSize: '1rem',
-              color: '#ffc107'
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              background: '#3a335a',
+              padding: '0.7rem 1rem',
+              borderRadius: 6,
+              marginBottom: '1.5rem',
+              border: '1px solid #4a3b73'
             }}>
-              Auto-login in {countdown} seconds...
+              <span style={{ 
+                fontSize: '1.4rem', 
+                fontWeight: 'bold', 
+                color: '#f0e6ff', 
+                letterSpacing: '1.5px',
+                fontFamily: '"Roboto Mono", monospace' 
+              }}>
+                {newUserCode}
+              </span>
+              <button
+                onClick={copyToClipboard}
+                title="Copy Code"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#a259f7',
+                  padding: '0.3rem'
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+              </button>
             </div>
-
-            <button
-              onClick={handleSuccessModalClose}
-              style={{
-                background: 'linear-gradient(135deg, #a259f7, #805ad5)',
+            
+            {showCopiedToast && (
+              <div style={{
+                position: 'absolute',
+                bottom: '20px', 
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: '#a259f7',
                 color: '#fff',
-                border: 'none',
-                borderRadius: 12,
-                padding: '0.8rem 2rem',
-                fontWeight: 700,
-                fontSize: '1.1rem',
-                cursor: 'pointer',
-                boxShadow: '0 4px 16px rgba(162, 89, 247, 0.3)',
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                transform: 'translateY(0)'
-              }}
-              onMouseOver={e => {
-                e.currentTarget.style.background = 'linear-gradient(135deg, #b470ff, #9f7aea)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 8px 24px rgba(162, 89, 247, 0.4)';
-              }}
-              onMouseOut={e => {
-                e.currentTarget.style.background = 'linear-gradient(135deg, #a259f7, #805ad5)';
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 16px rgba(162, 89, 247, 0.3)';
-              }}
-              onMouseDown={e => {
-                e.currentTarget.style.transform = 'translateY(1px)';
-              }}
-              onMouseUp={e => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-            >
-              I've Saved My Code - Continue
-            </button>
+                padding: '0.5rem 1rem',
+                borderRadius: '20px',
+                fontSize: '0.9rem',
+                boxShadow: '0 2px 10px rgba(162, 89, 247, 0.4)',
+                animation: 'toastFadeInOut 2s ease-in-out forwards'
+              }}>
+                Code Copied!
+              </div>
+            )}
+
+            <p style={{ fontSize: '0.9rem', color: '#b39ddb', marginBottom: '0.5rem' }}>
+              Please save this code. It's the only way to access your data.
+            </p>
+            <p style={{ fontSize: '1rem', color: '#e6e0ff', marginBottom: '1.5rem' }}>
+              Logging you in automatically in: <strong style={{color: '#a259f7'}}>{countdown}</strong>s
+            </p>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <button
+                onClick={performLoginAndNavigate} // "Continue" button
+                style={{
+                  background: '#a259f7',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '0.6rem 1.2rem',
+                  fontWeight: 600,
+                  fontSize: '1rem',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s',
+                  flex: 1
+                }}
+                onMouseOver={e => e.currentTarget.style.background = '#b470ff'}
+                onMouseOut={e => e.currentTarget.style.background = '#a259f7'}
+              >
+                Login Now
+              </button>
+              <button
+                onClick={handleSuccessModalClose} // Close button
+                style={{
+                  background: '#4a3b73',
+                  color: '#e6e0ff',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '0.6rem 1.2rem',
+                  fontWeight: 600,
+                  fontSize: '1rem',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s',
+                  flex: 1
+                }}
+                onMouseOver={e => e.currentTarget.style.background = '#5a4b83'}
+                onMouseOut={e => e.currentTarget.style.background = '#4a3b73'}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
-
-      {/* Copied to Clipboard Toast */}
-      {showCopiedToast && (
-        <div style={{
-          position: 'fixed',
-          top: '2rem',
-          right: '2rem',
-          background: 'linear-gradient(135deg, #10b981, #059669)',
-          color: '#fff',
-          padding: '12px 20px',
-          borderRadius: 8,
-          boxShadow: '0 4px 16px rgba(16, 185, 129, 0.3)',
-          zIndex: 5000,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          fontSize: '0.95rem',
-          fontWeight: 600,
-          animation: 'toastSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
-        }}>
-          ✅ Copied to clipboard!
-        </div>
-      )}
-
-      {/* CSS Animations */}
-      <style jsx>{`
+      <style>{`
         @keyframes modalFadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
-
         @keyframes modalSlideIn {
-          from {
-            opacity: 0;
-            transform: scale(0.8) translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
+          from { transform: translateY(20px) scale(0.95); opacity: 0.6; }
+          to { transform: translateY(0) scale(1); opacity: 1; }
         }
-
-        @keyframes checkmarkBounce {
-          from {
-            opacity: 0;
-            transform: scale(0.3);
-          }
-          50% {
-            transform: scale(1.1);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-
-        @keyframes toastSlideIn {
-          from {
-            opacity: 0;
-            transform: translateX(100%) scale(0.8);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0) scale(1);
-          }
-        }
-
-        @keyframes fadeInShake {
-          0% {
-            opacity: 0;
-            transform: translateX(-10px);
-          }
-          25% {
-            transform: translateX(10px);
-          }
-          50% {
-            transform: translateX(-5px);
-          }
-          75% {
-            transform: translateX(5px);
-          }
-          100% {
-            opacity: 1;
-            transform: translateX(0);
-          }
+        @keyframes toastFadeInOut {
+          0% { opacity: 0; transform: translateY(10px) translateX(-50%); }
+          10% { opacity: 1; transform: translateY(0) translateX(-50%); }
+          90% { opacity: 1; transform: translateY(0) translateX(-50%); }
+          100% { opacity: 0; transform: translateY(10px) translateX(-50%); }
         }
       `}</style>
     </div>

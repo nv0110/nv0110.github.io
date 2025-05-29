@@ -68,7 +68,7 @@ function WeeklyTrackerPage() {
           setChecked={setChecked}
           userCode={userCode}
           fullUserData={fullUserData}
-          weekKey={weekKey}
+          appWeekKey={weekKey}
           preservingCheckedStateRef={preservingCheckedStateRef}
         />
       </ViewTransitionWrapper>

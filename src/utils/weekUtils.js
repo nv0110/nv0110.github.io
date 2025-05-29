@@ -31,46 +31,73 @@ export function getCurrentWeekKey() {
   const onejan = new Date(currentThursday.getUTCFullYear(), 0, 1);
   const mapleWeek = Math.ceil((((currentThursday - onejan) / 86400000) + onejan.getUTCDay() + 1) / 7);
   
-  // Calculate calendar week number (based on current date)
-  const calendarOnejan = new Date(utcNow.getUTCFullYear(), 0, 1);
-  const calendarWeek = Math.ceil((((utcNow - calendarOnejan) / 86400000) + calendarOnejan.getUTCDay() + 1) / 7);
+  // Calculate calendar week number (based on the Wednesday of the current MapleStory week)
+  const currentWednesday = new Date(currentThursday);
+  currentWednesday.setUTCDate(currentThursday.getUTCDate() + 6); // Wednesday is 6 days after Thursday
+
+  const calendarOnejan = new Date(currentWednesday.getUTCFullYear(), 0, 1);
+  // Ensure calendar week calculation considers the correct year if the week spans across year-end.
+  // The currentWednesday might roll over to the next year if the MapleStory week does.
+  const calendarWeek = Math.ceil((((currentWednesday - new Date(currentWednesday.getUTCFullYear(), 0, 1)) / 86400000) + new Date(currentWednesday.getUTCFullYear(), 0, 1).getUTCDay() + 1) / 7);
   
   return `${currentThursday.getUTCFullYear()}-${mapleWeek}-${calendarWeek}`;
 }
 
-// Get week key for a specific offset from current week
-export function getWeekKeyOffset(offset = 0) {
-  const now = new Date();
-  const utcNow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds()));
-  
-  // Find the most recent Thursday 00:00 UTC
-  const dayOfWeek = utcNow.getUTCDay();
-  let daysSinceThursday;
-  
-  if (dayOfWeek >= 4) {
-    daysSinceThursday = dayOfWeek - 4;
+// Get week key for a specific offset from current week or a baseKey
+export function getWeekKeyOffset(offset = 0, baseKey = null) {
+  let referenceThursday;
+
+  if (baseKey) {
+    const parsedBase = parseWeekKey(baseKey);
+    if (!parsedBase) {
+      console.error(`getWeekKeyOffset: Invalid baseKey '${baseKey}'. Falling back to current week's Thursday.`);
+      const now = new Date();
+      const utcNow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds()));
+      const dayOfWeek = utcNow.getUTCDay();
+      let daysSinceThursdayFallback;
+      if (dayOfWeek >= 4) { daysSinceThursdayFallback = dayOfWeek - 4; } else { daysSinceThursdayFallback = dayOfWeek + 3; }
+      referenceThursday = new Date(utcNow);
+      referenceThursday.setUTCDate(utcNow.getUTCDate() - daysSinceThursdayFallback);
+      referenceThursday.setUTCHours(0, 0, 0, 0);
+    } else {
+      const baseDateRange = getWeekDateRange(baseKey);
+      if (!baseDateRange || !baseDateRange.start) {
+        console.error(`getWeekKeyOffset: Could not get date range for baseKey '${baseKey}'. Falling back to current week's Thursday.`);
+        const now = new Date();
+        const utcNow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds()));
+        const dayOfWeek = utcNow.getUTCDay();
+        let daysSinceThursdayFallback;
+        if (dayOfWeek >= 4) { daysSinceThursdayFallback = dayOfWeek - 4; } else { daysSinceThursdayFallback = dayOfWeek + 3; }
+        referenceThursday = new Date(utcNow);
+        referenceThursday.setUTCDate(utcNow.getUTCDate() - daysSinceThursdayFallback);
+        referenceThursday.setUTCHours(0, 0, 0, 0);
+      } else {
+        referenceThursday = new Date(baseDateRange.start); // start is already UTC Thursday 00:00
+      }
+    }
   } else {
-    daysSinceThursday = dayOfWeek + 3;
+    const now = new Date();
+    const utcNow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds()));
+    const dayOfWeek = utcNow.getUTCDay();
+    let daysSinceThursday;
+    if (dayOfWeek >= 4) { daysSinceThursday = dayOfWeek - 4; } else { daysSinceThursday = dayOfWeek + 3; }
+    const currentThursday = new Date(utcNow);
+    currentThursday.setUTCDate(utcNow.getUTCDate() - daysSinceThursday);
+    currentThursday.setUTCHours(0, 0, 0, 0);
+    referenceThursday = currentThursday;
   }
   
-  const currentThursday = new Date(utcNow);
-  currentThursday.setUTCDate(utcNow.getUTCDate() - daysSinceThursday);
-  currentThursday.setUTCHours(0, 0, 0, 0);
+  const targetThursday = new Date(referenceThursday);
+  targetThursday.setUTCDate(referenceThursday.getUTCDate() + (offset * 7));
   
-  // Add offset weeks (7 days each)
-  const targetThursday = new Date(currentThursday);
-  targetThursday.setUTCDate(currentThursday.getUTCDate() + (offset * 7));
-  
-  // Calculate MapleStory week number
   const onejan = new Date(targetThursday.getUTCFullYear(), 0, 1);
   const mapleWeek = Math.ceil((((targetThursday - onejan) / 86400000) + onejan.getUTCDay() + 1) / 7);
   
-  // Calculate calendar week number (for the Wednesday of that MapleStory week)
   const targetWednesday = new Date(targetThursday);
-  targetWednesday.setUTCDate(targetThursday.getUTCDate() + 6); // Wednesday is 6 days after Thursday
+  targetWednesday.setUTCDate(targetThursday.getUTCDate() + 6);
   
   const calendarOnejan = new Date(targetWednesday.getUTCFullYear(), 0, 1);
-  const calendarWeek = Math.ceil((((targetWednesday - calendarOnejan) / 86400000) + calendarOnejan.getUTCDay() + 1) / 7);
+  const calendarWeek = Math.ceil((((targetWednesday - new Date(targetWednesday.getUTCFullYear(), 0, 1)) / 86400000) + new Date(targetWednesday.getUTCFullYear(), 0, 1).getUTCDay() + 1) / 7);
   
   return `${targetThursday.getUTCFullYear()}-${mapleWeek}-${calendarWeek}`;
 }
@@ -99,13 +126,13 @@ export function parseWeekKey(weekKey) {
 }
 
 // Get human readable week label
-export function getWeekLabel(weekKey) {
+export function getWeekLabel(weekKey, currentContextWeekKey = null) {
   const parsed = parseWeekKey(weekKey);
   if (!parsed) return weekKey;
   
-  const currentWeekKey = getCurrentWeekKey();
+  const effectiveCurrentWeekKey = currentContextWeekKey || getCurrentWeekKey();
   
-  if (weekKey === currentWeekKey) {
+  if (weekKey === effectiveCurrentWeekKey) {
     if (parsed.isLegacy) {
       return `Week ${parsed.mapleWeek}, ${parsed.year} (Current)`;
     } else {
@@ -188,19 +215,30 @@ export function compareWeekKeys(weekKey1, weekKey2) {
   return parsed1.mapleWeek - parsed2.mapleWeek;
 }
 
-// Get the offset of a week key from current week
-export function getWeekOffset(weekKey) {
-  const currentWeekKey = getCurrentWeekKey();
-  const currentParsed = parseWeekKey(currentWeekKey);
-  const targetParsed = parseWeekKey(weekKey);
+// Get the offset of a week key from current week or a baseKey
+export function getWeekOffset(targetWeekKey, baseWeekKey = null) {
+  const effectiveBaseWeekKey = baseWeekKey || getCurrentWeekKey();
+
+  const baseDetails = getWeekDateRange(effectiveBaseWeekKey);
+  const targetDetails = getWeekDateRange(targetWeekKey);
+
+  if (!baseDetails || !targetDetails || !baseDetails.start || !targetDetails.start) {
+    // Fallback for safety, though ideally parseWeekKey and getWeekDateRange should be robust
+    const parsedBase = parseWeekKey(effectiveBaseWeekKey);
+    const parsedTarget = parseWeekKey(targetWeekKey);
+    if (!parsedBase || !parsedTarget) return 0;
+    const yearDiff = parsedTarget.year - parsedBase.year;
+    const weekDiff = parsedTarget.mapleWeek - parsedBase.mapleWeek; // Using MapleStory week for consistency
+    return (yearDiff * 52) + weekDiff; // Approximation
+  }
   
-  if (!currentParsed || !targetParsed) return 0;
+  // Calculate difference in days from the start of the weeks (Thursdays)
+  const timeDiff = targetDetails.start.getTime() - baseDetails.start.getTime();
+  const daysDiff = timeDiff / (1000 * 60 * 60 * 24); // Convert milliseconds to days
   
-  // Simple approximation based on MapleStory weeks
-  const yearDiff = targetParsed.year - currentParsed.year;
-  const weekDiff = targetParsed.mapleWeek - currentParsed.mapleWeek;
-  
-  return (yearDiff * 52) + weekDiff;
+  // Round to the nearest whole number of weeks.
+  // Since week starts are precise (Thursday 00:00 UTC), division by 7 should be clean for whole week differences.
+  return Math.round(daysDiff / 7);
 }
 
 // Calculate time until next weekly reset (Thursday 00:00 UTC)
@@ -211,11 +249,20 @@ export function getTimeUntilReset() {
   // Get next Thursday 00:00 UTC
   const daysUntilThursday = (WEEKLY_RESET_INFO.DAY - utcNow.getUTCDay() + 7) % 7;
   const nextReset = new Date(Date.UTC(utcNow.getUTCFullYear(), utcNow.getUTCMonth(), utcNow.getUTCDate() + daysUntilThursday));
+  nextReset.setUTCHours(WEEKLY_RESET_INFO.HOUR, 0, 0, 0); // Set to reset hour specifically
   
-  if (daysUntilThursday === 0 && utcNow.getUTCHours() >= WEEKLY_RESET_INFO.HOUR) {
+  if (daysUntilThursday === 0 && 
+      (utcNow.getUTCHours() > WEEKLY_RESET_INFO.HOUR || 
+       (utcNow.getUTCHours() === WEEKLY_RESET_INFO.HOUR && utcNow.getUTCMinutes() >= 0)) // Check if current time is past reset time on reset day
+     ) {
     nextReset.setUTCDate(nextReset.getUTCDate() + 7);
+  } else if (daysUntilThursday === 0 && utcNow.getUTCHours() < WEEKLY_RESET_INFO.HOUR) {
+    // It's Thursday, but before reset time. nextReset is already correct for today.
+  } else if (daysUntilThursday !== 0) {
+    // It's not Thursday. nextReset is correct for the upcoming Thursday.
   }
-  
+
+
   const diff = nextReset - utcNow;
   const totalMinutes = Math.floor(diff / (1000 * 60));
   const days = Math.floor(totalMinutes / (60 * 24));
