@@ -6,31 +6,24 @@ import CharacterSidebar from './components/CharacterSidebar';
 import SidebarToggle from './components/SidebarToggle';
 import ModeIndicator from './components/ModeIndicator';
 import BossTable from './components/BossTable';
-import StatsModal from './components/StatsModal';
-import {
-  StatsResetConfirmDialog,
-  CharacterPurgeDialog,
-  SuccessDialog,
-  PitchedItemDetailsModal
-} from './components/ConfirmationDialogs';
+import { logger } from './utils/logger';
 
-// Custom hooks
+// Consolidated modals
+import { WeeklyTrackerModals } from './features/weekly-tracker/WeeklyTrackerModals';
+
+// Business logic hooks
 import { useWeekNavigation } from './hooks/useWeekNavigation';
 import { usePitchedItems } from './hooks/usePitchedItems';
 import { useBossActions } from './hooks/useBossActions';
 import { useStatsManagement } from './hooks/useStatsManagement';
 import { useAppData } from './hooks/AppDataContext.jsx';
-import { useAuthentication } from '../hooks/useAuthentication.js';
 import { useUserWeeklyData } from '../hooks/useUserWeeklyData.js';
-
-// Styles
 
 function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked, userCode, appWeekKey }) {
   const { lastWeeklyResetTimestamp } = useAppData();
-  const { user } = useAuthentication();
   const {
     refreshWeeklyData
-  } = useUserWeeklyData(user?.id);
+  } = useUserWeeklyData(userCode);
 
   // Helper function to get boss price
   function getBossPrice(bossName, difficulty) {
@@ -76,14 +69,17 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
   const {
     pitchedChecked,
     setPitchedChecked,
+    cloudPitchedItems,
     refreshPitchedItems,
     loadingPitchedItems,
     setLoadingPitchedItems,
-    userInteractionRef
-  } = usePitchedItems(user?.id);
+    userInteractionRef,
+    addNewPitchedItem,
+    removePitchedItemByDetails
+  } = usePitchedItems(userCode || null);
   
   const bossActions = useBossActions({
-    userId: user?.id,
+    userId: userCode,
     characterBossSelections,
     selectedCharIdx,
     checked,
@@ -100,15 +96,15 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
 
   // Effect to refresh pitched items when a weekly reset occurs - NOT on week navigation
   useEffect(() => {
-    if (lastWeeklyResetTimestamp > 0) {
-      console.log('WeeklyTracker: Detected weekly reset, refreshing pitched items.');
-      // Use a timeout to prevent immediate cascading effects
+    if (lastWeeklyResetTimestamp > 0 && userCode) {
+      logger.info('WeeklyTracker: Detected weekly reset, refreshing pitched items.');
+      // Use a longer timeout to prevent immediate cascading effects
       const timeoutId = setTimeout(() => {
-        refreshPitchedItems(userCode, weekNavigation.selectedWeekKey);
-      }, 100);
+        refreshPitchedItems();
+      }, 500);
       return () => clearTimeout(timeoutId);
     }
-  }, [lastWeeklyResetTimestamp, userCode]); // Removed refreshPitchedItems from deps to prevent circular updates
+  }, [lastWeeklyResetTimestamp]); // Only depend on the reset timestamp, not userCode
 
   // Enhanced week change handler - remove parameters causing re-renders
   const handleWeekChange = (newWeekKey) => {
@@ -215,7 +211,8 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
           setSelectedCharIdx={setSelectedCharIdx}
           setPurgeTargetCharacter={statsManagement.setPurgeTargetCharacter}
           setShowCharacterPurgeConfirm={statsManagement.setShowCharacterPurgeConfirm}
-          characterBossSelections={characterBossSelections}
+          setShowCharacterPitchedModal={statsManagement.setShowCharacterPitchedModal}
+          onShowTreasureAnalytics={() => statsManagement.setShowStats(true)}
         />
 
         <SidebarToggle 
@@ -269,11 +266,11 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
                   setChecked={setChecked}
                   charKey={charKey}
                   getBossPrice={getBossPrice}
+                  handleCheck={bossActions.handleCheck}
 
                   pitchedChecked={pitchedChecked}
                   setPitchedChecked={setPitchedChecked}
                   weekKey={weekNavigation.selectedWeekKey}
-                  handleCheck={bossActions.handleCheck}
                   refreshCheckedStateFromDatabase={bossActions.refreshCheckedStateFromDatabase}
                   userInteractionRef={userInteractionRef}
                   userCode={userCode}
@@ -281,75 +278,32 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
                   startStatsTrackingIfNeeded={statsManagement.startStatsTrackingIfNeeded}
                   setHistoricalPitchedData={statsManagement.setHistoricalPitchedData}
                   setShowHistoricalPitchedModal={statsManagement.setShowHistoricalPitchedModal}
+                  handleHistoricalPitchedRemove={statsManagement.handleHistoricalPitchedRemove}
 
                   loadingPitchedItems={loadingPitchedItems}
                   setLoadingPitchedItems={setLoadingPitchedItems}
                   refreshPitchedItems={refreshPitchedItems}
                   refreshHistoricalAnalysis={weekNavigation.refreshHistoricalAnalysis}
+                  addNewPitchedItem={addNewPitchedItem}
+                  removePitchedItemByDetails={removePitchedItemByDetails}
                 />
               </div>
             )}
-
-            <div className="weekly-tracker-stats-button-container">
-              <button
-                className="weekly-tracker-stats-button"
-                onClick={() => statsManagement.setShowStats(true)}
-              >
-                View Stats
-              </button>
-            </div>
           </div>
         </div>
 
-        {/* Modals */}
-        <StatsModal
-          showStats={statsManagement.showStats}
-          setShowStats={statsManagement.setShowStats}
-          allYears={statsManagement.allYears}
-          selectedYear={statsManagement.selectedYear}
-          setSelectedYear={statsManagement.setSelectedYear}
-          yearlyPitchedSummary={statsManagement.yearlyPitchedSummary}
-          isLoadingCloudStats={statsManagement.isLoadingCloudStats}
-          setPitchedModalItem={statsManagement.setPitchedModalItem}
-          setShowPitchedModal={statsManagement.setShowPitchedModal}
-          setShowStatsResetConfirm={statsManagement.setShowStatsResetConfirm}
+        {/* All modals consolidated for better organization */}
+        <WeeklyTrackerModals
+          statsManagement={statsManagement}
+          weekNavigation={weekNavigation}
+          pitchedChecked={pitchedChecked}
+          setPitchedChecked={setPitchedChecked}
+          userInteractionRef={userInteractionRef}
+          setError={setError}
+          characterBossSelections={characterBossSelections}
+          selectedCharIdx={selectedCharIdx}
+          cloudPitchedItems={cloudPitchedItems}
         />
-
-        <StatsResetConfirmDialog
-          showStatsResetConfirm={statsManagement.showStatsResetConfirm}
-          setShowStatsResetConfirm={statsManagement.setShowStatsResetConfirm}
-          onConfirm={() => statsManagement.handleStatsReset(setError)}
-        />
-
-        <CharacterPurgeDialog
-          showCharacterPurgeConfirm={statsManagement.showCharacterPurgeConfirm}
-          setShowCharacterPurgeConfirm={statsManagement.setShowCharacterPurgeConfirm}
-          purgeTargetCharacter={statsManagement.purgeTargetCharacter}
-          purgeInProgress={statsManagement.purgeInProgress}
-          onConfirm={() => statsManagement.handleCharacterPurge(
-            pitchedChecked,
-            setPitchedChecked,
-            weekNavigation.selectedWeekKey,
-            userInteractionRef,
-            setError
-          )}
-        />
-
-        <SuccessDialog
-          resetSuccessVisible={statsManagement.resetSuccessVisible}
-          closeResetSuccess={statsManagement.closeResetSuccess}
-          purgeSuccess={statsManagement.purgeSuccess}
-          setPurgeSuccess={statsManagement.setPurgeSuccess}
-        />
-
-        <PitchedItemDetailsModal
-          showPitchedModal={statsManagement.showPitchedModal}
-          setShowPitchedModal={statsManagement.setShowPitchedModal}
-          pitchedModalItem={statsManagement.pitchedModalItem}
-          pitchedModalDetails={statsManagement.pitchedModalDetails}
-        />
-
-        {/* Historical pitched modal functionality removed - pitched item tracking disabled */}
       </div>
     </div>
   );

@@ -27,7 +27,7 @@ async function testPurgePitchedRecords() {
   
   try {
     // Import the function
-    const { purgePitchedRecords } = await import('./src/pitched-data-service.js');
+    const { purgePitchedRecords } = await import('./services/utilityService.js');
     
     // Test the purge
     const result = await purgePitchedRecords(
@@ -63,7 +63,7 @@ async function testAuditHistory() {
   
   try {
     // Import the function
-    const { getPitchedResetAuditHistory } = await import('./src/pitched-data-service.js');
+    const { getPitchedResetAuditHistory } = await import('./services/utilityService.js');
     
     // Get audit history
     const result = await getPitchedResetAuditHistory(TEST_CONFIG.userCode);
@@ -96,7 +96,7 @@ function testUIClearing() {
   
   try {
     // Import the function
-    const { clearCharacterPitchedUI } = require('./src/pitched-data-service.js');
+    const { clearCharacterPitchedUI } = require('./services/utilityService.js');
     
     // Mock UI state
     const mockPitchedChecked = {

@@ -1,26 +1,51 @@
 import React from 'react';
 import CustomCheckbox from './CustomCheckbox';
+import { getBossPitchedItems } from '../../services/bossRegistryService.js';
+import { getPitchedKey } from '../utils/stringUtils.js';
+import { logger } from '../utils/logger.js';
 
 function BossTable({
   isHistoricalWeek,
   characterBossSelections,
+  selectedCharIdx,
   sortedBosses,
   bossData,
   checked,
   charKey,
   getBossPrice,
   handleCheck,
-  context = 'weekly' // Added context prop to distinguish usage
+  context = 'weekly', // Added context prop to distinguish usage
+  
+  // Pitched items props
+  pitchedChecked,
+  setPitchedChecked,
+  weekKey,
+  refreshCheckedStateFromDatabase,
+  userInteractionRef,
+  userCode,
+  setError,
+  startStatsTrackingIfNeeded,
+  setHistoricalPitchedData,
+  setShowHistoricalPitchedModal,
+  handleHistoricalPitchedRemove,
+  loadingPitchedItems,
+  setLoadingPitchedItems,
+  refreshPitchedItems,
+  refreshHistoricalAnalysis,
+  addNewPitchedItem,
+  removePitchedItemByDetails
 }) {
-  // Historical week card layout - Visual structure preserved, functionality removed
+  // Historical week card layout - Now with working pitched items functionality
   if (isHistoricalWeek) {
     // Get all unique bosses across all characters
     const allBosses = new Map();
     characterBossSelections.forEach(char => {
       char.bosses?.forEach(boss => {
         const bossObj = bossData.find(bd => bd.name === boss.name);
-        if (bossObj && bossObj.pitchedItems && bossObj.pitchedItems.length > 0) {
-          allBosses.set(boss.name, bossObj);
+        const pitchedItems = getBossPitchedItems(boss.name);
+        if (bossObj && pitchedItems && pitchedItems.length > 0) {
+          const bossWithPitched = { ...bossObj, pitchedItems };
+          allBosses.set(boss.name, bossWithPitched);
         }
       });
     });
@@ -45,17 +70,37 @@ function BossTable({
               {(bossObj.pitchedItems || []).length > 0 ? (
                 <div className="historical-pitched-grid">
                   {(bossObj.pitchedItems || []).map(item => {
-                    // Visual state preserved but no tracking logic
-                    const hasPitchedItem = false; // Always false since tracking is disabled
+                    // Check if this item was obtained in the historical week
+                    const character = characterBossSelections[selectedCharIdx];
+                    const characterName = character?.name || '';
+                    const pitchedKey = getPitchedKey(characterName, 0, bossObj.name, item.name, weekKey);
+                    const hasPitchedItem = !!pitchedChecked[pitchedKey];
 
                     return (
                       <div
                         key={item.name}
                         className={`historical-pitched-item ${hasPitchedItem ? 'obtained' : ''}`}
-                        title={`${item.name} (tracking disabled)`}
+                        title={`${item.name}${hasPitchedItem ? ' (obtained)' : ''}`}
                         onClick={(e) => {
                           e.stopPropagation();
-                          // No functionality - UI preserved but non-functional
+                          if (setHistoricalPitchedData && setShowHistoricalPitchedModal) {
+                            // Check if item is already logged
+                            if (hasPitchedItem) {
+                              // Item is already logged - remove it immediately
+                              handleHistoricalPitchedRemove(characterName, bossObj.name, item.name, weekKey);
+                            } else {
+                              // Item is not logged - show modal to add it
+                              const data = {
+                                itemName: item.name,
+                                itemImage: item.image,
+                                bossName: bossObj.name,
+                                character: characterName,
+                                weekKey: weekKey
+                              };
+                              setHistoricalPitchedData(data);
+                              setShowHistoricalPitchedModal(true);
+                            }
+                          }
                         }}
                       >
                         <img
@@ -113,7 +158,10 @@ function BossTable({
           {sortedBosses.map((b, idx) => {
             const bossObj = bossData.find(bd => bd.name === b.name);
             const isChecked = !!checked[charKey]?.[b.name + '-' + b.difficulty];
-            const pitched = bossObj?.pitchedItems || [];
+            const pitched = getBossPitchedItems(b.name);
+            const character = characterBossSelections[selectedCharIdx];
+            const characterName = character?.name || '';
+            
             return (
               <tr
                 key={b.name + '-' + b.difficulty}
@@ -136,18 +184,20 @@ function BossTable({
                   {pitched.length > 0 && (
                     <div className="boss-table-pitched-container inline">
                       {pitched.map(item => {
-                        // Visual structure preserved, functionality removed
                         // Special case for Kalos and Kaling Grindstone - show on all difficulties
                         if ((b.name === 'Watcher Kalos' || b.name === 'Kaling') && item.name === 'Grindstone of Life') {
-                          const got = false; // Always false since tracking is disabled
+                          const pitchedKey = getPitchedKey(characterName, 0, b.name, item.name, weekKey);
+                          const got = !!pitchedChecked[pitchedKey];
+                          const isLoading = loadingPitchedItems[pitchedKey];
+                          
                           return (
                             <span
                               key={item.name}
-                              className={`pitched-item-icon inline ${got ? 'obtained' : ''}`}
-                              title={`${item.name} (tracking disabled)`}
+                              className={`pitched-item-icon inline ${got ? 'obtained' : ''} ${isLoading ? 'loading' : ''}`}
+                              title={`${item.name}${got ? ' (obtained)' : ''}`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                // No functionality - UI preserved but non-functional
+                                handlePitchedItemClick(b, item, characterName, got, pitchedKey);
                               }}
                             >
                               <img
@@ -162,11 +212,13 @@ function BossTable({
                           );
                         }
 
-                        // For other items, check difficulty requirements (preserved for visual consistency)
+                        // For other items, check difficulty requirements
                         if (b.name === 'Lotus') {
                           if (item.name === 'Total Control' && b.difficulty !== 'Extreme') return null;
                           if ((item.name === 'Berserked' || item.name === 'Black Heart') && !['Hard', 'Extreme'].includes(b.difficulty)) return null;
                         }
+                        // For Limbo, Whisper of the Source only on Hard
+                        if (b.name === 'Limbo' && item.name === 'Whisper of the Source' && b.difficulty !== 'Hard') return null;
                         // For Seren, Gravity Module only on Extreme
                         if (b.name === 'Chosen Seren' && item.name === 'Gravity Module' && b.difficulty !== 'Extreme') return null;
                         // For Kalos, Mark of Destruction only on Extreme
@@ -174,18 +226,21 @@ function BossTable({
                         // For Kaling, Helmet of Loyalty only on Extreme
                         if (b.name === 'Kaling' && item.name === 'Helmet of Loyalty' && b.difficulty !== 'Extreme') return null;
                         // For all other bosses, only show on Hard or higher
-                        if (b.name !== 'Lotus' && b.name !== 'Watcher Kalos' && b.name !== 'Kaling' &&
+                        if (b.name !== 'Lotus' && b.name !== 'Watcher Kalos' && b.name !== 'Kaling' && b.name !== 'Limbo' &&
                             !['Hard', 'Chaos', 'Extreme', 'Hell'].includes(b.difficulty)) return null;
 
-                        const got = false; // Always false since tracking is disabled
+                        const pitchedKey = getPitchedKey(characterName, 0, b.name, item.name, weekKey);
+                        const got = !!pitchedChecked[pitchedKey];
+                        const isLoading = loadingPitchedItems[pitchedKey];
+                        
                         return (
                           <span
                             key={item.name}
-                            className={`pitched-item-icon inline ${got ? 'obtained' : ''}`}
-                            title={`${item.name} (tracking disabled)`}
+                            className={`pitched-item-icon inline ${got ? 'obtained' : ''} ${isLoading ? 'loading' : ''}`}
+                            title={`${item.name}${got ? ' (obtained)' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation();
-                              // No functionality - UI preserved but non-functional
+                              handlePitchedItemClick(b, item, characterName, got, pitchedKey);
                             }}
                           >
                             <img
@@ -224,6 +279,77 @@ function BossTable({
       </div>
     </div>
   );
+
+  /**
+   * Handle pitched item click - toggle or show historical modal
+   */
+  async function handlePitchedItemClick(boss, item, characterName, currentlyGot, pitchedKey) {
+    try {
+      if (!characterName) {
+        setError?.('No character selected');
+        return;
+      }
+
+      userInteractionRef.current = true;
+
+      if (isHistoricalWeek) {
+        // For historical weeks, show modal to log pitched item
+        if (setHistoricalPitchedData && setShowHistoricalPitchedModal) {
+          const data = {
+            itemName: item.name,
+            itemImage: item.image,
+            bossName: boss.name,
+            character: characterName,
+            weekKey: weekKey
+          };
+          setHistoricalPitchedData(data);
+          setShowHistoricalPitchedModal(true);
+        }
+      } else {
+        // For current week, toggle pitched item using hook methods
+        setLoadingPitchedItems?.(prev => ({ ...prev, [pitchedKey]: true }));
+
+        try {
+          let result;
+          
+          if (currentlyGot) {
+            // Remove pitched item using the hook method - now includes boss name
+            logger.info(`Removing pitched item: ${item.name} from ${boss.name} by ${characterName}`);
+            result = await removePitchedItemByDetails(characterName, boss.name, item.name);
+          } else {
+            // Add pitched item using the hook method - now includes boss name
+            logger.info(`Adding pitched item: ${item.name} from ${boss.name} by ${characterName}`);
+            result = await addNewPitchedItem(characterName, boss.name, item.name);
+          }
+          
+          if (!result.success) {
+            throw new Error(result.error || 'Failed to update pitched item');
+          }
+
+        } catch (serviceError) {
+          logger.error('Error with pitched item service:', serviceError);
+          setError?.(`Failed to update pitched item: ${serviceError.message}`);
+        }
+
+        // Track stats if needed
+        if (startStatsTrackingIfNeeded) {
+          const statsKey = `${boss.name}-${item.name}`;
+          startStatsTrackingIfNeeded(characterName, userCode, statsKey, item.name);
+        }
+
+        // Only refresh checked state from database, not historical analysis
+        if (refreshCheckedStateFromDatabase) {
+          await refreshCheckedStateFromDatabase();
+        }
+
+        setLoadingPitchedItems?.(prev => ({ ...prev, [pitchedKey]: false }));
+      }
+    } catch (error) {
+      logger.error('Error handling pitched item click:', error);
+      setError?.(`Failed to update pitched item: ${error.message}`);
+      setLoadingPitchedItems?.(prev => ({ ...prev, [pitchedKey]: false }));
+    }
+  }
 }
 
-export default BossTable; 
+export default BossTable;

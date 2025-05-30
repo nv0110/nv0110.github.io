@@ -1,4 +1,5 @@
 import React from 'react';
+import '../styles/confirmation-dialogs.css';
 
 export function StatsResetConfirmDialog({ 
   showStatsResetConfirm, 
@@ -8,61 +9,20 @@ export function StatsResetConfirmDialog({
   if (!showStatsResetConfirm) return null;
 
   return (
-    <div style={{ 
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(40,32,74,0.92)',
-      zIndex: 6000,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }}>
-      <div className="modal-fade" style={{ 
-        background: '#2d2540', 
-        borderRadius: 14, 
-        padding: '2rem 1.5rem', 
-        maxWidth: 340, 
-        color: '#e6e0ff', 
-        boxShadow: '0 4px 24px #0006', 
-        position: 'relative', 
-        minWidth: 220, 
-        textAlign: 'center' 
-      }}>
-        <h3 style={{ color: '#ffbaba', marginBottom: 16 }}>Are you sure?</h3>
-        <p style={{ marginBottom: 18 }}>This will permanently erase all stats. This cannot be undone.</p>
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+    <div className="modal-backdrop">
+      <div className="modal-container modal-container-small">
+        <h3 className="stats-reset-title">Are you sure?</h3>
+        <p className="stats-reset-message">This will permanently erase all stats. This cannot be undone.</p>
+        <div className="stats-reset-buttons">
           <button
             onClick={() => setShowStatsResetConfirm(false)}
-            style={{ 
-              background: '#3a335a', 
-              color: '#e6e0ff', 
-              border: 'none', 
-              borderRadius: 8, 
-              padding: '0.7rem 1.5rem', 
-              fontWeight: 700, 
-              fontSize: '1.1rem', 
-              cursor: 'pointer', 
-              minWidth: 100 
-            }}
+            className="stats-reset-button stats-reset-button-cancel"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            style={{ 
-              background: '#e53e3e', 
-              color: '#fff', 
-              border: 'none', 
-              borderRadius: 8, 
-              padding: '0.7rem 1.5rem', 
-              fontWeight: 700, 
-              fontSize: '1.1rem', 
-              cursor: 'pointer', 
-              minWidth: 100 
-            }}
+            className="stats-reset-button stats-reset-button-confirm"
           >
             Reset
           </button>
@@ -82,116 +42,42 @@ export function CharacterPurgeDialog({
   if (!showCharacterPurgeConfirm) return null;
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(40,32,74,0.96)',
-      zIndex: 6000,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }}>
-      <div className="modal-fade" style={{
-        background: '#2d2540',
-        borderRadius: 16,
-        padding: '2.5rem',
-        maxWidth: 480,
-        color: '#e6e0ff',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-        position: 'relative',
-        minWidth: 360,
-        textAlign: 'center',
-        border: '2px solid #ff6b6b'
-      }}>
-        <div style={{ 
-          width: 80, 
-          height: 80, 
-          background: 'linear-gradient(135deg, #ff6b6b, #ff8e8e)', 
-          borderRadius: '50%', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          margin: '0 auto 24px',
-          boxShadow: '0 4px 20px rgba(255, 107, 107, 0.4)'
-        }}>
+    <div className="modal-backdrop">
+      <div className="modal-container modal-container-medium character-purge-container">
+        <div className="character-purge-icon">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </div>
-        <h2 style={{ color: '#ff6b6b', fontWeight: 700, marginBottom: 20, fontSize: '1.5rem' }}>
+        <h2 className="character-purge-title">
           Purge Character Data
         </h2>
-        <div style={{ 
-          background: 'rgba(255, 107, 107, 0.1)', 
-          border: '1px solid rgba(255, 107, 107, 0.3)',
-          borderRadius: 12, 
-          padding: '20px', 
-          marginBottom: 28 
-        }}>
-          <p style={{ marginBottom: 12, fontSize: '1.1rem', lineHeight: '1.5', color: '#ffbaba' }}>
+        <div className="character-purge-warning">
+          <p className="character-purge-warning-title">
             <strong>This will permanently delete all pitched items and boss runs for:</strong>
           </p>
-          <p style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff', marginBottom: 12 }}>
+          <p className="character-purge-character-name">
             {purgeTargetCharacter?.name}
           </p>
-          <p style={{ fontSize: '0.9rem', color: '#ffbaba', marginBottom: 0 }}>
+          <p className="character-purge-warning-note">
             This action cannot be undone.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+        <div className="character-purge-buttons">
           <button
             onClick={() => setShowCharacterPurgeConfirm(false)}
             disabled={purgeInProgress}
-            style={{
-              background: purgeInProgress ? '#2a2540' : '#3a335a',
-              color: purgeInProgress ? '#888' : '#e6e0ff',
-              border: purgeInProgress ? '1px solid #2a2540' : '2px solid #4a4370',
-              borderRadius: 12,
-              padding: '0.8rem 2rem',
-              fontWeight: 700,
-              fontSize: '1.1rem',
-              cursor: purgeInProgress ? 'not-allowed' : 'pointer',
-              minWidth: 140,
-              transition: 'all 0.2s ease',
-              opacity: purgeInProgress ? 0.5 : 1
-            }}
+            className="character-purge-button character-purge-button-cancel"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             disabled={purgeInProgress}
-            style={{
-              background: purgeInProgress ? '#cc5555' : 'linear-gradient(135deg, #ff6b6b, #ff4757)',
-              color: '#fff',
-              border: '2px solid #ff6b6b',
-              borderRadius: 12,
-              padding: '0.8rem 2rem',
-              fontWeight: 700,
-              fontSize: '1.1rem',
-              cursor: purgeInProgress ? 'not-allowed' : 'pointer',
-              opacity: purgeInProgress ? 0.7 : 1,
-              minWidth: 140,
-              transition: 'all 0.2s ease',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              boxShadow: purgeInProgress ? 'none' : '0 4px 16px rgba(255, 107, 107, 0.3)'
-            }}
+            className="character-purge-button character-purge-button-confirm"
           >
             {purgeInProgress && (
-              <div style={{
-                width: 20,
-                height: 20,
-                border: '2px solid rgba(255, 255, 255, 0.3)',
-                borderTopColor: '#fff',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite'
-              }} />
+              <div className="character-purge-spinner" />
             )}
             {purgeInProgress ? 'Purging...' : 'Purge Data'}
           </button>
@@ -210,53 +96,20 @@ export function SuccessDialog({
   if (!resetSuccessVisible && !purgeSuccess) return null;
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0,0,0,0.7)',
-      zIndex: 7000,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }}>
+    <div className="modal-backdrop modal-backdrop-high">
       <div 
-        className="modal-fade" 
-        style={{ 
-          background: '#2d2540', 
-          borderRadius: 14, 
-          padding: '2rem 1.5rem', 
-          maxWidth: 340, 
-          color: '#e6e0ff', 
-          boxShadow: '0 4px 24px #0006', 
-          position: 'relative', 
-          minWidth: 220, 
-          textAlign: 'center' 
-        }}
+        className="modal-container modal-container-small"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 style={{ color: '#38a169', marginBottom: 16, fontSize: '1.5rem' }}>
+        <h3 className="success-title">
           {resetSuccessVisible ? 'Stats reset!' : 'Character purged!'}
         </h3>
-        <p style={{ marginBottom: 24, fontSize: '1.1rem' }}>
+        <p className="success-message">
           {resetSuccessVisible ? 'Your stats have been cleared.' : 'Character data has been purged.'}
         </p>
         <button
           onClick={resetSuccessVisible ? closeResetSuccess : () => setPurgeSuccess(false)}
-          style={{ 
-            background: '#3a335a', 
-            color: '#e6e0ff', 
-            border: 'none', 
-            borderRadius: 8, 
-            padding: '0.6rem 1.5rem', 
-            fontWeight: 600, 
-            fontSize: '1.1rem', 
-            cursor: 'pointer', 
-            marginTop: 10, 
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)' 
-          }}
+          className="success-button"
         >
           Close
         </button>
@@ -274,74 +127,79 @@ export function PitchedItemDetailsModal({
   if (!showPitchedModal || !pitchedModalItem) return null;
 
   return (
-    <div style={{ 
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(40,32,74,0.92)',
-      zIndex: 6000,
-      display: 'flex', 
-      alignItems: 'center',
-      justifyContent: 'center'
-    }}
-      onClick={() => setShowPitchedModal(false)}
-    >
-      <div className="modal-fade" style={{ 
-        background: '#2d2540', 
-        borderRadius: 14, 
-        padding: '2rem 1.5rem', 
-        maxWidth: 400, 
-        color: '#e6e0ff', 
-        boxShadow: '0 4px 24px #0006', 
-        position: 'relative', 
-        minWidth: 220, 
-        textAlign: 'center' 
-      }} onClick={e => e.stopPropagation()}>
-        <button 
-          onClick={() => setShowPitchedModal(false)} 
-          style={{ 
-            position: 'absolute', 
-            top: 12, 
-            right: 12, 
-            background: 'transparent', 
-            color: '#fff', 
-            border: 'none', 
-            fontSize: '1.3rem', 
-            cursor: 'pointer' 
-          }} 
-          title="Close"
-        >
-          ×
-        </button>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 16 }}>
-          <img src={pitchedModalItem.image} alt={pitchedModalItem.name} style={{ width: 32, borderRadius: 6 }} />
-          <span style={{ fontWeight: 700, fontSize: '1.1em', color: '#a259f7' }}>{pitchedModalItem.name}</span>
-        </div>
-        <div style={{ marginBottom: 10, color: '#b39ddb', fontWeight: 600 }}>Obtained by:</div>
-        {pitchedModalDetails.length === 0 ? (
-          <div style={{ color: '#888', marginBottom: 8 }}>None this year.</div>
-        ) : (
-          <div style={{ maxHeight: 220, overflowY: 'auto', marginBottom: 8 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '1em', background: 'none' }}>
-              <thead>
-                <tr style={{ color: '#b39ddb', background: 'none' }}>
-                  <th style={{ padding: '4px 8px', fontWeight: 700 }}>Character</th>
-                  <th style={{ padding: '4px 8px', fontWeight: 700 }}>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pitchedModalDetails.map((d, i) => (
-                  <tr key={i} style={{ background: i % 2 === 0 ? '#23203a' : '#201c32' }}>
-                    <td style={{ padding: '4px 8px', fontWeight: 600 }}>{d.char}</td>
-                    <td style={{ padding: '4px 8px', color: '#b39ddb' }}>{d.date}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+    <div className="pitched-details-modal-backdrop" onClick={() => setShowPitchedModal(false)} style={{ zIndex: 9999 }}>
+      <div className="pitched-details-modal pitched-details-modal-visible" onClick={e => e.stopPropagation()}>
+        <div className="pitched-details-modal-header">
+          <button 
+            className="pitched-details-modal-close"
+            onClick={() => setShowPitchedModal(false)}
+            title="Close"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M6.2253 4.81108C5.83477 4.42056 5.20161 4.42056 4.81108 4.81108C4.42056 5.20161 4.42056 5.83477 4.81108 6.2253L10.5858 12L4.81114 17.7747C4.42062 18.1652 4.42062 18.7984 4.81114 19.1889C5.20167 19.5794 5.83483 19.5794 6.22535 19.1889L12 13.4142L17.7747 19.1889C18.1652 19.5794 18.7984 19.5794 19.1889 19.1889C19.5794 18.7984 19.5794 18.1652 19.1889 17.7747L13.4142 12L19.189 6.2253C19.5795 5.83477 19.5795 5.20161 19.189 4.81108C18.7985 4.42056 18.1653 4.42056 17.7748 4.81108L12 10.5858L6.2253 4.81108Z"
+                fill="currentColor"
+              />
+            </svg>
+          </button>
+          
+          <div className="pitched-details-modal-item-showcase">
+            <img 
+              src={pitchedModalItem.image} 
+              alt={pitchedModalItem.name} 
+              className="pitched-details-modal-item-img" 
+            />
+            <div className="pitched-details-modal-item-info">
+              <h2 className="pitched-details-modal-title">{pitchedModalItem.name}</h2>
+              <div className="pitched-details-modal-subtitle">
+                <span className="pitched-details-modal-count">
+                  {pitchedModalDetails.length}
+                </span>
+                <span className="pitched-details-modal-acquired">
+                  {pitchedModalDetails.length === 1 ? 'time obtained' : 'times obtained'}
+                </span>
+              </div>
+            </div>
           </div>
-        )}
+        </div>
+
+        <div className="pitched-details-modal-content">
+          <div className="pitched-details-section-header">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+            </svg>
+            <h3>Acquisition History</h3>
+          </div>
+          
+          <div className="pitched-details-acquisition">
+            {pitchedModalDetails.length === 0 ? (
+              <div className="empty-state">
+                None this year.
+              </div>
+            ) : (
+              <div className="pitched-details-table-container">
+                <table className="pitched-details-table">
+                  <thead>
+                    <tr>
+                      <th>Character</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pitchedModalDetails.map((detail, i) => (
+                      <tr key={i} className={`pitched-details-row ${i % 2 === 0 ? 'even-row' : 'odd-row'}`}>
+                        <td>{detail.char}</td>
+                        <td>
+                          <span className="date-value">{detail.date}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

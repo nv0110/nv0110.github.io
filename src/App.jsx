@@ -1,14 +1,13 @@
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { Suspense, lazy, Component, useEffect } from 'react';
-import { useAuth } from './hooks/useAuth';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Suspense, lazy, Component } from 'react';
+import { useAuthentication } from '../hooks/useAuthentication';
 import { ForceUpdateProvider } from './hooks/ForceUpdateContext';
 import ViewTransitionWrapper from './components/ViewTransitionWrapper';
 import { AppDataProvider, useAppData } from './hooks/AppDataContext.jsx';
 import './App.css';
 import React from 'react';
 import Navbar from './components/Navbar';
-import { clearPitchedItemsForWeek } from './pitched-data-service';
-import { getCurrentWeekKey } from './utils/weekUtils';
+import { clearPitchedItemsForWeek } from '../services/pitchedItemsService.js';
 
 // Lazy load page components for code splitting
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -107,9 +106,9 @@ function NotFound() {
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
-  const { isLoggedIn, userCode } = useAuth();
+  const { isLoggedIn } = useAuthentication();
   const location = useLocation();
-  // console.log('ProtectedRoute: isLoggedIn:', isLoggedIn, 'userCode:', userCode, 'path:', location.pathname);
+  // console.log('ProtectedRoute: isLoggedIn:', isLoggedIn, 'path:', location.pathname);
 
   if (!isLoggedIn) {
     // console.log('ProtectedRoute: Redirecting to /login from', location.pathname);
@@ -120,9 +119,8 @@ function ProtectedRoute({ children }) {
 
 // New MainAppContent component that uses AppData
 function MainAppContent() {
-  const { isLoggedIn, userCode } = useAuth();
-  const { setChecked, performWeeklyResetActions, characterBossSelections } = useAppData();
-  const navigate = useNavigate();
+  const { isLoggedIn, userCode } = useAuthentication();
+  const { setChecked, handleExternalWeeklyReset, characterBossSelections } = useAppData();
 
   // console.log('MainAppContent: isLoggedIn:', isLoggedIn, 'userCode:', userCode);
 
@@ -142,8 +140,8 @@ function MainAppContent() {
           console.error(`Failed to clear pitched items from DB for week ${endedWeekKey}:`, clearResult.error);
         }
 
-        // 3. Update the reset timestamp to trigger UI refreshes for pitched items (e.g., in WeeklyTracker)
-        performWeeklyResetActions();
+        // 3. Use the new service-based weekly reset system
+        await handleExternalWeeklyReset(endedWeekKey);
 
         // Optional: force a reload or navigate to a specific page if desired
         // navigate('/weeklytracker', { replace: true }); // Example

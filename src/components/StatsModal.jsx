@@ -1,4 +1,5 @@
 import React from 'react';
+import '../styles/confirmation-dialogs.css';
 
 function StatsModal({
   showStats,
@@ -6,156 +7,125 @@ function StatsModal({
   allYears,
   selectedYear,
   setSelectedYear,
-  yearlyPitchedSummary,
+  groupedYearlyPitchedItems,
   isLoadingCloudStats,
-  setPitchedModalItem,
-  setShowPitchedModal,
-  setShowStatsResetConfirm
+  setShowStatsResetConfirm,
+  handleItemDetailClick
 }) {
   if (!showStats) return null;
 
+  const totalItems = groupedYearlyPitchedItems.reduce((sum, item) => sum + item.count, 0);
+
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(40,32,74,0.92)',
-      zIndex: 5000,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }}
-      onClick={() => setShowStats(false)}
-    >
-      <div className="modal-fade" style={{ 
-        background: '#2d2540', 
-        borderRadius: 14, 
-        padding: '2.5rem 2rem', 
-        maxWidth: 600, 
-        color: '#e6e0ff', 
-        boxShadow: '0 4px 24px #0006', 
-        position: 'relative', 
-        minWidth: 320, 
-        maxHeight: '90vh', 
-        overflowY: 'auto' 
-      }} onClick={e => e.stopPropagation()}>
-        <button 
-          onClick={() => setShowStats(false)} 
-          style={{ 
-            position: 'absolute', 
-            top: 16, 
-            right: 16, 
-            background: 'transparent', 
-            color: '#fff', 
-            border: 'none', 
-            fontSize: '1.5rem', 
-            cursor: 'pointer' 
-          }} 
-          title="Close"
-        >
-          ×
-        </button>
-        <h2 style={{ color: '#a259f7', fontWeight: 700, marginBottom: 18, textAlign: 'center' }}>
-          Yearly Stats
-        </h2>
-        
-        {/* Year selector dropdown */}
-        <div style={{ marginBottom: 18, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <select 
-            value={selectedYear} 
-            onChange={e => setSelectedYear(e.target.value)} 
-            style={{ 
-              background: '#3a335a', 
-              color: '#e6e0ff', 
-              border: '1px solid #805ad5', 
-              borderRadius: 6, 
-              padding: '6px 18px', 
-              fontWeight: 600, 
-              fontSize: '1.08em', 
-              minWidth: 120, 
-              textAlign: 'center' 
-            }}
+    <div className="modal-backdrop stats-modal-backdrop" onClick={() => setShowStats(false)}>
+      <div className="modern-stats-modal" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="modern-stats-header">
+          <div className="modern-stats-title-section">
+            <h2 className="modern-stats-title">Pitched Items Statistics</h2>
+            <div className="modern-stats-subtitle">{selectedYear}</div>
+          </div>
+          <button 
+            onClick={() => setShowStats(false)} 
+            className="modern-stats-close"
+            title="Close"
           >
-            {allYears.map(y => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6 6 18M6 6l12 12"/>
+            </svg>
+          </button>
         </div>
-        
-        <div style={{ marginBottom: 8, textAlign: 'center' }}>
-          {yearlyPitchedSummary.length === 0 ? 
-            `No pitched items were found for ${selectedYear}` : 
-            'Pitched Items Obtained:'
-          }
+
+        {/* Year Selector */}
+        <div className="modern-stats-controls">
+          <div className="modern-year-selector">
+            <label className="modern-year-label">Year:</label>
+            <select 
+              value={selectedYear} 
+              onChange={e => setSelectedYear(e.target.value)} 
+              className="modern-year-select"
+            >
+              {allYears.map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+          
+          {/* Summary Stats */}
+          <div className="modern-stats-summary">
+            <div className="modern-stat-card">
+              <div className="modern-stat-number">{groupedYearlyPitchedItems.length}</div>
+              <div className="modern-stat-label">Unique Items</div>
+            </div>
+            <div className="modern-stat-card">
+              <div className="modern-stat-number">{totalItems}</div>
+              <div className="modern-stat-label">Total Obtained</div>
+            </div>
+          </div>
         </div>
-        
-        {isLoadingCloudStats ? (
-          <div style={{ textAlign: 'center', padding: '15px', color: '#b39ddb' }}>
-            Loading cloud stats...
-          </div>
-        ) : yearlyPitchedSummary.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '2rem', color: '#888', fontSize: '1.1rem' }}>
-            {/* Empty state */}
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 8, justifyContent: 'center' }}>
-            {yearlyPitchedSummary.map((p, i) => {
-              return (
-                <span
-                  key={i}
-                  className="pitched-count-white pitched-hover"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    background: '#3a335a',
-                    borderRadius: 6,
-                    padding: '2px 10px',
-                    fontSize: '1em',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    boxShadow: '0 0 8px #805ad5',
-                    border: '1px solid #805ad5',
-                    transition: 'transform 0.18s cubic-bezier(.4,2,.6,1), box-shadow 0.18s cubic-bezier(.4,2,.6,1)',
-                    position: 'relative',
-                  }}
-                  onClick={() => { setPitchedModalItem(p); setShowPitchedModal(true); }}
-                  title={'Click for details'}
-                  onMouseOver={e => {
-                    e.currentTarget.style.transform = 'scale(1.08)';
-                    e.currentTarget.style.boxShadow = '0 4px 16px #a259f7cc';
-                  }}
-                  onMouseOut={e => {
-                    e.currentTarget.style.transform = 'scale(1)';
-                    e.currentTarget.style.boxShadow = '0 0 8px #805ad5';
-                  }}
+
+        {/* Content */}
+        <div className="modern-stats-content">
+          {isLoadingCloudStats ? (
+            <div className="modern-stats-loading">
+              <div className="modern-loading-spinner"></div>
+              <span>Loading statistics...</span>
+            </div>
+          ) : groupedYearlyPitchedItems.length === 0 ? (
+            <div className="modern-stats-empty">
+              <div className="modern-empty-icon">📊</div>
+              <div className="modern-empty-title">No Data Yet</div>
+              <div className="modern-empty-text">
+                Start clearing bosses to see your pitched item statistics!
+              </div>
+            </div>
+          ) : (
+            <div className="modern-items-grid">
+              {groupedYearlyPitchedItems.map((itemGroup, index) => (
+                <div
+                  key={`${itemGroup.itemName}-${index}`}
+                  className="modern-item-card"
+                  onClick={() => handleItemDetailClick(itemGroup)}
                 >
-                  <img src={p.image} alt={p.name} style={{ width: 22, borderRadius: 4, marginRight: 2, transition: 'box-shadow 0.18s cubic-bezier(.4,2,.6,1)' }} />
-                  {p.name}
-                  <span className="pitched-count-white" style={{ color: '#fff', marginLeft: 6, fontWeight: 700, fontSize: '1.1em' }}>×{p.count}</span>
-                </span>
-              );
-            })}
-          </div>
-        )}
-        
-        <div style={{ textAlign: 'center', marginTop: 24 }}>
+                  <div className="modern-item-image-container">
+                    <img 
+                      src={itemGroup.itemImage} 
+                      alt={itemGroup.itemName} 
+                      className="modern-item-image" 
+                    />
+                    <div className="modern-item-count-badge">
+                      {itemGroup.count}
+                    </div>
+                  </div>
+                  
+                  <div className="modern-item-info">
+                    <div className="modern-item-name">{itemGroup.itemName}</div>
+                    <div className="modern-item-meta">
+                      {itemGroup.count === 1 ? '1 time' : `${itemGroup.count} times`}
+                    </div>
+                  </div>
+                  
+                  <div className="modern-item-arrow">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M9 18l6-6-6-6"/>
+                    </svg>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="modern-stats-footer">
           <button
-            style={{ 
-              background: '#e53e3e', 
-              color: '#fff', 
-              border: 'none', 
-              borderRadius: 8, 
-              padding: '0.6rem 1.5rem', 
-              fontWeight: 700, 
-              fontSize: '1.1rem', 
-              cursor: 'pointer' 
-            }}
+            className="modern-reset-button"
             onClick={() => setShowStatsResetConfirm(true)}
           >
-            Reset Stats
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c0-1 1-2 2-2v2"/>
+            </svg>
+            Reset All Statistics
           </button>
         </div>
       </div>

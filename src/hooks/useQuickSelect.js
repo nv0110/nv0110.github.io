@@ -1,23 +1,25 @@
 import { useState } from 'react';
+import { logger } from '../utils/logger';
 
 export function useQuickSelect() {
-  const [quickSelectBosses, setQuickSelectBosses] = useState({});
+  const [quickSelectBosses, setQuickSelectBosses] = useState({}); // Now stores {bossName: {difficulty, partySize}}
+  const [lastQuickSelectBosses, setLastQuickSelectBosses] = useState({}); // Store last used selection for reuse
   const [quickSelectError, setQuickSelectError] = useState('');
 
   // Quick select boss
-  const handleQuickSelectBoss = (bossName, difficulty) => {
+  const handleQuickSelectBoss = (bossName, difficulty, partySize = 1) => {
     const selectedCount = Object.keys(quickSelectBosses).length;
     
     if (quickSelectBosses[bossName]) {
       // If boss already selected, update difficulty or remove if same difficulty
-      if (quickSelectBosses[bossName] === difficulty) {
+      if (quickSelectBosses[bossName].difficulty === difficulty) {
         const newBosses = { ...quickSelectBosses };
         delete newBosses[bossName];
         setQuickSelectBosses(newBosses);
       } else {
         setQuickSelectBosses({
           ...quickSelectBosses,
-          [bossName]: difficulty
+          [bossName]: { difficulty, partySize: quickSelectBosses[bossName].partySize || partySize }
         });
       }
     } else {
@@ -30,9 +32,39 @@ export function useQuickSelect() {
       
       setQuickSelectBosses({
         ...quickSelectBosses,
-        [bossName]: difficulty
+        [bossName]: { difficulty, partySize }
       });
     }
+    setQuickSelectError('');
+  };
+
+  // Update party size for a boss
+  const updateQuickSelectPartySize = (bossName, partySize) => {
+    if (quickSelectBosses[bossName]) {
+      setQuickSelectBosses({
+        ...quickSelectBosses,
+        [bossName]: {
+          ...quickSelectBosses[bossName],
+          partySize
+        }
+      });
+    }
+  };
+
+  // Reuse last quick select settings
+  const reuseLastQuickSelect = () => {
+    if (Object.keys(lastQuickSelectBosses).length === 0) {
+      setQuickSelectError('No previous quick select settings to reuse');
+      setTimeout(() => setQuickSelectError(''), 3000);
+      return;
+    }
+
+    logger.info('QuickSelect: Reusing last quick select settings', { 
+      bossCount: Object.keys(lastQuickSelectBosses).length,
+      bosses: Object.keys(lastQuickSelectBosses)
+    });
+
+    setQuickSelectBosses({ ...lastQuickSelectBosses });
     setQuickSelectError('');
   };
 
@@ -44,11 +76,19 @@ export function useQuickSelect() {
       return;
     }
 
-    // Create boss objects from quick select entries
-    let newBosses = Object.entries(quickSelectBosses).map(([bossName, difficulty]) => ({
+    // Store current selection as last used before applying
+    if (Object.keys(quickSelectBosses).length > 0) {
+      setLastQuickSelectBosses({ ...quickSelectBosses });
+      logger.info('QuickSelect: Storing selection for reuse', { 
+        bossCount: Object.keys(quickSelectBosses).length 
+      });
+    }
+
+    // Create boss objects from quick select entries with proper party sizes
+    let newBosses = Object.entries(quickSelectBosses).map(([bossName, bossData]) => ({
       name: bossName,
-      difficulty,
-      partySize: 1, // Default party size for quick select
+      difficulty: bossData.difficulty,
+      partySize: bossData.partySize || 1,
     }));
 
     // Calculate current total crystal count across all characters (excluding the target character)
@@ -79,7 +119,7 @@ export function useQuickSelect() {
         // Sort by price (highest to lowest) to keep the most valuable bosses
         newBosses.sort((a, b) => (b.price || 0) - (a.price || 0));
       } catch (error) {
-        console.error('Error loading boss data for price sorting:', error);
+        logger.error('Error loading boss data for price sorting:', error);
         // If price info isn't available, keep the order as is
       }
       
@@ -109,9 +149,12 @@ export function useQuickSelect() {
   return {
     quickSelectBosses,
     setQuickSelectBosses,
+    lastQuickSelectBosses,
     quickSelectError,
     setQuickSelectError,
     handleQuickSelectBoss,
+    updateQuickSelectPartySize,
+    reuseLastQuickSelect,
     applyQuickSelection,
     resetQuickSelection
   };

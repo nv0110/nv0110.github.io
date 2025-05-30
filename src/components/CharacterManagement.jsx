@@ -1,8 +1,8 @@
-import { Tooltip } from './Tooltip';
-import EditCharacterName from './EditCharacterName';
-import { LIMITS } from '../constants';
-import './CharacterManagement.css';
+import React from 'react';
+import CharacterTopBar from './CharacterTopBar';
+import '../styles/characters.css'; // For error messages if any retained here
 
+// This component is now a wrapper, mainly for CharacterTopBar and potential global errors
 function CharacterManagement({
   characterBossSelections,
   newCharName,
@@ -11,123 +11,32 @@ function CharacterManagement({
   cloneError,
   onCharacterChange,
   onAddCharacter,
-  onUpdateCharacterName,
-  onCloneCharacter,
-  onRemoveCharacter,
+  onUpdateCharacterName, // This will be triggered from BossSelectionTable header via InputPage
+  onCloneCharacter,      // This will be triggered from BossSelectionTable header via InputPage
+  onRemoveCharacter,     // This will be triggered from BossSelectionTable header via InputPage
   showCrystalCapError
 }) {
   return (
     <>
-      {/* Character Creation Section */}
-      <div className="character-creation-container">
-        <input
-          type="text"
-          value={newCharName}
-          onChange={e => setNewCharName(e.target.value)}
-          placeholder="Character name"
-          className="character-name-input"
-          onKeyDown={e => e.key === 'Enter' && onAddCharacter()}
-        />
-        <button
-          onClick={onAddCharacter}
-          disabled={!newCharName.trim() || characterBossSelections.length >= LIMITS.CHARACTER_CAP}
-          className="add-character-button"
-        >
-          Add Character
-        </button>
-      </div>
-
-      {characterBossSelections.length > 0 && (
-        <>
-          {/* Character Management Section */}
-          <div className="character-management-row">
-            {cloneError && (
-              <div className="clone-error-message">
-                {cloneError}
-              </div>
-            )}
-            
-            {selectedCharIdx !== null && characterBossSelections[selectedCharIdx] && (
-              <EditCharacterName
-                name={characterBossSelections[selectedCharIdx].name}
-                onSave={newName => onUpdateCharacterName(selectedCharIdx, newName)}
-              />
-            )}
-            
-            <select
-              value={selectedCharIdx ?? ''}
-              onChange={onCharacterChange || (() => {})}
-              className="character-select-dropdown"
-            >
-              <option value="">Select a Character</option>
-              {characterBossSelections.map((char, idx) => (
-                <option key={idx} value={idx}>{char.name}</option>
-              ))}
-            </select>
-            
-            {selectedCharIdx !== null && (
-              <>
-                <Tooltip text="Clone this character (max 180 crystals)">
-                  <button 
-                    className="boton-elegante clone" 
-                    onClick={() => onCloneCharacter(selectedCharIdx)}
-                  >
-                    Clone
-                  </button>
-                </Tooltip>
-                
-                <Tooltip text="Delete this character">
-                  <button 
-                    className="boton-elegante delete" 
-                    onClick={() => onRemoveCharacter(selectedCharIdx)}
-                  >
-                    Delete
-                  </button>
-                </Tooltip>
-              </>
-            )}
-          </div>
-
-          {/* Total Crystals Counter */}
-          {selectedCharIdx !== null && characterBossSelections[selectedCharIdx] && (
-            <div className="crystals-counter-container">
-              {showCrystalCapError ? (
-                <div className="crystals-cap-error-text">Cannot exceed 180 crystal limit</div>
-              ) : (() => {
-                const totalCrystals = characterBossSelections.reduce(
-                  (sum, char) => sum + (char.bosses ? char.bosses.length : 0), 0
-                );
-                
-                if (totalCrystals === 180) {
-                  return (
-                    <>
-                      <div className="crystals-counter-main crystals-counter-max">
-                        <span className="crystals-counter-number-max">180</span>
-                      </div>
-                      <div className="crystals-counter-label">
-                        Total Crystals
-                      </div>
-                    </>
-                  );
-                } else {
-                  return (
-                    <>
-                      <div className="crystals-counter-main">
-                        <span className="crystals-counter-number">
-                          {totalCrystals}
-                        </span>
-                        <span className="crystals-counter-total"> / 180</span>
-                      </div>
-                      <div className="crystals-counter-label">
-                        Total Crystals
-                      </div>
-                    </>
-                  );
-                }
-              })()}
-            </div>
-          )}
-        </>
+      <CharacterTopBar 
+        characterBossSelections={characterBossSelections}
+        newCharName={newCharName}
+        setNewCharName={setNewCharName}
+        selectedCharIdx={selectedCharIdx}
+        onCharacterChange={onCharacterChange}
+        onAddCharacter={onAddCharacter}
+        onRemoveCharacter={onRemoveCharacter}
+      />
+      {/* Display clone and crystal cap errors below the bar */}
+      {cloneError && (
+        <div className="character-inline-error-message">
+          {cloneError}
+        </div>
+      )}
+      {showCrystalCapError && selectedCharIdx !== null && (
+        <div className="character-inline-error-message">
+          Crystal cap exceeded! Cannot add more bosses for this character.
+        </div>
       )}
     </>
   );

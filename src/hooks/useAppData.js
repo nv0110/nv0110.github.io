@@ -1,158 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useAuth } from './useAuth';
+import { useAuthentication } from '../../hooks/useAuthentication';
 import { useBossCalculations } from './useBossCalculations';
-import { bossData, getBossPrice } from '../data/bossData';
-import { LIMITS, STORAGE_KEYS, PAGES, COOLDOWNS, ANIMATION_DURATIONS } from '../constants';
+import { LIMITS, COOLDOWNS, ANIMATION_DURATIONS } from '../constants';
 // Aliased import for clarity
-import { getCurrentWeekKey as getRealCurrentWeekKeyUtil, getWeekKeyOffset } from '../utils/weekUtils';
-
-// Helper function to extract characters from the new data structure
-function extractCharactersFromData(userData) {
-  const characters = [];
-  const characterSet = new Set();
-  const characterBosses = {}; // Track bosses for each character
-  
-  // Method 1: From boss_runs data (most reliable and up-to-date)
-  if (userData.boss_runs && Array.isArray(userData.boss_runs)) {
-    userData.boss_runs.forEach(run => {
-      if (run.character && typeof run.characterIdx === 'number') {
-        const key = `${run.character}-${run.characterIdx}`;
-        if (!characterSet.has(key)) {
-          characterSet.add(key);
-          characters.push({
-            name: run.character,
-            index: run.characterIdx,
-            bosses: []
-          });
-        }
-        
-        if (!characterBosses[key]) {
-          characterBosses[key] = new Set();
-        }
-        
-        if (run.boss && run.difficulty) {
-          const bossId = `${run.boss}-${run.difficulty}`;
-          if (!characterBosses[key].has(bossId)) {
-            characterBosses[key].add(bossId);
-          }
-        }
-      }
-    });
-  }
-  
-  // Method 2: From checked state (fallback for legacy data)
-  if (userData.checked && typeof userData.checked === 'object') {
-    Object.keys(userData.checked).forEach(charKey => {
-      const parts = charKey.split('-');
-      if (parts.length >= 2) {
-        const characterName = parts.slice(0, -1).join('-');
-        const characterIndex = parseInt(parts[parts.length - 1]);
-        
-        if (!isNaN(characterIndex) && characterName) {
-          const key = `${characterName}-${characterIndex}`;
-          if (!characterSet.has(key)) {
-            characterSet.add(key);
-            characters.push({
-              name: characterName,
-              index: characterIndex,
-              bosses: []
-            });
-          }
-          
-          if (!characterBosses[key]) {
-            characterBosses[key] = new Set();
-          }
-          
-          Object.keys(userData.checked[charKey] || {}).forEach(bossKey => {
-            const bossparts = bossKey.split('-');
-            if (bossparts.length >= 2) {
-              const difficulty = bossparts[bossparts.length - 1];
-              const bossName = bossparts.slice(0, -1).join('-');
-              const bossId = `${bossName}-${difficulty}`;
-              
-              if (!characterBosses[key].has(bossId)) {
-                characterBosses[key].add(bossId);
-              }
-            }
-          });
-        }
-      }
-    });
-  }
-  
-  // Method 3: From weeklyBossClearHistory (additional fallback)
-  if (userData.weeklyBossClearHistory && typeof userData.weeklyBossClearHistory === 'object') {
-    Object.values(userData.weeklyBossClearHistory).forEach(weekData => {
-      if (weekData.bossClearStatus && typeof weekData.bossClearStatus === 'object') {
-        Object.keys(weekData.bossClearStatus).forEach(charKey => {
-          const parts = charKey.split('-');
-          if (parts.length >= 2) {
-            const characterName = parts.slice(0, -1).join('-');
-            const characterIndex = parseInt(parts[parts.length - 1]);
-            
-            if (!isNaN(characterIndex) && characterName) {
-              const key = `${characterName}-${characterIndex}`;
-              if (!characterSet.has(key)) {
-                characterSet.add(key);
-                characters.push({
-                  name: characterName,
-                  index: characterIndex,
-                  bosses: []
-                });
-              }
-              
-              if (!characterBosses[key]) {
-                characterBosses[key] = new Set();
-              }
-              
-              Object.keys(weekData.bossClearStatus[charKey] || {}).forEach(bossKey => {
-                const bossparts = bossKey.split('-');
-                if (bossparts.length >= 2) {
-                  const difficulty = bossparts[bossparts.length - 1];
-                  const bossName = bossparts.slice(0, -1).join('-');
-                  const bossId = `${bossName}-${difficulty}`;
-                  
-                  if (!characterBosses[key].has(bossId)) {
-                    characterBosses[key].add(bossId);
-                  }
-                }
-              });
-            }
-          }
-        });
-      }
-    });
-  }
-  
-  characters.forEach(char => {
-    const key = `${char.name}-${char.index}`;
-    const bosses = characterBosses[key];
-    
-    if (bosses && bosses.size > 0) {
-      char.bosses = Array.from(bosses).map(bossId => {
-        const parts = bossId.split('-');
-        const difficulty = parts[parts.length - 1];
-        const name = parts.slice(0, -1).join('-');
-        
-        return {
-          name,
-          difficulty,
-          partySize: 1,
-          price: 0 
-        };
-      });
-    }
-  });
-  
-  characters.sort((a, b) => a.index - b.index);
-  
-  return characters;
-}
+import { getCurrentWeekKey as getRealCurrentWeekKeyUtil } from '../utils/weekUtils';
 
 import { useForceUpdate } from './ForceUpdateContext';
 
 export function useAppData() {
-  const { userCode, isLoggedIn } = useAuth();
+  const { userCode, isLoggedIn } = useAuthentication();
   const { forceUpdate } = useForceUpdate();
 
   const [characterBossSelections, setCharacterBossSelections] = useState([]);
@@ -161,6 +17,7 @@ export function useAppData() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [checked, setChecked] = useState({});
+  const [bossData, setBossData] = useState([]); // Boss data from database
   // This is the "effective" timestamp, manipulated by simulation or real resets
   const [lastWeeklyResetTimestamp, setLastWeeklyResetTimestamp] = useState(0); 
   const preservingCheckedStateRef = useRef(false);
@@ -217,18 +74,42 @@ export function useAppData() {
     setCurrentOperatingWeekKey(getRealCurrentWeekKeyUtil());
     calculateAndSetActualLastResetTimestampSnapshot();
   }, [calculateAndSetActualLastResetTimestampSnapshot]);
+
+  // Load boss data from database on mount (force fresh data)
+  useEffect(() => {
+    const loadBossData = async () => {
+      try {
+        const { getBossDataForFrontend, forceRefreshBossRegistry } = await import('../../services/bossRegistryService.js');
+        
+        // Force refresh to ensure we have latest database values
+        await forceRefreshBossRegistry();
+        
+        const result = await getBossDataForFrontend(true); // Force fresh data
+        
+        if (result.success) {
+          setBossData(result.data);
+          console.log('✅ Loaded fresh boss data from database:', result.data.length, 'bosses');
+        } else {
+          console.error('Failed to load boss data:', result.error);
+          // Fallback to empty array
+          setBossData([]);
+        }
+      } catch (error) {
+        console.error('Error loading boss data:', error);
+        setBossData([]);
+      }
+    };
+    
+    loadBossData();
+  }, []);
   
-  // ADVANCED: Simulation actions that persist pitched_items but mark boss_runs as simulated
+  // SIMPLIFIED: UI-only simulation actions (no database manipulation)
   const performSafeSimulationActions = useCallback(async (endedWeekKey, newCurrentWeekKey, newResetTimestampVal) => {
-    console.log(`🔮 Advanced simulation: ${endedWeekKey} → ${newCurrentWeekKey}`);
-    console.log(`📝 Pitched items will be PERMANENTLY saved for simulated week`);
-    console.log(`🎯 Boss runs will be marked as simulated for clean revert`);
+    console.log(`🔮 UI simulation: ${endedWeekKey} → ${newCurrentWeekKey}`);
     
     try {
-      // Clear local checked state for simulated week (boss_runs will be empty initially)
+      // Clear local UI state for simulated week
       setChecked({});
-      
-      // Update to simulated week
       setCurrentOperatingWeekKey(newCurrentWeekKey);
       
       // Update timestamp with delay to prevent cascading effects
@@ -236,68 +117,20 @@ export function useAppData() {
         setLastWeeklyResetTimestamp(newResetTimestampVal);
       }, 50);
       
-      console.log(`✅ Advanced simulation active - Week ${newCurrentWeekKey} simulated`);
-      console.log(`💾 Any pitched items logged will be permanently saved`);
-      console.log(`⚠️ Boss clears will be marked as simulated for clean revert`);
+      console.log(`✅ UI simulation active - Week ${newCurrentWeekKey} (UI only)`);
       
     } catch (error) {
-      console.error('🚨 Error during simulation setup:', error);
+      console.error('🚨 Error during UI simulation:', error);
     }
   }, [setChecked, setCurrentOperatingWeekKey, setLastWeeklyResetTimestamp]);
 
-  // ADVANCED: Revert actions that clean up simulated boss_runs but preserve pitched_items
+  // SIMPLIFIED: UI-only revert actions (no database manipulation)
   const performSafeRevertActions = useCallback(async (lastSimulatedWeekKey, restoredRealWeek, restoredRealTimestamp) => {
-    console.log(`🔄 Advanced revert: ${lastSimulatedWeekKey} → ${restoredRealWeek}`);
-    console.log(`🧹 Cleaning up simulated boss_runs for week ${lastSimulatedWeekKey}`);
-    console.log(`💾 Preserving all pitched_items (permanent historical data)`);
+    console.log(`🔄 UI revert: ${lastSimulatedWeekKey} → ${restoredRealWeek}`);
     
     try {
-      if (userCode && isLoggedIn) {
-        const { supabase } = await import('../supabaseClient');
-        
-        // Fetch current database state
-        const { data: currentDbData, error: fetchError } = await supabase
-          .from('user_data')
-          .select('data')
-          .eq('id', userCode)
-          .single();
-
-        if (!fetchError && currentDbData?.data) {
-          // Remove boss_runs entries that were marked as simulated for the simulated week
-          const cleanedBossRuns = (currentDbData.data.boss_runs || []).filter(run => {
-            const isSimulatedWeekRun = run.weekKey === lastSimulatedWeekKey;
-            const isMarkedAsSimulated = run.simulated === true;
-            
-            // Remove if it's from simulated week AND marked as simulated
-            if (isSimulatedWeekRun && isMarkedAsSimulated) {
-              console.log(`🗑️ Removing simulated boss run: ${run.character} - ${run.boss} (${run.difficulty})`);
-              return false;
-            }
-            return true;
-          });
-          
-          // Update database with cleaned boss_runs
-          const updatedData = {
-            ...currentDbData.data,
-            boss_runs: cleanedBossRuns,
-            lastUpdated: new Date().toISOString()
-          };
-          
-          const { error: updateError } = await supabase
-            .from('user_data')
-            .update({ data: updatedData })
-            .eq('id', userCode);
-            
-          if (updateError) {
-            console.error('🚨 Error cleaning simulated boss_runs:', updateError);
-          } else {
-            console.log(`✅ Cleaned ${(currentDbData.data.boss_runs || []).length - cleanedBossRuns.length} simulated boss_runs`);
-          }
-        }
-      }
-      
-      // Restore local UI state
-      setChecked({}); // Will be reloaded from database
+      // Restore local UI state only
+      setChecked({});
       setCurrentOperatingWeekKey(restoredRealWeek);
       
       // Update timestamp with delay to prevent cascading effects
@@ -305,65 +138,45 @@ export function useAppData() {
         setLastWeeklyResetTimestamp(restoredRealTimestamp);
       }, 50);
       
-      // Force refresh to load real current week data
+      // Force refresh to load current week data
       setTimeout(() => {
         forceUpdate();
       }, 100);
       
-      console.log(`✅ Advanced revert complete - returned to real week ${restoredRealWeek}`);
-      console.log(`💾 All pitched_items preserved as permanent historical data`);
+      console.log(`✅ UI revert complete - returned to real week ${restoredRealWeek}`);
       
     } catch (error) {
-      console.error('🚨 Error during simulation revert:', error);
+      console.error('🚨 Error during UI revert:', error);
     }
-  }, [userCode, isLoggedIn, setChecked, setCurrentOperatingWeekKey, setLastWeeklyResetTimestamp, forceUpdate]);
+  }, [setChecked, setCurrentOperatingWeekKey, setLastWeeklyResetTimestamp, forceUpdate]);
 
-  // Fixed: This function performs REAL weekly reset actions (database changes)
+  // SIMPLIFIED: Weekly reset for new user_boss_data system
   const performWeeklyResetActions = useCallback(async (endedWeekKey, newCurrentWeekKey, newResetTimestampVal) => {
-    console.log(`Performing weekly reset actions: ended ${endedWeekKey}, new current ${newCurrentWeekKey}`);
+    console.log(`Performing weekly reset: ended ${endedWeekKey}, new current ${newCurrentWeekKey}`);
     
     try {
-      // 1. Clear boss_runs in database for the new week
+      // Clear weekly_clears in user_boss_data for the new week using new service
       if (userCode && isLoggedIn) {
-        const { supabase } = await import('../supabaseClient');
-        const { data: currentDbData, error: fetchError } = await supabase
-          .from('user_data')
-          .select('data')
-          .eq('id', userCode)
-          .single();
-
-        if (!fetchError && currentDbData?.data) {
-          const updatedData = {
-            ...currentDbData.data,
-            boss_runs: [], // Clear all boss runs for new week
-            lastUpdated: new Date().toISOString(),
-            last_weekly_reset_timestamp: newResetTimestampVal
-          };
-          
-          const { error: updateError } = await supabase
-            .from('user_data')
-            .update({ data: updatedData })
-            .eq('id', userCode);
-            
-          if (updateError) {
-            console.error('Error updating database during weekly reset:', updateError);
-          }
-        }
+        const { saveCurrentWeekData } = await import('../../services/userWeeklyDataService.js');
+        
+        // Clear weekly_clears for new week (preserve char_map and boss_config)
+        await saveCurrentWeekData(userCode, {
+          weekly_clears: {} // Clear all weekly clears for new week
+        });
       }
 
-      // 2. Update local state - batch these together to prevent multiple re-renders
-      setChecked({}); // Clear the local 'checked' state for the new week
+      // Update local UI state
+      setChecked({});
       setCurrentOperatingWeekKey(newCurrentWeekKey);
       
-      // 3. Update reset timestamp LAST to prevent cascading effects
-      // Use a timeout to ensure other state updates complete first
+      // Update reset timestamp
       setTimeout(() => {
         setLastWeeklyResetTimestamp(newResetTimestampVal);
       }, 50);
       
-      console.log(`Weekly reset actions complete. Operating week: ${newCurrentWeekKey}, Reset Timestamp: ${new Date(newResetTimestampVal)}`);
+      console.log(`✅ Weekly reset complete. New week: ${newCurrentWeekKey}`);
     } catch (error) {
-      console.error('Error during weekly reset actions:', error);
+      console.error('❌ Error during weekly reset:', error);
     }
   }, [userCode, isLoggedIn, setChecked, setCurrentOperatingWeekKey, setLastWeeklyResetTimestamp]);
 
@@ -516,6 +329,9 @@ export function useAppData() {
             const charMap = weeklyData.char_map || {};
             const bossConfig = weeklyData.boss_config || {};
             
+            // Import boss code mapping utility
+            const { parseBossConfigStringToFrontend } = await import('../utils/bossCodeMapping.js');
+            
             Object.entries(charMap).forEach(([index, name]) => {
               const character = {
                 name,
@@ -523,20 +339,16 @@ export function useAppData() {
                 bosses: []
               };
               
-              // Parse boss config for this character
+              // Parse boss config for this character using new mapping utility
               const configString = bossConfig[index] || '';
               if (configString) {
-                const bosses = configString.split(',').map(entry => {
-                  const [bossCode, crystalValue, partySize] = entry.split(':');
-                  const [bossName, difficulty] = bossCode.split('-');
-                  return {
-                    name: bossName,
-                    difficulty,
-                    partySize: parseInt(partySize) || 1,
-                    price: parseInt(crystalValue) || 1
-                  };
-                });
-                character.bosses = bosses;
+                try {
+                  const bosses = parseBossConfigStringToFrontend(configString);
+                  character.bosses = bosses;
+                } catch (error) {
+                  console.error('Error parsing boss config:', error);
+                  character.bosses = [];
+                }
               }
               
               characters.push(character);
@@ -550,31 +362,79 @@ export function useAppData() {
             const reconstructedChecked = {};
             const weeklyClearData = weeklyData.weekly_clears || {};
             
-            Object.entries(weeklyClearData).forEach(([charIndex, clearsString]) => {
+            // Fetch boss registry once for all conversions
+            let bossRegistryData = [];
+            try {
+              const { fetchBossRegistry } = await import('../../services/bossRegistryService.js');
+              const registryResult = await fetchBossRegistry();
+              if (registryResult.success) {
+                bossRegistryData = registryResult.data;
+              }
+            } catch (error) {
+              console.error('Error fetching boss registry for checked state conversion:', error);
+            }
+            
+            // Convert boss registry IDs back to UI format
+            for (const [charIndex, clearsString] of Object.entries(weeklyClearData)) {
               const characterName = charMap[charIndex];
               if (characterName && clearsString) {
                 const charKey = `${characterName}-${charIndex}`;
-                const clearedBosses = clearsString.split(',').filter(code => code.trim());
+                const clearedBossIds = clearsString.split(',').map(id => id.trim()).filter(id => id);
                 
-                if (clearedBosses.length > 0) {
+                if (clearedBossIds.length > 0) {
                   reconstructedChecked[charKey] = {};
-                  clearedBosses.forEach(bossCode => {
-                    // bossCode is already in the correct format (e.g., "DH-normal")
-                    reconstructedChecked[charKey][bossCode.trim()] = true;
-                  });
+                  
+                  // Convert each boss registry ID to UI format
+                  for (const bossId of clearedBossIds) {
+                    let bossEntry = null;
+                    
+                    // Try to parse as numeric ID first (new format)
+                    const numericId = parseInt(bossId);
+                    if (!isNaN(numericId)) {
+                      bossEntry = bossRegistryData.find(entry => entry.id === numericId);
+                      if (bossEntry) {
+                        const uiKey = `${bossEntry.boss_name}-${bossEntry.difficulty}`;
+                        reconstructedChecked[charKey][uiKey] = true;
+                        continue;
+                      }
+                    }
+                    
+                    // If not found as numeric ID, try as boss code (old format for backward compatibility)
+                    if (bossId.includes('-')) {
+                      const [bossCode, diffCode] = bossId.split('-');
+                      bossEntry = bossRegistryData.find(entry => 
+                        entry.boss_code === bossCode && entry.difficulty_code === diffCode
+                      );
+                      if (bossEntry) {
+                        const uiKey = `${bossEntry.boss_name}-${bossEntry.difficulty}`;
+                        reconstructedChecked[charKey][uiKey] = true;
+                        continue;
+                      }
+                    }
+                    
+                    // If still not found, log warning
+                    console.warn(`Boss entry not found for ID/code: ${bossId}`);
+                  }
                 }
               }
-            });
+            }
             
             debugSetChecked(reconstructedChecked);
             console.log('✅ Loaded characters and checked state from user_boss_data:', characters.length);
+          } else if (weekDataResult.success && weekDataResult.data === null) {
+            // Explicitly handle the case where no user_boss_data row exists yet
+            // This is normal for new accounts or weeks where no characters have been created
+            console.log('ℹ️ No user_boss_data found for current week - starting with empty state');
+            setCharacterBossSelections([]);
+            debugSetChecked({});
           } else {
-            // No weekly data found, start with empty arrays
+            // Handle actual errors
+            console.error('Error fetching weekly data:', weekDataResult.error);
             setCharacterBossSelections([]);
             debugSetChecked({});
           }
         } catch (weekDataError) {
-          console.error('Error loading weekly data:', weekDataError);
+          console.error('Unexpected error loading weekly data:', weekDataError);
           setCharacterBossSelections([]);
           debugSetChecked({});
         }
@@ -611,300 +471,11 @@ export function useAppData() {
     };
   }, []);
 
-  // Function to refresh checked state from latest boss runs in database
-  const refreshCheckedStateFromBossRuns = async () => {
-    if (!userCode || !isLoggedIn) return;
-    
-    try {
-      const { supabase } = await import('../supabaseClient');
-      const { data, error: fetchError } = await supabase
-        .from('user_data')
-        .select('data')
-        .eq('id', userCode)
-        .single();
 
-      if (fetchError) throw fetchError;
 
-      if (data && data.data && data.data.boss_runs && Array.isArray(data.data.boss_runs)) {
-        const reconstructedChecked = {};
-        
-        data.data.boss_runs.forEach(run => {
-          if (run.cleared) {
-            const charKey = `${run.character}-${run.characterIdx || 0}`;
-            const bossKey = `${run.boss}-${run.difficulty}`;
-            
-            if (!reconstructedChecked[charKey]) {
-              reconstructedChecked[charKey] = {};
-            }
-            reconstructedChecked[charKey][bossKey] = true;
-          }
-        });
-        
-        debugSetChecked(reconstructedChecked);
-        return reconstructedChecked;
-      }
-    } catch (error) {
-      console.error('Error refreshing checked state from boss runs:', error);
-    }
-    
-    return null;
-  };
 
-  // Helper function to parse character key format "CharacterName-Index"
-  const parseCharacterKey = (charKey) => {
-    const parts = charKey.split('-');
-    if (parts.length >= 2) {
-      const characterIndex = parseInt(parts[parts.length - 1]);
-      const characterName = parts.slice(0, -1).join('-');
-      return [characterName, characterIndex];
-    }
-    return [charKey, 0];
-  };
 
-  // Helper function to find character by name and index
-  const findCharacterByNameAndIndex = (characters, name, index) => {
-    return characters.find((char, idx) => 
-      char.name === name && (char.index === index || idx === index)
-    );
-  };
 
-  // Function to clean up checked state based on current boss selections
-  const cleanupCheckedState = (newCharacters) => {
-    const cleanedChecked = { ...checked };
-    
-    // For each character in checked state
-    Object.keys(cleanedChecked).forEach(charKey => {
-      const [charName, charIdx] = parseCharacterKey(charKey);
-      const character = findCharacterByNameAndIndex(newCharacters, charName, charIdx);
-      
-      if (!character) {
-        // Character removed - remove all entries
-        delete cleanedChecked[charKey];
-      } else {
-        // Character exists - clean up removed bosses only
-        const currentBosses = (character.bosses || []).map(b => `${b.name}-${b.difficulty}`);
-        const checkedBosses = Object.keys(cleanedChecked[charKey] || {});
-        
-        checkedBosses.forEach(bossKey => {
-          if (!currentBosses.includes(bossKey)) {
-            delete cleanedChecked[charKey][bossKey];
-          }
-        });
-        
-        // Remove empty character entries
-        if (Object.keys(cleanedChecked[charKey] || {}).length === 0) {
-          delete cleanedChecked[charKey];
-        }
-      }
-    });
-    
-    return cleanedChecked;
-  };
-
-  // Function to clean up boss_runs array in the database
-  // This is crucial for ensuring data consistency when boss selections change
-  const cleanupBossRunsInDatabase = async (newCharacters, currentChecked) => {
-    // console.log('🧹 DB CLEANUP: Starting boss_runs cleanup...');
-    // console.log('🧹 DB CLEANUP: userCode:', userCode, 'isLoggedIn:', isLoggedIn);
-
-    if (!userCode || !isLoggedIn) {
-      console.log('❌ DB CLEANUP: Skipping - no userCode or not logged in');
-      return;
-    }
-    
-    try {
-      const { supabase } = await import('../supabaseClient');
-      
-      // 1. Fetch current data
-      const { data: currentDbData, error: fetchError } = await supabase
-        .from('user_data')
-        .select('data')
-        .eq('id', userCode)
-        .single();
-
-      if (fetchError) {
-        console.error('❌ DB CLEANUP: Error fetching current data:', fetchError);
-        throw fetchError;
-      }
-
-      if (!currentDbData || !currentDbData.data) {
-        console.log('❌ DB CLEANUP: No current data found in database');
-        return;
-      }
-
-      const currentBossRuns = currentDbData.data.boss_runs || [];
-      // console.log('🧹 DB CLEANUP: Current boss_runs count:', currentBossRuns.length);
-      // console.log('🧹 DB CLEANUP: New characters for filtering:', newCharacters.map((c, idx) => ({ 
-      //   name: c.name, arrayIndex: idx, characterIndex: c.index, 
-      //   bosses: c.bosses?.map(b => `${b.name}-${b.difficulty}`) || []
-      // })));
-
-      // 2. Filter boss_runs based on new character selections
-      const validBossRuns = currentBossRuns.filter(run => {
-        const charKey = `${run.character}-${run.characterIdx || 0}`;
-        const bossKey = `${run.boss}-${run.difficulty}`;
-        
-        // Find the character in the new selections array by name and ORIGINAL index (stored in run.characterIdx)
-        const characterInNewSelections = newCharacters.find(
-          c => c.name === run.character && c.index === (run.characterIdx || 0)
-        );
-        
-        if (!characterInNewSelections) {
-          // console.log(`🗑️ DB CLEANUP: Character ${run.character} (idx ${run.characterIdx}) not found in new selections. Removing run for ${bossKey}.`);
-          return false; // Character removed
-        }
-        
-        // Check if the boss-difficulty combo is still selected for this character
-        const isBossStillSelected = (characterInNewSelections.bosses || []).some(
-          b => b.name === run.boss && b.difficulty === run.difficulty
-        );
-        
-        if (!isBossStillSelected) {
-          // console.log(`🗑️ DB CLEANUP: Boss ${bossKey} for character ${run.character} (idx ${run.characterIdx}) no longer selected. Removing run.`);
-          return false; // Boss removed or difficulty changed
-        }
-        
-        return true; // Keep the run
-      });
-      
-      // console.log('🧹 DB CLEANUP: Filtered boss_runs count:', validBossRuns.length);
-
-      // 3. Update database if changes were made
-      if (validBossRuns.length !== currentBossRuns.length) {
-        const updatedData = {
-          ...currentDbData.data,
-          boss_runs: validBossRuns,
-          lastUpdated: new Date().toISOString()
-        };
-        
-        const { error: updateError } = await supabase
-          .from('user_data')
-          .update({ data: updatedData })
-          .eq('id', userCode);
-          
-        if (updateError) {
-          console.error('❌ DB CLEANUP: Error updating database with cleaned boss_runs:', updateError);
-          throw updateError;
-        }
-        // console.log('✅ DB CLEANUP: Successfully updated database with cleaned boss_runs.');
-      } else {
-        // console.log('ℹ️ DB CLEANUP: No changes to boss_runs needed in database.');
-      }
-      
-    } catch (error) {
-      console.error('❌ DB CLEANUP: General error during database cleanup:', error);
-    }
-  };
-
-  // Function to preserve checked state when boss selections change
-  // This ensures that checked bosses remain checked if they're still selected
-  // and only removes checked state for bosses that are actually deselected
-  const preserveCheckedStateOnBossChange = async (newCharacters) => {
-    // console.log('🔄 PRESERVE: Starting preservation process...');
-    // console.log('🔄 PRESERVE: userCode:', userCode, 'isLoggedIn:', isLoggedIn);
-    
-    if (!userCode || !isLoggedIn) {
-      // console.log('❌ PRESERVE: Skipping - no userCode or not logged in');
-      return;
-    }
-    
-    // console.log('🔄 PRESERVE: Current checked state before preservation:', JSON.stringify(checked, null, 2));
-    // console.log('🔄 PRESERVE: New characters data:', newCharacters.map((c, idx) => ({
-    //   name: c.name,
-    //   arrayIndex: idx,
-    //   characterIndex: c.index,
-    //   bosses: c.bosses?.map(b => `${b.name}-${b.difficulty}`) || []
-    // })));
-    
-    // Set flag to prevent other hooks from overwriting during preservation
-    preservingCheckedStateRef.current = true;
-    // console.log('🔒 PRESERVE: Flag set to prevent overwrites');
-    
-    // Clean up checked state based on new boss selections
-    const cleanedChecked = cleanupCheckedState(newCharacters);
-    
-    // console.log('🔄 PRESERVE: Cleaned checked state:', JSON.stringify(cleanedChecked, null, 2));
-    
-    // Update local state immediately
-    debugSetChecked(cleanedChecked);
-    // console.log('✅ PRESERVE: debugSetChecked called with cleaned state');
-    
-    // Also clean up boss_runs in database
-    // console.log('🔄 PRESERVE: About to call cleanupBossRunsInDatabase...');
-    await cleanupBossRunsInDatabase(newCharacters, checked);
-    // console.log('✅ PRESERVE: cleanupBossRunsInDatabase completed.');
-    
-    // After a delay, reset the preservation flag
-    setTimeout(() => {
-      preservingCheckedStateRef.current = false;
-      // console.log('🔓 PRESERVE: Flag reset, other hooks can now update checked state.');
-    }, ANIMATION_DURATIONS.PRESERVATION_FLAG_RESET); // Short delay to allow other updates to settle
-  };
-
-  // Debounced save function to avoid rapid writes to the database
-  const saveToCloud = async (updatedData) => {
-    if (!userCode || !isLoggedIn) return;
-    
-    // console.log('Saving data to cloud for user:', userCode);
-    // console.log('Data being saved:', updatedData);
-
-    try {
-      const { supabase } = await import('../supabaseClient');
-      
-      // Fetch current data to merge, preserving fields not managed by AppData
-      const { data: currentSupabaseData, error: fetchError } = await supabase
-        .from('user_data')
-        .select('data, pitched_items') // Select both main data and pitched items
-        .eq('id', userCode)
-        .single();
-
-      if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116: no rows found (new user)
-        throw fetchError;
-      }
-
-      const existingData = currentSupabaseData?.data || {};
-      const existingPitchedItems = currentSupabaseData?.pitched_items || [];
-
-      // Merge updatedData with existingData, ensuring all top-level fields are preserved
-      // Specifically, preserve `pitched_items` unless `updatedData` explicitly provides it
-      const dataToSave = {
-        ...existingData,
-        ...updatedData,
-        lastUpdated: new Date().toISOString()
-      };
-      
-      // Ensure `boss_runs` is always present and an array
-      if (!dataToSave.boss_runs || !Array.isArray(dataToSave.boss_runs)) {
-        dataToSave.boss_runs = [];
-      }
-
-      // Prepare the complete record to update/insert
-      const recordToSave = {
-        id: userCode,
-        data: dataToSave,
-        // Only include pitched_items if it was part of the original fetch or is explicitly being updated
-        // Typically, pitched_items are managed by their own service functions
-        pitched_items: updatedData.pitched_items !== undefined ? updatedData.pitched_items : existingPitchedItems
-      };
-      
-      // Use upsert to handle both new and existing users
-      const { error } = await supabase.from('user_data').upsert(recordToSave);
-
-      if (error) {
-        throw error;
-      }
-      // console.log('Data saved successfully to cloud');
-    } catch (error) {
-      console.error('Failed to save data to cloud:', error);
-      setError('Failed to save data. Please check your connection and try again.');
-    }
-  };
-
-  // Function to handle character selection changes
-  const handleCharacterChange = (e) => {
-    const newIndex = parseInt(e.target.value, 10);
-    setSelectedCharIdx(newIndex);
-  };
 
   // Function to add a new character - NOW USES NEW SERVICE
   const addCharacter = async () => {
@@ -921,6 +492,14 @@ export function useAppData() {
     // Check if character name already exists (case-insensitive)
     if (characterBossSelections.some(char => char.name.toLowerCase() === newCharName.trim().toLowerCase())) {
       setError(`Character name '${newCharName.trim()}' already exists.`);
+      setTimeout(() => setError(''), COOLDOWNS.ERROR_MESSAGE);
+      return;
+    }
+
+    // Check account-wide crystal cap before adding new character
+    const totalCurrentCrystals = characterBossSelections.reduce((sum, char) => sum + (char.bosses ? char.bosses.length : 0), 0);
+    if (totalCurrentCrystals >= LIMITS.CRYSTAL_CAP) {
+      setError(`Cannot add character: Account crystal limit reached (${LIMITS.CRYSTAL_CAP}).`);
       setTimeout(() => setError(''), COOLDOWNS.ERROR_MESSAGE);
       return;
     }
@@ -1023,7 +602,7 @@ export function useAppData() {
     
     // Remove associated pitched_items from database
     try {
-      const { purgePitchedRecords } = await import('../pitched-data-service');
+      const { purgePitchedRecords } = await import('../../services/utilityService.js');
       await purgePitchedRecords(userCode, charToRemove.name, charToRemove.index);
     } catch (purgeError) {
       console.error('Error purging pitched records for removed character:', purgeError);
@@ -1034,20 +613,6 @@ export function useAppData() {
     forceUpdate();
   };
 
-  // Function to handle undo action
-  const handleUndo = () => {
-    if (undoData) {
-      setCharacterBossSelections(undoData.originalSelections);
-      setSelectedCharIdx(undoData.originalIndex);
-      setShowUndo(false);
-      setUndoData(null);
-      if (undoTimeout.current) {
-        clearTimeout(undoTimeout.current);
-      }
-      // Save to cloud (revert to original state)
-      saveToCloud({ characterBossSelections: undoData.originalSelections });
-    }
-  };
 
   // Function to update character name - UPDATED to use new service
   const updateCharacterName = async (idx, newName) => {
@@ -1081,13 +646,16 @@ export function useAppData() {
     }
   };
 
-  // Function to toggle boss selection for a character
-  const toggleBoss = (charIdx, bossName, difficulty) => {
+  // Function to toggle boss selection for a character - UPDATED to save to database
+  const toggleBoss = async (charIdx, bossName, difficulty) => {
+    const character = characterBossSelections[charIdx];
+    if (!character) return;
+
     const updatedCharacters = [...characterBossSelections];
     const char = updatedCharacters[charIdx];
     const bossIndex = char.bosses.findIndex(b => b.name === bossName);
 
-    // Calculate current total crystals
+    // Calculate account-wide total crystals across all characters
     let totalCrystals = updatedCharacters.reduce((sum, c) => sum + (c.bosses ? c.bosses.length : 0), 0);
 
     if (difficulty) { // Adding or changing difficulty
@@ -1109,20 +677,48 @@ export function useAppData() {
       }
     }
     
+    // Update local state immediately for responsive UI
     setCharacterBossSelections(updatedCharacters);
-    console.log('✅ Boss toggled locally - character selections are read-only now');
     
-    // Character selections are now read-only in local state
-    // All boss configuration should be managed through the InputPage which uses new services
-    // This function is primarily for UI state management
+    // Save to database
+    try {
+      const { convertBossesToConfigString } = await import('../utils/bossCodeMapping.js');
+      const { updateCharacterBossConfigInWeeklySetup } = await import('../../services/userWeeklyDataService.js');
+      const { getCurrentMapleWeekStartDate } = await import('../../utils/mapleWeekUtils.js');
+      
+      const currentWeekStart = getCurrentMapleWeekStartDate();
+      const bossConfigString = await convertBossesToConfigString(char.bosses);
+      
+      const result = await updateCharacterBossConfigInWeeklySetup(
+        userCode,
+        currentWeekStart,
+        character.index,
+        bossConfigString
+      );
+      
+      if (!result.success) {
+        console.error('Failed to save boss configuration:', result.error);
+        setError('Failed to save boss configuration. Please try again.');
+        setTimeout(() => setError(''), 3000);
+      } else {
+        console.log('✅ Boss configuration saved to database');
+      }
+      
+    } catch (error) {
+      console.error('Error saving boss configuration:', error);
+      setError('Failed to save boss configuration. Please try again.');
+      setTimeout(() => setError(''), 3000);
+    }
   };
   
-  // Function to batch set bosses for a character (used by Quick Select)
-  const batchSetBosses = (charIdx, newBosses) => {
-    const updatedCharacters = [...characterBossSelections];
-    const currentBosses = updatedCharacters[charIdx].bosses || [];
+  // Function to batch set bosses for a character (used by Quick Select) - UPDATED to save to database
+  const batchSetBosses = async (charIdx, newBosses) => {
+    const character = characterBossSelections[charIdx];
+    if (!character) return;
 
-    // Calculate current total crystals excluding the current character
+    const updatedCharacters = [...characterBossSelections];
+
+    // Calculate account-wide total crystals excluding the current character
     let totalCrystalsExcludingCurrentChar = updatedCharacters.reduce((sum, char, index) => {
       if (index !== charIdx) {
         return sum + (char.bosses ? char.bosses.length : 0);
@@ -1136,42 +732,47 @@ export function useAppData() {
       return; // Prevent applying if it exceeds crystal cap
     }
     
+    // Update local state immediately for responsive UI
     updatedCharacters[charIdx].bosses = newBosses;
     setCharacterBossSelections(updatedCharacters);
-    console.log('✅ Batch set bosses locally - character selections are read-only now');
     
-    // Character selections are now read-only in local state
-    // Boss configuration should be managed through the InputPage which uses new services
+    // Save to database
+    try {
+      const { convertBossesToConfigString } = await import('../utils/bossCodeMapping.js');
+      const { updateCharacterBossConfigInWeeklySetup } = await import('../../services/userWeeklyDataService.js');
+      const { getCurrentMapleWeekStartDate } = await import('../../utils/mapleWeekUtils.js');
+      
+      const currentWeekStart = getCurrentMapleWeekStartDate();
+      const bossConfigString = await convertBossesToConfigString(newBosses);
+      
+      const result = await updateCharacterBossConfigInWeeklySetup(
+        userCode,
+        currentWeekStart,
+        character.index,
+        bossConfigString
+      );
+      
+      if (!result.success) {
+        console.error('Failed to save Quick Select configuration:', result.error);
+        setError('Failed to save boss configuration. Please try again.');
+        setTimeout(() => setError(''), 3000);
+      } else {
+        console.log('✅ Quick Select configuration saved to database');
+      }
+      
+    } catch (error) {
+      console.error('Error saving Quick Select configuration:', error);
+      setError('Failed to save boss configuration. Please try again.');
+      setTimeout(() => setError(''), 3000);
+    }
   };
 
-  // Function to update party size for a boss - UPDATED to use new service
+  // Function to update party size for a boss - UPDATED to save to database
   const updatePartySize = async (charIdx, bossName, difficulty, newSize) => {
     const character = characterBossSelections[charIdx];
     if (!character) return;
 
     try {
-      // Update boss config in user_boss_data using new service
-      const { updateCharacterBossConfigInWeeklySetup, fetchUserWeeklyData } = await import('../../services/userWeeklyDataService.js');
-      const { getCurrentMapleWeekStartDate } = await import('../../utils/mapleWeekUtils.js');
-      
-      const currentWeekStart = getCurrentMapleWeekStartDate();
-      
-      // Get current boss config
-      const fetchResult = await fetchUserWeeklyData(userCode, currentWeekStart);
-      if (!fetchResult.success || !fetchResult.data) {
-        console.error('Failed to fetch current boss config for party size update');
-        return;
-      }
-
-      const currentBossConfig = fetchResult.data.boss_config || {};
-      const configString = currentBossConfig[character.index.toString()] || '';
-      
-      // Parse and update the config string
-      if (configString) {
-        // This is a simplified approach - in a real implementation we'd need proper parsing
-        console.log('🔧 Party size update - requires boss config parsing implementation');
-      }
-
       // Update local state for immediate UI feedback
       const updatedCharacters = [...characterBossSelections];
       const char = updatedCharacters[charIdx];
@@ -1180,9 +781,34 @@ export function useAppData() {
         boss.partySize = newSize;
         setCharacterBossSelections(updatedCharacters);
       }
+
+      // Save updated boss configuration to database
+      const { convertBossesToConfigString } = await import('../utils/bossCodeMapping.js');
+      const { updateCharacterBossConfigInWeeklySetup } = await import('../../services/userWeeklyDataService.js');
+      const { getCurrentMapleWeekStartDate } = await import('../../utils/mapleWeekUtils.js');
+      
+      const currentWeekStart = getCurrentMapleWeekStartDate();
+      const bossConfigString = await convertBossesToConfigString(char.bosses);
+      
+      const result = await updateCharacterBossConfigInWeeklySetup(
+        userCode,
+        currentWeekStart,
+        character.index,
+        bossConfigString
+      );
+      
+      if (!result.success) {
+        console.error('Failed to save party size update:', result.error);
+        setError('Failed to save party size change. Please try again.');
+        setTimeout(() => setError(''), 3000);
+      } else {
+        console.log(`✅ Party size updated to ${newSize} for ${bossName} ${difficulty}`);
+      }
       
     } catch (error) {
       console.error('Error updating party size:', error);
+      setError('Failed to save party size change. Please try again.');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -1193,30 +819,45 @@ export function useAppData() {
     }
   }, [characterBossSelections.length, selectedCharIdx]);
 
+  // Add missing functions that InputPage expects
+  const handleCharacterChange = (e) => {
+    const newIndex = parseInt(e.target.value, 10);
+    setSelectedCharIdx(newIndex);
+  };
+
+  const handleUndo = () => {
+    if (undoData) {
+      setCharacterBossSelections(undoData.originalSelections);
+      setSelectedCharIdx(undoData.originalIndex);
+      setShowUndo(false);
+      setUndoData(null);
+      if (undoTimeout.current) {
+        clearTimeout(undoTimeout.current);
+      }
+    }
+  };
+
   return {
+    // Core character data
     characterBossSelections,
     setCharacterBossSelections,
+    
+    // Character management
     newCharName,
     setNewCharName,
     selectedCharIdx,
     setSelectedCharIdx,
-    error,
-    setError,
-    isLoading,
-    checked, 
-    setChecked: debugSetChecked, 
-    lastWeeklyResetTimestamp, // This is the effective one
-    setLastWeeklyResetTimestamp, // Allow external setting if needed (e.g. by handleExternalWeeklyReset)
-    preservingCheckedStateRef,
+    handleCharacterChange,
+    addCharacter,
+    removeCharacter,
+    updateCharacterName,
     
-    // Safe simulation related exports (LOCAL STATE ONLY - NO DATABASE CHANGES)
-    simulateWeekForward,
-    revertWeekSimulation,
-    isWeekSimulated,
-    handleExternalWeeklyReset,
-
-    weekKey: currentOperatingWeekKey,
-    
+    // Boss selection and calculations (for InputPage - configuration)
+    checked,
+    setChecked: debugSetChecked,
+    toggleBoss, // This is for boss CONFIGURATION, not tracking clears
+    batchSetBosses,
+    updatePartySize,
     charTotal,
     overallTotal,
     sortedBossData,
@@ -1224,14 +865,39 @@ export function useAppData() {
     getAvailablePartySizes,
     getBossDifficulties,
     
-    // ... include all other previously exported functions and state ...
-    // Example:
-    addCharacter, removeCharacter, updateCharacterName, toggleBoss, 
-    batchSetBosses, updatePartySize, saveToCloud,
-    cloneError, setCloneError, showUndo, setShowUndo, undoData, setUndoData,
-    importError, setImportError, importSuccess, setImportSuccess,
-    fileInputRef, undoTimeout, showCrystalCapError, setShowCrystalCapError,
-    // performWeeklyResetActions // if it needs to be callable externally for some reason
-    // Ensure all functions that save data are aware of currentOperatingWeekKey
+    // UI states
+    error,
+    setError,
+    isLoading,
+    showCrystalCapError,
+    setShowCrystalCapError,
+    
+    // Week management and simulation
+    lastWeeklyResetTimestamp,
+    weekKey: currentOperatingWeekKey,
+    simulateWeekForward,
+    revertWeekSimulation,
+    isWeekSimulated,
+    handleExternalWeeklyReset,
+    
+    // Undo functionality
+    showUndo,
+    setShowUndo,
+    undoData,
+    setUndoData,
+    handleUndo,
+    
+    // Legacy compatibility (for pages that still reference these)
+    fullUserData: null, // Deprecated - use new services instead
+    preservingCheckedStateRef,
+    
+    // File/import states (if used by InputPage)
+    importError,
+    setImportError,
+    importSuccess,
+    setImportSuccess,
+    fileInputRef,
+    cloneError,
+    setCloneError,
   };
 } 

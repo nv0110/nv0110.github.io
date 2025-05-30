@@ -1,21 +1,21 @@
 import { supabase } from '../src/supabaseClient.js';
-import { getCurrentMapleWeekStartDate } from '../utils/mapleWeekUtils.js';
+import { convertDateToWeekKey } from '../src/utils/weekUtils.js';
 
 /**
  * Pitched Items Service
  * Handles all CRUD operations for pitched items in user_data.pitched_items
+ * Format: [{ "charId": "CharacterName", "item": "ItemName", "date": "2025-05-23" }]
  */
 
 /**
  * Add a new pitched item to the user's collection
  * @param {string} userId - User ID
  * @param {Object} pitchedItemData - Pitched item data
- * @param {string} pitchedItemData.character - Character name
- * @param {string} pitchedItemData.boss - Boss name
- * @param {string} pitchedItemData.item - Item code/name
- * @param {string} pitchedItemData.weekKey - Week key (optional, defaults to current week)
- * @param {string} pitchedItemData.date - Date string (optional, defaults to current date)
- * @returns {Object} - {success: boolean, error?: string}
+ * @param {string} pitchedItemData.charId - Character name/ID
+ * @param {string} pitchedItemData.bossName - Boss name
+ * @param {string} pitchedItemData.item - Item name
+ * @param {string} pitchedItemData.date - Date string (YYYY-MM-DD format, optional - defaults to current date)
+ * @returns {Object} - {success: boolean, pitchedItem?: object, error?: string}
  */
 export async function addPitchedItem(userId, pitchedItemData) {
   try {
@@ -23,9 +23,9 @@ export async function addPitchedItem(userId, pitchedItemData) {
       return { success: false, error: 'Missing required parameters: userId and pitchedItemData' };
     }
 
-    const { character, boss, item } = pitchedItemData;
-    if (!character || !boss || !item) {
-      return { success: false, error: 'Missing required fields: character, boss, item' };
+    const { charId, bossName, item } = pitchedItemData;
+    if (!charId || !bossName || !item) {
+      return { success: false, error: 'Missing required fields: charId, bossName, item' };
     }
 
     // Get current user data
@@ -44,16 +44,12 @@ export async function addPitchedItem(userId, pitchedItemData) {
       return { success: false, error: 'User not found' };
     }
 
-    // Prepare pitched item entry
-    const currentWeekStart = getCurrentMapleWeekStartDate();
+    // Prepare pitched item entry (includes boss name for uniqueness)
     const pitchedItem = {
-      id: `${userId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      character: character.trim(),
-      boss: boss.trim(),
+      charId: charId.trim(),
+      bossName: bossName.trim(),
       item: item.trim(),
-      date: pitchedItemData.date || new Date().toISOString(),
-      weekKey: pitchedItemData.weekKey || currentWeekStart,
-      userId
+      date: pitchedItemData.date || new Date().toISOString().split('T')[0] // YYYY-MM-DD format
     };
 
     // Add to existing pitched items array
@@ -82,13 +78,16 @@ export async function addPitchedItem(userId, pitchedItemData) {
 /**
  * Remove a pitched item from the user's collection
  * @param {string} userId - User ID
- * @param {string} pitchedItemId - ID of the pitched item to remove
+ * @param {string} charId - Character ID
+ * @param {string} bossName - Boss name
+ * @param {string} item - Item name
+ * @param {string} date - Date string (optional, removes latest if not specified)
  * @returns {Object} - {success: boolean, error?: string}
  */
-export async function removePitchedItem(userId, pitchedItemId) {
+export async function removePitchedItem(userId, charId, bossName, item, date = null) {
   try {
-    if (!userId || !pitchedItemId) {
-      return { success: false, error: 'Missing required parameters: userId and pitchedItemId' };
+    if (!userId || !charId || !bossName || !item) {
+      return { success: false, error: 'Missing required parameters: userId, charId, bossName, and item' };
     }
 
     // Get current user data
@@ -107,9 +106,27 @@ export async function removePitchedItem(userId, pitchedItemId) {
       return { success: false, error: 'User not found' };
     }
 
-    // Remove item from pitched items array
+    // Find and remove item from pitched items array
     const currentPitchedItems = userData.pitched_items || [];
-    const updatedPitchedItems = currentPitchedItems.filter(item => item.id !== pitchedItemId);
+    let updatedPitchedItems;
+    
+    if (date) {
+      // Remove specific item with exact date match
+      updatedPitchedItems = currentPitchedItems.filter(
+        pitchedItem => !(pitchedItem.charId === charId && pitchedItem.bossName === bossName && pitchedItem.item === item && pitchedItem.date === date)
+      );
+    } else {
+      // Remove the latest occurrence of this item for this character and boss
+      const targetIndex = currentPitchedItems.findLastIndex(
+        pitchedItem => pitchedItem.charId === charId && pitchedItem.bossName === bossName && pitchedItem.item === item
+      );
+      
+      if (targetIndex === -1) {
+        return { success: false, error: 'Pitched item not found' };
+      }
+      
+      updatedPitchedItems = currentPitchedItems.filter((_, index) => index !== targetIndex);
+    }
 
     if (updatedPitchedItems.length === currentPitchedItems.length) {
       return { success: false, error: 'Pitched item not found' };
@@ -137,13 +154,13 @@ export async function removePitchedItem(userId, pitchedItemId) {
 /**
  * Remove multiple pitched items from the user's collection
  * @param {string} userId - User ID
- * @param {string[]} pitchedItemIds - Array of pitched item IDs to remove
+ * @param {Array} itemsToRemove - Array of {charId, item, date} objects to remove
  * @returns {Object} - {success: boolean, removedCount?: number, error?: string}
  */
-export async function removeManyPitchedItems(userId, pitchedItemIds) {
+export async function removeManyPitchedItems(userId, itemsToRemove) {
   try {
-    if (!userId || !Array.isArray(pitchedItemIds) || pitchedItemIds.length === 0) {
-      return { success: false, error: 'Missing required parameters or empty ID array' };
+    if (!userId || !Array.isArray(itemsToRemove) || itemsToRemove.length === 0) {
+      return { success: false, error: 'Missing required parameters or empty items array' };
     }
 
     // Get current user data
@@ -164,8 +181,26 @@ export async function removeManyPitchedItems(userId, pitchedItemIds) {
 
     // Remove items from pitched items array
     const currentPitchedItems = userData.pitched_items || [];
-    const idsToRemove = new Set(pitchedItemIds);
-    const updatedPitchedItems = currentPitchedItems.filter(item => !idsToRemove.has(item.id));
+    let updatedPitchedItems = [...currentPitchedItems];
+    
+    // Remove each specified item
+    itemsToRemove.forEach(({ charId, item, date }) => {
+      if (date) {
+        // Remove specific item with exact match
+        updatedPitchedItems = updatedPitchedItems.filter(
+          pitchedItem => !(pitchedItem.charId === charId && pitchedItem.item === item && pitchedItem.date === date)
+        );
+      } else {
+        // Remove latest occurrence
+        const targetIndex = updatedPitchedItems.findLastIndex(
+          pitchedItem => pitchedItem.charId === charId && pitchedItem.item === item
+        );
+        if (targetIndex !== -1) {
+          updatedPitchedItems.splice(targetIndex, 1);
+        }
+      }
+    });
+
     const removedCount = currentPitchedItems.length - updatedPitchedItems.length;
 
     if (removedCount === 0) {
@@ -194,14 +229,18 @@ export async function removeManyPitchedItems(userId, pitchedItemIds) {
 /**
  * Get all pitched items for a user
  * @param {string} userId - User ID
- * @param {string} weekKey - Optional week filter
+ * @param {string} weekKey - Optional week filter (will derive from date)
+ * @param {string} charId - Optional character filter
+ * @param {number} year - Optional year filter
  * @returns {Object} - {success: boolean, items?: array, error?: string}
  */
-export async function getPitchedItems(userId, weekKey = null) {
+export async function getPitchedItems(userId, options = {}) {
   try {
     if (!userId) {
       return { success: false, error: 'Missing required parameter: userId' };
     }
+
+    const { weekKey, charId, year } = options;
 
     // Get user pitched items
     const { data: userData, error: fetchError } = await supabase
@@ -221,9 +260,23 @@ export async function getPitchedItems(userId, weekKey = null) {
 
     let pitchedItems = userData.pitched_items || [];
 
-    // Filter by week if specified
+    // Apply filters
     if (weekKey) {
-      pitchedItems = pitchedItems.filter(item => item.weekKey === weekKey);
+      pitchedItems = pitchedItems.filter(item => {
+        const itemWeekKey = convertDateToWeekKey(item.date);
+        return itemWeekKey === weekKey;
+      });
+    }
+
+    if (charId) {
+      pitchedItems = pitchedItems.filter(item => item.charId === charId);
+    }
+
+    if (year) {
+      pitchedItems = pitchedItems.filter(item => {
+        const itemYear = new Date(item.date).getFullYear();
+        return itemYear === year;
+      });
     }
 
     return { success: true, items: pitchedItems };
@@ -240,8 +293,9 @@ export async function getPitchedItems(userId, weekKey = null) {
  * @returns {Object} - {success: boolean, items?: array, error?: string}
  */
 export async function getCurrentWeekPitchedItems(userId) {
-  const currentWeekStart = getCurrentMapleWeekStartDate();
-  return await getPitchedItems(userId, currentWeekStart);
+  const currentDate = new Date().toISOString().split('T')[0];
+  const currentWeekKey = convertDateToWeekKey(currentDate);
+  return await getPitchedItems(userId, { weekKey: currentWeekKey });
 }
 
 /**
@@ -272,9 +326,12 @@ export async function clearPitchedItemsForWeek(userId, weekKey) {
       return { success: false, error: 'User not found' };
     }
 
-    // Remove items for the specified week
+    // Remove items for the specified week (derive week from date)
     const currentPitchedItems = userData.pitched_items || [];
-    const updatedPitchedItems = currentPitchedItems.filter(item => item.weekKey !== weekKey);
+    const updatedPitchedItems = currentPitchedItems.filter(item => {
+      const itemWeekKey = convertDateToWeekKey(item.date);
+      return itemWeekKey !== weekKey;
+    });
     const removedCount = currentPitchedItems.length - updatedPitchedItems.length;
 
     if (removedCount === 0) {
@@ -303,7 +360,7 @@ export async function clearPitchedItemsForWeek(userId, weekKey) {
 /**
  * Get yearly statistics for pitched items
  * @param {string} userId - User ID
- * @param {number} year - Year to analyze (optional, defaults to current year)
+ * @param {number|string} year - Year to analyze (optional, defaults to current year)
  * @returns {Object} - {success: boolean, stats?: object, error?: string}
  */
 export async function getYearlyPitchedStats(userId, year = null) {
@@ -312,10 +369,11 @@ export async function getYearlyPitchedStats(userId, year = null) {
       return { success: false, error: 'Missing required parameter: userId' };
     }
 
-    const targetYear = year || new Date().getFullYear();
+    // Convert year to number to ensure type consistency
+    const targetYear = year ? parseInt(year, 10) : new Date().getFullYear();
 
-    // Get all pitched items
-    const result = await getPitchedItems(userId);
+    // Get all pitched items for the specific year
+    const result = await getPitchedItems(userId, { year: targetYear });
     if (!result.success) {
       return result;
     }
@@ -324,27 +382,17 @@ export async function getYearlyPitchedStats(userId, year = null) {
 
     // Process data to get yearly stats
     const yearlyStats = {
-      total: 0,
+      total: pitchedItems.length,
       characters: new Set(),
-      bosses: new Set(),
       items: []
     };
 
     pitchedItems.forEach(item => {
-      const itemYear = new Date(item.date).getFullYear();
-      
-      // Skip if filtering by year and this item is from a different year
-      if (itemYear !== targetYear) return;
-      
-      yearlyStats.total += 1;
-      yearlyStats.characters.add(item.character);
-      yearlyStats.bosses.add(item.boss);
+      yearlyStats.characters.add(item.charId);
       yearlyStats.items.push({
-        character: item.character,
-        boss: item.boss,
+        charId: item.charId,
         item: item.item,
-        date: item.date,
-        weekKey: item.weekKey
+        date: item.date
       });
     });
 
@@ -353,7 +401,6 @@ export async function getYearlyPitchedStats(userId, year = null) {
       year: targetYear,
       total: yearlyStats.total,
       characters: Array.from(yearlyStats.characters),
-      bosses: Array.from(yearlyStats.bosses),
       items: yearlyStats.items
     };
 
@@ -377,7 +424,7 @@ export async function purgeAllPitchedItems(userId) {
     }
 
     // Get current count for reporting
-    const result = await getPitchedItems(userId);
+    const result = await getPitchedItems(userId, {});
     if (!result.success) {
       return result;
     }

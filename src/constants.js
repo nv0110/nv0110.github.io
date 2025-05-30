@@ -2,6 +2,8 @@
 export const LIMITS = {
   CHARACTER_BOSS_CAP: 14,
   TOTAL_BOSS_CAP: 180,
+  CRYSTAL_CAP: 180, // Account-wide crystal limit
+  CHARACTER_CAP: 50, // Maximum characters per account
   MAX_CHARACTERS: 50,
   MAX_PRESETS_PER_CHARACTER: 2,
   PRESET_NAME_MAX_LENGTH: 5,
@@ -15,7 +17,6 @@ export const PARTY_SIZE_LIMITS = {
 
 export const STORAGE_KEYS = {
   USER_CODE: 'ms-user-code',
-  PRESETS: 'ms-presets',
   ACTIVE_PAGE: 'ms-active-page',
   WEEKLY_HIDE_COMPLETED: 'ms-weekly-hide-completed',
 };
@@ -40,6 +41,9 @@ export const COOLDOWNS = {
   DATA_SYNC: 1000,
   BACKGROUND_SYNC: 180000, // 3 minutes
   USER_INTERACTION_CLEAR: 1000,
+  ERROR_MESSAGE: 5000, // 5 seconds for error message display
+  ERROR_MESSAGE_SHORT: 3000, // 3 seconds for short error messages
+  UNDO_TIMEOUT: 4000, // 4 seconds for undo timeout
 };
 
 export const ANIMATION_DURATIONS = {

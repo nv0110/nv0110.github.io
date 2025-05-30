@@ -1,31 +1,19 @@
 /* =====================================================================================
    WEEKLY TRACKER STYLES
    =====================================================================================
-   Table of Contents:
-   1. Variables & Base Styles
-   2. Layout & Grid Structure
-   3. Header & Navigation
-   4. Content Area
-   5. Button Styles
-   6. Modal & Overlay
-   7. States (Error, Empty, Loading)
-   8. Animations
-   9. Interactive States
+   
+   Weekly tracker specific styles including:
+   - Layout and container structure
+   - Navigation and header components
+   - Button and interactive elements
+   - Modal and overlay components
+   - State management (loading, error, empty)
+   
    ===================================================================================== */
 
-/* -----------------------------------------------------------------------------
-   1. Variables & Base Styles
-   ----------------------------------------------------------------------------- */
-:root {
-  --purple-primary: #805ad5;
-  --purple-light: #9f7aea;
-  --purple-dark: #4a4570;
-  --text-light: #e6e0ff;
-  --error-red: #ff6b6b;
-  --overlay-bg: rgba(40, 32, 74, 0.96);
-}
+/* ===== BASE WEEKLY TRACKER STYLES ===== */
 
-/* Hide scrollbar */
+/* Hide scrollbar globally for weekly tracker */
 ::-webkit-scrollbar {
   display: none !important;
   width: 0 !important;
@@ -33,16 +21,32 @@
 }
 
 .weekly-tracker {
-  color: var(--text-light);
+  color: var(--text-primary);
 }
 
 .weekly-tracker button {
-  color: var(--text-light);
+  color: var(--text-primary);
 }
 
-/* -----------------------------------------------------------------------------
-   2. Layout & Grid Structure
-   ----------------------------------------------------------------------------- */
+/* Layout color override to prevent dark theme conflicts */
+.weekly-tracker-layout * {
+  color: inherit;
+}
+
+/* ===== LAYOUT STRUCTURE ===== */
+
+/* Main weekly tracker layout */
+.weekly-tracker-layout {
+  width: 100%;
+  min-height: calc(100vh - 6.5rem); /* Account for navbar height */
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+/* Container wrapper */
 .weekly-tracker-container {
   display: flex;
   max-width: 1200px;
@@ -52,49 +56,49 @@
   box-sizing: border-box;
 }
 
+/* Main content area */
 .weekly-tracker-main {
   width: 100%;
   height: 100%;
   overflow-y: auto;
 }
 
-/* Main content area */
 .weekly-tracker-content {
   max-width: 900px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: var(--spacing-xl);
   width: 100%;
   flex: 1;
 }
 
-/* -----------------------------------------------------------------------------
-   3. Header & Navigation
-   ----------------------------------------------------------------------------- */
+/* ===== HEADER & NAVIGATION ===== */
+
 .weekly-tracker-header {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: var(--spacing-xl);
 }
 
 .weekly-tracker-title {
   font-weight: 700;
   font-size: 2rem;
-  margin-bottom: 0.5rem;
-  color: var(--text-light);
+  margin-top: 3em;
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
 }
 
+/* Week navigator with fixed height to prevent layout shifts */
 .weekly-tracker-navigator-wrapper {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 1rem;
-  height: 350px; /* Strict fixed height - never changes */
+  margin-bottom: var(--spacing-md);
+  height: 40vh; /* Strict fixed height - never changes */
   overflow: hidden; /* Prevent content from causing resize */
   box-sizing: border-box; /* Include padding in height calculation */
 }
 
-/* -----------------------------------------------------------------------------
-   4. Content Area & Actions
-   ----------------------------------------------------------------------------- */
+/* ===== ACTIONS & CONTROLS ===== */
+
 .weekly-tracker-tick-all-container {
   display: flex;
   align-items: center;
@@ -103,56 +107,47 @@
   margin-bottom: 24px;
 }
 
-.weekly-tracker-stats-button-container {
-  display: flex;
-  justify-content: center;
-  margin: 2rem 0;
-  padding: 0 1rem;
-}
+/* ===== BUTTON STYLES ===== */
 
-/* -----------------------------------------------------------------------------
-   5. Button Styles
-   ----------------------------------------------------------------------------- */
+/* Tick all button */
 .weekly-tracker-tick-all-button,
 .weekly-tracker-tick-all-btn {
-  padding: 0.5rem 1.2rem;
-  border-radius: 6px;
-  background: var(--purple-primary);
-  color: #fff !important;
+  padding: var(--spacing-sm) 1.2rem;
+  border-radius: var(--radius-sm);
+  background: var(--purple-secondary);
+  color: var(--text-primary) !important;
   font-weight: 600;
   cursor: pointer;
-  border: 1px solid var(--purple-light);
-  transition: all 0.3s ease;
+  border: 1px solid var(--purple-lighter);
+  transition: var(--transition-normal);
 }
 
-.weekly-tracker-stats-button,
-.weekly-tracker-stats-btn {
-  background: linear-gradient(135deg, #a259f7 0%, #805ad5 100%);
-  color: #fff !important;
-  border: none;
-  border-radius: 10px;
-  padding: 0.7rem 1.7rem;
-  font-weight: 700;
-  font-size: 1.04em;
-  cursor: pointer;
-  width: auto;
-  min-width: 140px;
-  max-width: 260px;
-  box-shadow: 0 0 7px 1px #a259f7, 0 2px 8px rgba(128, 90, 213, 0.18);
-  letter-spacing: 0.3px;
-  text-shadow: 0 0 3px #a259f7, 0 0 1px #fff;
-  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  z-index: 2;
-  outline: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.weekly-tracker-tick-all-button:hover:not(:disabled),
+.weekly-tracker-tick-all-btn:hover:not(:disabled) {
+  background: var(--purple-lighter);
+  transform: translateY(-1px);
 }
 
-/* -----------------------------------------------------------------------------
-   6. Modal & Overlay
-   ----------------------------------------------------------------------------- */
+.weekly-tracker-tick-all-button:active:not(:disabled),
+.weekly-tracker-tick-all-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.weekly-tracker-tick-all-button:disabled,
+.weekly-tracker-tick-all-btn:disabled {
+  background: var(--purple-darker);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.weekly-tracker-tick-all-button:focus,
+.weekly-tracker-tick-all-btn:focus {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+
+/* ===== MODAL & OVERLAY ===== */
+
 .weekly-tracker-modal-backdrop,
 .weekly-tracker-historical-backdrop {
   position: fixed;
@@ -160,129 +155,94 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: var(--overlay-bg);
-  z-index: 6000;
+  background: var(--overlay-dark);
+  z-index: var(--z-modal-backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* -----------------------------------------------------------------------------
-   7. States (Error, Empty, Loading)
-   ----------------------------------------------------------------------------- */
+/* ===== ERROR & EMPTY STATES ===== */
+
+/* Error state styling */
 .weekly-tracker-error {
-  padding: 2rem;
-  color: var(--text-light);
+  padding: var(--spacing-xl);
+  color: var(--text-primary);
   font-size: 1.2rem;
   text-align: center;
 }
 
 .weekly-tracker-error-message {
-  color: var(--error-red);
-  margin-bottom: 1rem;
+  color: var(--error-color);
+  margin-bottom: var(--spacing-md);
 }
 
 .weekly-tracker-error-btn {
-  margin-right: 1rem;
-  padding: 0.5rem 1rem;
-  background: var(--purple-primary);
-  color: #fff !important;
+  margin-right: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--purple-secondary);
+  color: var(--text-primary) !important;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
+  transition: var(--transition-normal);
 }
 
+.weekly-tracker-error-btn:hover {
+  background: var(--purple-lighter);
+  transform: translateY(-1px);
+}
+
+/* No characters state */
 .weekly-tracker-no-characters {
-  padding: 2rem;
-  color: var(--text-light);
+  padding: var(--spacing-xl);
+  color: var(--text-primary);
   font-size: 1.2rem;
   text-align: center;
 }
 
 .weekly-tracker-no-characters-message {
   opacity: 0;
-  transition: opacity 0.5s ease-in-out;
+  transition: opacity var(--timing-slow) ease-in-out;
 }
 
 .weekly-tracker-no-characters-message.visible {
   opacity: 1;
-  animation: fadeInMessage 0.5s ease-in-out;
+  animation: fadeInMessage var(--timing-slow) ease-in-out;
 }
 
-/* Disabled States */
-.weekly-tracker-tick-all-button:disabled,
-.weekly-tracker-tick-all-btn:disabled {
-  background: var(--purple-dark);
-  cursor: not-allowed;
-  opacity: 0.5;
-}
+/* ===== RESPONSIVE DESIGN ===== */
 
-/* -----------------------------------------------------------------------------
-   8. Animations
-   ----------------------------------------------------------------------------- */
-@keyframes fadeInMessage {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* -----------------------------------------------------------------------------
-   9. Interactive States
-   ----------------------------------------------------------------------------- */
-/* Hover States */
-.weekly-tracker-tick-all-button:hover:not(:disabled),
-.weekly-tracker-tick-all-btn:hover:not(:disabled) {
-  background: var(--purple-light);
-  transform: translateY(-1px);
-}
-
-.weekly-tracker-stats-button:hover,
-.weekly-tracker-stats-btn:hover {
-  background: linear-gradient(135deg, #c084fc 0%, #a259f7 100%);
-  box-shadow: 0 0 14px 2px #c084fc, 0 4px 16px rgba(162, 89, 247, 0.22);
-  transform: scale(1.025) translateY(-1px);
-  color: #fff;
-}
-
-/* Active States */
-.weekly-tracker-tick-all-button:active:not(:disabled),
-.weekly-tracker-tick-all-btn:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-.weekly-tracker-stats-button:active,
-.weekly-tracker-stats-btn:active {
-  background: linear-gradient(135deg, #805ad5 0%, #a259f7 100%);
-  box-shadow: 0 0 5px 1px #805ad5, 0 1px 4px rgba(128, 90, 213, 0.13);
-  transform: scale(0.98) translateY(1px);
-}
-
-/* Focus States */
-.weekly-tracker-tick-all-button:focus,
-.weekly-tracker-tick-all-btn:focus,
-.weekly-tracker-stats-button:focus,
-.weekly-tracker-stats-btn:focus {
-  outline: 2px solid #fff;
-  outline-offset: 2px;
-}
-
-/* Responsive adjustments */
 @media (max-width: 768px) {
-  .weekly-tracker-stats-button,
-  .weekly-tracker-stats-btn {
-    padding: 0.6rem 1.1rem;
-    font-size: 0.97em;
-    min-width: 100px;
-    max-width: 98vw;
+  .weekly-tracker-content {
+    padding: var(--spacing-md);
+  }
+  
+  .weekly-tracker-navigator-wrapper {
+    height: 300px; /* Slightly smaller on mobile */
+  }
+  
+  .weekly-tracker-tick-all-container {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+  
+  .weekly-tracker-navigator-wrapper {
+    height: 280px;
   }
 }
 
-/* Layout color override to prevent dark theme conflicts */
-.weekly-tracker-layout * {
-  color: inherit;
+@media (max-width: 480px) {
+  .weekly-tracker-title {
+    font-size: 1.6rem;
+  }
+  
+  .weekly-tracker-tick-all-container {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+  
+  .weekly-tracker-navigator-wrapper {
+    height: 280px;
+  }
 } 

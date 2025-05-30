@@ -1,4 +1,4 @@
-import { getBossPrice } from '../data/bossData';
+import { getBossPrice } from '../../services/bossRegistryService';
 import CustomCheckbox from './CustomCheckbox';
 import { LIMITS } from '../constants';
 import './BossSelectionTable.css';
@@ -10,7 +10,8 @@ function BossSelectionTable({
   getBossDifficulties,
   getAvailablePartySizes,
   onToggleBoss,
-  onUpdatePartySize
+  onUpdatePartySize,
+  onShowQuickSelect
 }) {
   if (selectedCharIdx === null || !characterBossSelections[selectedCharIdx]) {
     return (
@@ -38,7 +39,25 @@ function BossSelectionTable({
                   Mesos
                 </th>
                 <th className="input-boss-col-controls">
-                  {characterBossSelections[selectedCharIdx]?.name || 'Selected Character'}
+                  <button
+                    className="input-boss-quick-select-btn"
+                    onClick={onShowQuickSelect}
+                    title="Quick Select Bosses"
+                  >
+                    <svg 
+                      className="quick-select-icon" 
+                      width="18" 
+                      height="18" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2.5"
+                    >
+                      <circle cx="12" cy="12" r="10"/>
+                      <path d="M9 12l2 2 4-4"/>
+                    </svg>
+                    Quick Select
+                  </button>
                 </th>
               </tr>
             </thead>
@@ -137,8 +156,8 @@ function BossSelectionTable({
                                 onToggleBoss(selectedCharIdx, boss.name, e.target.value);
                               }}
                             >
-                              {difficulties.map(diff => (
-                                <option key={diff} value={diff}>{diff}</option>
+                              {difficulties.map((diff, diffIndex) => (
+                                <option key={`${boss.name}-${diff}-${diffIndex}`} value={diff}>{diff}</option>
                               ))}
                             </select>
                             <select
@@ -148,8 +167,8 @@ function BossSelectionTable({
                                 onUpdatePartySize(selectedCharIdx, boss.name, selected.difficulty, parseInt(e.target.value));
                               }}
                             >
-                              {getAvailablePartySizes(boss.name, selected.difficulty).map(size => (
-                                <option key={size} value={size}>{size}</option>
+                              {getAvailablePartySizes(boss.name, selected.difficulty).map((size, sizeIndex) => (
+                                <option key={`${boss.name}-${selected.difficulty}-${size}-${sizeIndex}`} value={size}>{size}</option>
                               ))}
                             </select>
                           </>

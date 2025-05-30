@@ -2,10 +2,15 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { getWeekDateRange } from '../utils/weekUtils'; // Adjusted path
 import '../styles/historical-modal.css';
 
-// Historical Pitched Item Modal Component
-function HistoricalPitchedModal({ data, characterBossSelections, onClose, onConfirm }) {
+// Historical Pitched Item Modal Component - Simplified for adding items only
+function HistoricalPitchedModal({ 
+  data, 
+  characterBossSelections, 
+  onClose, 
+  onConfirm,
+  pitchedChecked 
+}) {
   const [selectedDate, setSelectedDate] = useState('');
-  const [selectedCharacter, setSelectedCharacter] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   // Calculate the date range for the selected week
@@ -19,32 +24,17 @@ function HistoricalPitchedModal({ data, characterBossSelections, onClose, onConf
     return date.toISOString().split('T')[0];
   }, []);
 
-  // Get available dates for this week
-  const availableDates = useMemo(() => {
-    if (!weekDates.start || !weekDates.end) return [];
-    
-    const dates = [];
-    const current = new Date(weekDates.start);
-    const end = new Date(weekDates.end);
-    
-    while (current <= end) {
-      dates.push(new Date(current));
-      current.setDate(current.getDate() + 1);
-    }
-    
-    return dates;
-  }, [weekDates]);
+  // Get character name from data or default to first character
+  const selectedCharacter = useMemo(() => {
+    return data.character || characterBossSelections[0]?.name || '';
+  }, [data.character, characterBossSelections]);
 
   useEffect(() => {
     // Default to the first day of the week
-    if (availableDates.length > 0 && !selectedDate) {
-      setSelectedDate(formatDateForInput(availableDates[0]));
+    if (weekDates.start && !selectedDate) {
+      setSelectedDate(formatDateForInput(weekDates.start));
     }
-    // Default to the first character
-    if (characterBossSelections.length > 0 && !selectedCharacter) {
-      setSelectedCharacter(characterBossSelections[0].name);
-    }
-  }, [availableDates, selectedDate, characterBossSelections, selectedCharacter, formatDateForInput]);
+  }, [weekDates, selectedDate, formatDateForInput]);
 
   const handleConfirm = async () => {
     if (!selectedDate || !selectedCharacter) return;
@@ -58,61 +48,59 @@ function HistoricalPitchedModal({ data, characterBossSelections, onClose, onConf
     setIsLoading(false);
   };
 
+  const formatWeekDisplay = useMemo(() => {
+    if (!weekDates.start || !weekDates.end) return '';
+    
+    const startMonth = weekDates.start.toLocaleDateString('en-US', { month: 'short' });
+    const endMonth = weekDates.end.toLocaleDateString('en-US', { month: 'short' });
+    const startDay = weekDates.start.getDate();
+    const endDay = weekDates.end.getDate();
+    
+    if (startMonth === endMonth) {
+      return `${startMonth} ${startDay}-${endDay}`;
+    } else {
+      return `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
+    }
+  }, [weekDates]);
+
   return (
     <div 
-      className="historical-modal-container"
+      className="historical-modal-container-new"
       onClick={e => e.stopPropagation()}
     >
-      {/* Premium Item Header */}
-      <div className="historical-modal-header">
+      {/* Premium Item Display */}
+      <div className="historical-modal-item-showcase">
+        <div className="historical-modal-item-glow-new" />
         <img 
           src={data.itemImage} 
           alt={data.itemName}
-          className="historical-modal-header-image"
+          className="historical-modal-item-image-new"
         />
       </div>
       
-      <h2 className="historical-modal-title">
-        Log Historical Pitched Item
+      <h2 className="historical-modal-title-new">
+        Add Historical Drop
       </h2>
       
-      <div className="historical-modal-info-box">
-        <div className="historical-modal-info-item">
-          <span className="historical-modal-info-label">Character:</span> {selectedCharacter || data.character}
+      <div className="historical-modal-details">
+        <div className="historical-modal-detail-row">
+          <span className="detail-label">Item:</span>
+          <span className="detail-value">{data.itemName}</span>
         </div>
-        <div className="historical-modal-info-item">
-          <span className="historical-modal-info-label">Boss:</span> {data.bossName}
+        <div className="historical-modal-detail-row">
+          <span className="detail-label">Character:</span>
+          <span className="detail-value character-name">{selectedCharacter}</span>
         </div>
-        <div className="historical-modal-info-item">
-          <span className="historical-modal-info-label">Item:</span> {data.itemName}
-        </div>
-        <div className="historical-modal-info-item">
-          <span className="historical-modal-info-label">Week:</span> {data.weekKey}
+        <div className="historical-modal-detail-row">
+          <span className="detail-label">Week:</span>
+          <span className="detail-value">{formatWeekDisplay}</span>
         </div>
       </div>
 
-      {/* Character Selection */}
-      <div className="historical-modal-form-section">
-        <label className="historical-modal-label">
-          Select Character:
-        </label>
-        <select
-          value={selectedCharacter}
-          onChange={e => setSelectedCharacter(e.target.value)}
-          className="historical-modal-select"
-        >
-          {characterBossSelections.map(char => (
-            <option key={char.name} value={char.name}>
-              {char.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Date Selection */}
-      <div className="historical-modal-form-section">
-        <label className="historical-modal-label">
-          Select Date:
+      {/* Simple Date Selection */}
+      <div className="historical-modal-date-section">
+        <label className="historical-modal-date-label">
+          Select Drop Date:
         </label>
         <input
           type="date"
@@ -120,33 +108,27 @@ function HistoricalPitchedModal({ data, characterBossSelections, onClose, onConf
           onChange={e => setSelectedDate(e.target.value)}
           min={weekDates.start ? formatDateForInput(weekDates.start) : ''}
           max={weekDates.end ? formatDateForInput(weekDates.end) : ''}
-          className="historical-modal-date-input"
+          className="historical-modal-date-input-new"
         />
-        {weekDates.start && weekDates.end && (
-          <div className="historical-modal-helper-text">
-            Valid range: {formatDateForInput(weekDates.start)} to {formatDateForInput(weekDates.end)}
-          </div>
-        )}
       </div>
 
-      {/* Buttons */}
-      <div className="historical-modal-buttons">
+      {/* Action Buttons */}
+      <div className="historical-modal-actions">
         <button
           onClick={onClose}
           disabled={isLoading}
-          className="historical-modal-button historical-modal-button-cancel"
+          className="historical-modal-btn historical-modal-btn-cancel"
         >
           Cancel
         </button>
+        
         <button
           onClick={handleConfirm}
           disabled={isLoading || !selectedDate || !selectedCharacter}
-          className="historical-modal-button historical-modal-button-confirm"
+          className="historical-modal-btn historical-modal-btn-add"
         >
-          {isLoading && (
-            <div className="historical-modal-spinner" />
-          )}
-          {isLoading ? 'Logging...' : 'Log Item'}
+          {isLoading && <div className="historical-modal-spinner-new" />}
+          {isLoading ? 'Adding...' : 'Add Drop'}
         </button>
       </div>
     </div>

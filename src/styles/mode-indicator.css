@@ -14,8 +14,8 @@
 /* Main mode indicator container */
 .mode-indicator-container {
   margin: -5rem auto 1.5rem auto;
-  max-width: 700px;
-  width: 54%;
+  max-width: 45vh;
+  width: 100%;
   min-height: 100px; /* Fixed minimum height */
   border-radius: 12px;
   padding: 1rem 1.5rem;
@@ -26,6 +26,7 @@
   gap: 1.5rem;
   transition: all 0.3s ease;
   position: relative;
+  top: -10vh;
   background: linear-gradient(135deg, #231a36 0%, #2d2540 60%, #3a2a5d 100%);
   box-shadow: 0 4px 16px rgba(128, 90, 213, 0.18), 0 1.5px 8px rgba(40, 32, 74, 0.18);
   border: 2px solid #805ad5;

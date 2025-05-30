@@ -73,9 +73,8 @@
   background: linear-gradient(135deg, #3a2a5d, #28204a);
   border-radius: 12px;
   padding: 1rem;
-  margin: 0 auto 1.5rem auto;
-  max-width: 700px;
-  width: 45%;
+  margin: -17vh auto 1.5rem auto;
+  width: 36vh;
   /* ⬇️ CHANGE THIS VALUE to adjust the container height ⬇️ */
   height: 50%; /* STRICT FIXED HEIGHT - never changes */
   box-shadow: 0 4px 16px rgba(40, 20, 60, 0.25);

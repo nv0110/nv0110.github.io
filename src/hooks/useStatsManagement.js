@@ -1,7 +1,28 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getCurrentYearKey } from '../utils/weekUtils';
 import { MONTH_NAMES } from '../constants';
-import { getYearlyPitchedStats, purgePitchedRecords, clearCharacterPitchedUI, getPitchedResetAuditHistory, purgeAllStatsData } from '../pitched-data-service';
+import { getYearlyPitchedStats } from '../../services/pitchedItemsService.js';
+import { purgePitchedRecords, clearCharacterPitchedUI, getPitchedResetAuditHistory, purgeAllStatsData } from '../../services/utilityService.js';
+import { getBossPitchedItems } from '../../services/bossRegistryService.js';
+import { logger } from '../utils/logger.js';
+
+// Helper function to get item image
+const getItemImage = (itemName) => {
+  const allBossNames = [
+    'Lotus', 'Damien', 'Lucid', 'Will', 'Gloom', 'Darknell', 
+    'Verus Hilla', 'Chosen Seren', 'Watcher Kalos', 'Kaling', 'Limbo'
+  ];
+  
+  for (const bossName of allBossNames) {
+    const bossItems = getBossPitchedItems(bossName);
+    const itemObj = bossItems.find(bossItem => bossItem.name === itemName);
+    if (itemObj) {
+      return itemObj.image;
+    }
+  }
+  
+  return '/items/crystal.png'; // fallback
+};
 
 export function useStatsManagement(userCode, refreshPitchedItems) {
   // Stats modal state
@@ -26,6 +47,11 @@ export function useStatsManagement(userCode, refreshPitchedItems) {
   // Pitched modal state
   const [pitchedModalItem, setPitchedModalItem] = useState(null);
   const [showPitchedModal, setShowPitchedModal] = useState(false);
+  const [showCharacterPitchedModal, setShowCharacterPitchedModal] = useState(false);
+  
+  // Item detail modal state
+  const [showItemDetailModal, setShowItemDetailModal] = useState(false);
+  const [selectedItemDetail, setSelectedItemDetail] = useState(null);
   
   // Historical modal state
   const [showHistoricalPitchedModal, setShowHistoricalPitchedModal] = useState(false);
@@ -62,9 +88,14 @@ export function useStatsManagement(userCode, refreshPitchedItems) {
     const fetchCloudStats = async () => {
       try {
         setIsLoadingCloudStats(true);
-        const result = await getYearlyPitchedStats(userCode);
+        // Convert selectedYear to number to ensure type consistency
+        const yearAsNumber = parseInt(selectedYear, 10);
+        const result = await getYearlyPitchedStats(userCode, yearAsNumber);
         if (result.success) {
-          setCloudPitchedStats(result.data);
+          setCloudPitchedStats(prev => ({
+            ...prev,
+            [selectedYear]: result.stats
+          }));
         }
       } catch (error) {
         console.error('Error fetching cloud pitched stats:', error);
@@ -74,62 +105,61 @@ export function useStatsManagement(userCode, refreshPitchedItems) {
     };
     
     fetchCloudStats();
-  }, [showStats, userCode]);
+  }, [showStats, userCode, selectedYear]);
 
-  // Yearly pitched summary
-  const yearlyPitchedSummary = useMemo(() => {
+  // Yearly pitched summary - groups items by type with counts and detailed history
+  const groupedYearlyPitchedItems = useMemo(() => {
     if (!selectedYear || !cloudPitchedStats) return [];
 
-    const pitchedMap = new Map();
     const cloudData = cloudPitchedStats[selectedYear];
     
-    if (cloudData?.items && Array.isArray(cloudData.items)) {
-      cloudData.items.forEach(item => {
-        if (!item?.item || !item?.image) return;
+    if (!cloudData?.items || !Array.isArray(cloudData.items)) return [];
+
+    // Group items by item name
+    const itemGroups = new Map();
+    
+    cloudData.items
+      .filter(item => item?.item && item?.charId && item?.date)
+      .forEach(item => {
+        const itemName = item.item;
         
-        const key = item.item + '|' + item.image;
-        if (!pitchedMap.has(key)) {
-          pitchedMap.set(key, { 
-            name: item.item, 
-            image: item.image, 
-            count: 0, 
-            history: [],
-            source: 'cloud' 
+        if (!itemGroups.has(itemName)) {
+          itemGroups.set(itemName, {
+            itemName,
+            itemImage: getItemImage(itemName),
+            count: 0,
+            instances: []
           });
         }
         
-        const entry = pitchedMap.get(key);
-        entry.count += 1;
+        const group = itemGroups.get(itemName);
+        group.count += 1;
         
-        if (item.date) {
-          const date = new Date(item.date);
-          const monthNum = date.getUTCMonth();
-          const day = date.getUTCDate();
-          entry.history.push({ 
-            char: item.character, 
-            date: `${MONTH_NAMES[monthNum]} ${day}`,
-            cloud: true,
-            fullDate: item.date
-          });
-        }
-      });
-    }
-    
-    const result = Array.from(pitchedMap.values());
-    
-    // Sort history by date
-    result.forEach(item => {
-      if (item.history?.length > 0) {
-        item.history.sort((a, b) => {
-          if (a.fullDate && b.fullDate) {
-            return new Date(b.fullDate) - new Date(a.fullDate);
-          }
-          return 0;
+        // Create detailed instance
+        const date = new Date(item.date);
+        const monthName = MONTH_NAMES[date.getUTCMonth()];
+        const day = date.getUTCDate();
+        
+        group.instances.push({
+          charId: item.charId,
+          fullDate: item.date,
+          displayDate: `${monthName} ${day}`,
+          sortDate: date.getTime()
         });
-      }
-    });
-    
-    return result.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+      });
+
+    // Convert to array and sort by count (most obtained first), then by name
+    const result = Array.from(itemGroups.values())
+      .map(group => ({
+        ...group,
+        instances: group.instances.sort((a, b) => b.sortDate - a.sortDate) // Most recent first
+      }))
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count; // Higher count first
+        return a.itemName.localeCompare(b.itemName); // Alphabetical for same count
+      });
+
+    return result;
   }, [selectedYear, cloudPitchedStats]);
 
   // Character purge handler
@@ -157,7 +187,8 @@ export function useStatsManagement(userCode, refreshPitchedItems) {
         // Refresh cloud stats
         const statsResult = await getYearlyPitchedStats(userCode);
         if (statsResult.success) {
-          setCloudPitchedStats(statsResult.data);
+          const currentYear = getCurrentYearKey();
+          setCloudPitchedStats({ [currentYear]: statsResult.stats });
         }
         
         setPurgeSuccess(true);
@@ -234,8 +265,120 @@ export function useStatsManagement(userCode, refreshPitchedItems) {
   }, [pitchedModalItem]);
 
   function startStatsTrackingIfNeeded() {
-    console.log('Stats tracking is now cloud-based - no action needed');
+    logger.silence('Stats tracking is now cloud-based - no action needed');
   }
+
+  // Handle historical pitched item confirmation
+  const handleHistoricalPitchedConfirm = async (date, characterName) => {
+    try {
+      if (!historicalPitchedData) {
+        throw new Error('No historical pitched data available');
+      }
+
+      const { itemName, bossName, weekKey } = historicalPitchedData;
+      
+      logger.userAction('Adding historical pitched item', `${itemName} for ${bossName} by ${characterName}`);
+      
+      // Import the pitched items service
+      const { addPitchedItem } = await import('../../services/pitchedItemsService.js');
+      
+      // Create the pitched item data (now includes boss name)
+      const pitchedItemData = {
+        charId: characterName,
+        bossName: bossName,
+        item: itemName,
+        date: date.split('T')[0] // Extract just the YYYY-MM-DD part
+      };
+
+      // Add the historical pitched item to the database
+      const result = await addPitchedItem(userCode, pitchedItemData);
+      
+      if (result.success) {
+        logger.silence('Historical pitched item added successfully');
+        
+        // Close the modal
+        setShowHistoricalPitchedModal(false);
+        setHistoricalPitchedData(null);
+        
+        // Refresh the pitched items to reflect the new data
+        if (refreshPitchedItems) {
+          await refreshPitchedItems();
+        }
+        
+        return { success: true };
+      } else {
+        throw new Error(result.error || 'Failed to add historical pitched item');
+      }
+      
+    } catch (error) {
+      logger.error('Error handling historical pitched confirmation:', error);
+      throw error;
+    }
+  };
+
+  // Handle historical pitched item removal
+  const handleHistoricalPitchedRemove = async (characterName, bossName, itemName, weekKey = null) => {
+    try {
+      // If weekKey is not provided, try to get it from historicalPitchedData (modal context)
+      let targetWeekKey = weekKey;
+      let targetBossName = bossName;
+      
+      if (!targetWeekKey && historicalPitchedData) {
+        targetWeekKey = historicalPitchedData.weekKey;
+        // Use boss name from parameters if available, otherwise from modal data
+        if (!targetBossName) {
+          targetBossName = historicalPitchedData.bossName;
+        }
+      }
+      
+      if (!targetWeekKey) {
+        throw new Error('Week key not available for historical pitched item removal');
+      }
+      
+      if (!targetBossName) {
+        throw new Error('Boss name not available for historical pitched item removal');
+      }
+      
+      logger.userAction('Removing historical pitched item', `${itemName} from ${targetBossName} by ${characterName}`);
+      
+      // Import the pitched items service
+      const { removePitchedItem } = await import('../../services/pitchedItemsService.js');
+      
+      // Remove the historical pitched item from the database
+      // The service now expects (userId, charId, bossName, item, date)
+      // Since we don't have the exact date, we'll pass null to remove the most recent entry
+      const result = await removePitchedItem(userCode, characterName, targetBossName, itemName, null);
+      
+      if (result.success) {
+        logger.silence('Historical pitched item removed successfully');
+        
+        // Only close modal if we're in modal context (historicalPitchedData exists)
+        if (historicalPitchedData) {
+          setShowHistoricalPitchedModal(false);
+          setHistoricalPitchedData(null);
+        }
+        
+        // Refresh the pitched items to reflect the change
+        if (refreshPitchedItems) {
+          await refreshPitchedItems();
+        }
+        
+        return { success: true };
+      } else {
+        throw new Error(result.error || 'Failed to remove historical pitched item');
+      }
+      
+    } catch (error) {
+      logger.error('Error handling historical pitched removal:', error);
+      throw error;
+    }
+  };
+
+  // Handler for opening item detail modal
+  const handleItemDetailClick = (itemGroup) => {
+    setSelectedItemDetail(itemGroup);
+    setShowItemDetailModal(true);
+  };
 
   return {
     // Stats modal
@@ -270,7 +413,15 @@ export function useStatsManagement(userCode, refreshPitchedItems) {
     setPitchedModalItem,
     showPitchedModal,
     setShowPitchedModal,
+    showCharacterPitchedModal,
+    setShowCharacterPitchedModal,
     pitchedModalDetails,
+    
+    // Item detail modal
+    showItemDetailModal,
+    setShowItemDetailModal,
+    selectedItemDetail,
+    setSelectedItemDetail,
     
     // Historical modal
     showHistoricalPitchedModal,
@@ -282,11 +433,14 @@ export function useStatsManagement(userCode, refreshPitchedItems) {
     allYears,
     selectedYear,
     setSelectedYear,
-    yearlyPitchedSummary,
+    groupedYearlyPitchedItems,
     
     // Handlers
     handleCharacterPurge,
     handleStatsReset,
-    startStatsTrackingIfNeeded
+    startStatsTrackingIfNeeded,
+    handleHistoricalPitchedConfirm,
+    handleHistoricalPitchedRemove,
+    handleItemDetailClick
   };
 } 

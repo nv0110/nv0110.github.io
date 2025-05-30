@@ -1,9 +1,8 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthentication } from '../../hooks/useAuthentication';
 import { useViewTransition } from '../hooks/useViewTransition';
 import { useAppData } from '../hooks/AppDataContext.jsx';
 import { useQuickSelect } from '../hooks/useQuickSelect';
-import { bossData } from '../data/bossData';
 import { LIMITS } from '../constants';
 import Navbar from '../components/Navbar';
 import ActionButtons from '../components/ActionButtons';
@@ -19,7 +18,7 @@ const DataBackup = lazy(() => import('../components/DataBackup'));
 
 function InputPage() {
   const { navigate } = useViewTransition();
-  const { userCode, isLoggedIn, handleDeleteAccount } = useAuth();
+  const { userCode, isLoggedIn, handleDeleteAccount } = useAuthentication();
   const {
     characterBossSelections,
     setCharacterBossSelections,
@@ -55,11 +54,9 @@ function InputPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [showDeleteLoading, setShowDeleteLoading] = useState(false);
-  // Preset modal functionality removed
   const [showQuickSelectModal, setShowQuickSelectModal] = useState(false);
 
   // Custom hooks
-  // Preset hook removed
   const quickSelectHook = useQuickSelect();
 
   // Redirect if not logged in - using useEffect to prevent navigation during render
@@ -72,7 +69,7 @@ function InputPage() {
   // Handle export (simplified version)
   const handleExport = async () => {
     try {
-      const { exportUserData } = await import('../pitched-data-service');
+      const { exportUserData } = await import('../../services/utilityService.js');
       const result = await exportUserData(userCode);
       
       if (result.success) {
@@ -107,7 +104,7 @@ function InputPage() {
       try {
         const importedJson = JSON.parse(e.target.result);
         
-        const { importUserData } = await import('../pitched-data-service');
+        const { importUserData } = await import('../../services/utilityService.js');
         const result = await importUserData(userCode, importedJson);
         
         if (!result.success) throw new Error(result.error);
@@ -143,8 +140,8 @@ function InputPage() {
     const totalCrystals = characterBossSelections.reduce((sum, char) => sum + (char.bosses ? char.bosses.length : 0), 0);
     const cloneCrystals = charToClone.bosses ? charToClone.bosses.length : 0;
 
-    if (totalCrystals + cloneCrystals > 180) {
-      setCloneError('Cannot clone: Would exceed 180 crystal limit');
+    if (totalCrystals + cloneCrystals > LIMITS.CRYSTAL_CAP) {
+      setCloneError(`Cannot clone: Would exceed ${LIMITS.CRYSTAL_CAP} crystal limit`);
       setTimeout(() => setCloneError(''), 3000);
       return;
     }
@@ -168,29 +165,25 @@ function InputPage() {
 
       // 2. If the original character has bosses, clone their boss configuration
       if (charToClone.bosses && charToClone.bosses.length > 0) {
-        // Convert bosses array to boss config string format
-        const bossConfigString = charToClone.bosses
-          .map(boss => {
-            // Find boss data to get crystal value
-            const bossInfo = bossData.find(b => b.name === boss.name);
-            const difficultyInfo = bossInfo?.difficulties.find(d => d.name === boss.difficulty);
-            const crystalValue = difficultyInfo?.price || 1;
-            const partySize = boss.partySize || 1;
-            
-            return `${boss.name}-${boss.difficulty}:${crystalValue}:${partySize}`;
-          })
-          .join(',');
+        try {
+          // Convert bosses array to boss config string format using new mapping utility
+          const { convertBossesToConfigString } = await import('../utils/bossCodeMapping.js');
+          const bossConfigString = await convertBossesToConfigString(charToClone.bosses);
 
-        const configResult = await updateCharacterBossConfigInWeeklySetup(
-          userCode,
-          currentWeekStart,
-          addResult.characterIndex,
-          bossConfigString
-        );
+          const configResult = await updateCharacterBossConfigInWeeklySetup(
+            userCode,
+            currentWeekStart,
+            addResult.characterIndex,
+            bossConfigString
+          );
 
-        if (!configResult.success) {
-          console.warn('Failed to clone boss configuration:', configResult.error);
-          // Don't fail the whole operation, just log warning
+          if (!configResult.success) {
+            console.warn('Failed to clone boss configuration:', configResult.error);
+            // Don't fail the whole operation, just log warning
+          }
+        } catch (error) {
+          console.error('Error converting boss configuration for clone:', error);
+          // Don't fail the whole operation, just log error
         }
       }
 
@@ -234,13 +227,10 @@ function InputPage() {
     }
   };
 
-  // Get all bosses sorted by highest price
+  // Get all bosses sorted by highest price (using database-driven boss data)
   const getSortedBossesByPrice = () => {
-    const bossesWithMaxPrice = bossData.map(boss => {
-      const maxPrice = Math.max(...boss.difficulties.map(d => d.price));
-      return { ...boss, maxPrice };
-    });
-    return bossesWithMaxPrice.sort((a, b) => b.maxPrice - a.maxPrice);
+    // Use sortedBossData from useAppData which comes from database
+    return sortedBossData || [];
   };
 
   // Utility function to format prices in abbreviated form
@@ -260,7 +250,6 @@ function InputPage() {
   };
 
   // Close handlers for modals
-  // Preset modal handlers removed
 
   const handleCloseQuickSelectModal = () => {
     setShowQuickSelectModal(false);
@@ -270,29 +259,17 @@ function InputPage() {
 
   return (
     <div className="page-container">
-      <Navbar 
-        currentPage="calculator" 
-        onShowHelp={() => setShowHelp(true)}
-        onShowDeleteConfirm={() => setShowDeleteConfirm(true)}
+      <Navbar
+        currentPage="calculator"
+        onExport={handleExport}
+        onImport={handleImport}
+        fileInputRef={fileInputRef}
       />
       
       <div className="page-header-container fade-in">
         <h1 className="page-title-main">
           Character and Boss Configuration
         </h1>
-        
-        <p className="page-description">
-          Create characters, configure boss difficulties and party sizes for your weekly runs
-        </p>
-        
-        {/* Action buttons */}
-        <ActionButtons
-          onExport={handleExport}
-          onImport={handleImport}
-          onShowPresets={undefined}
-          onShowQuickSelect={() => setShowQuickSelectModal(true)}
-          fileInputRef={fileInputRef}
-        />
       </div>
 
       {/* Success/Error Messages */}
@@ -310,7 +287,7 @@ function InputPage() {
 
       {/* Main Content */}
       <ViewTransitionWrapper>
-        <div className="table-container premium-content-container input-page-container fade-in">
+        <div className="premium-content-container fade-in">
           {isLoading ? (
             <PageLoader />
           ) : (
@@ -344,6 +321,7 @@ function InputPage() {
                   getAvailablePartySizes={getAvailablePartySizes}
                   onToggleBoss={toggleBoss}
                   onUpdatePartySize={updatePartySize}
+                  onShowQuickSelect={() => setShowQuickSelectModal(true)}
                 />
               )}
             </>
@@ -476,11 +454,14 @@ function InputPage() {
         getBossDifficulties={getBossDifficulties}
         formatPrice={formatPrice}
         handleQuickSelectBoss={quickSelectHook.handleQuickSelectBoss}
+        updateQuickSelectPartySize={quickSelectHook.updateQuickSelectPartySize}
         applyQuickSelection={() => {
           quickSelectHook.applyQuickSelection(selectedCharIdx, characterBossSelections, batchSetBosses);
           setShowQuickSelectModal(false);
         }}
         resetQuickSelection={quickSelectHook.resetQuickSelection}
+        reuseLastQuickSelect={quickSelectHook.reuseLastQuickSelect}
+        lastQuickSelectBosses={quickSelectHook.lastQuickSelectBosses}
         selectedCharIdx={selectedCharIdx}
         characterBossSelections={characterBossSelections}
       />

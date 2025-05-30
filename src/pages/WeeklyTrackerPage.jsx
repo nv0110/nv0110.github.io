@@ -1,29 +1,57 @@
-import { useState } from 'react';
-import { useAuth } from '../hooks/useAuth';
+import { useState, useEffect } from 'react';
+import { useAuthentication } from '../../hooks/useAuthentication';
 import { useViewTransition } from '../hooks/useViewTransition';
 import WeeklyTracker from '../WeeklyTracker';
 import { useAppData } from '../hooks/AppDataContext.jsx';
-import { bossData } from '../data/bossData';
 import Navbar from '../components/Navbar';
 import ViewTransitionWrapper from '../components/ViewTransitionWrapper';
+import { HelpModal, DeleteAccountModal, WeeklyTrackerHelpContent } from '../features/common/PageModals';
+import { getBossDataForFrontend } from '../../services/bossRegistryService';
 
 function WeeklyTrackerPage() {
   const { navigate } = useViewTransition();
-  const { userCode, isLoggedIn, handleDeleteAccount } = useAuth();
-  const { 
-    characterBossSelections, 
-    checked, 
-    setChecked, 
-    fullUserData, 
+  const { userCode, isLoggedIn, handleDeleteAccount } = useAuthentication();
+  const {
+    characterBossSelections,
+    checked,
+    setChecked,
+    fullUserData,
     weekKey,
     preservingCheckedStateRef
   } = useAppData();
+
+  // Boss data state
+  const [bossData, setBossData] = useState([]);
+  const [bossDataLoading, setBossDataLoading] = useState(true);
 
   // Modal states
   const [showHelp, setShowHelp] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [showDeleteLoading, setShowDeleteLoading] = useState(false);
+
+  // Load boss data from registry service
+  useEffect(() => {
+    const loadBossData = async () => {
+      try {
+        setBossDataLoading(true);
+        const result = await getBossDataForFrontend();
+        if (result.success) {
+          setBossData(result.data);
+        } else {
+          console.error('Failed to load boss data:', result.error);
+          setBossData([]);
+        }
+      } catch (error) {
+        console.error('Error loading boss data:', error);
+        setBossData([]);
+      } finally {
+        setBossDataLoading(false);
+      }
+    };
+
+    loadBossData();
+  }, []);
 
   // Redirect if not logged in
   if (!isLoggedIn) {
@@ -51,9 +79,32 @@ function WeeklyTrackerPage() {
     }
   };
 
+  // Show loading while boss data is being fetched
+  if (bossDataLoading) {
+    return (
+      <div className="page-container">
+        <Navbar
+          currentPage="weeklytracker"
+          onShowHelp={() => setShowHelp(true)}
+          onShowDeleteConfirm={() => setShowDeleteConfirm(true)}
+        />
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '50vh',
+          color: '#e6e0ff',
+          fontSize: '1.2rem'
+        }}>
+          Loading boss data...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page-container">
-      <Navbar 
+      <Navbar
         currentPage="weeklytracker"
         onShowHelp={() => setShowHelp(true)}
         onShowDeleteConfirm={() => setShowDeleteConfirm(true)}
@@ -61,7 +112,7 @@ function WeeklyTrackerPage() {
       
       {/* Main content container - full width for sidebar + content layout */}
       <ViewTransitionWrapper>
-        <WeeklyTracker 
+        <WeeklyTracker
           characterBossSelections={characterBossSelections}
           bossData={bossData}
           checked={checked}
@@ -73,106 +124,21 @@ function WeeklyTrackerPage() {
         />
       </ViewTransitionWrapper>
 
-      {/* Help Modal */}
-      {showHelp && (
-        <div
-          className="modal-backdrop"
-          onClick={() => setShowHelp(false)}
-        >
-          <div
-            className="modal-fade modal-content"
-            onClick={e => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setShowHelp(false)}
-              className="modal-close-btn"
-              title="Close"
-            >
-              ×
-            </button>
-            <h2 className="modal-title">Help & FAQ</h2>
-            
-            <div className="modal-section-content" style={{ marginBottom: 24 }}>
-              <h3 className="modal-section-title">Weekly Tracking</h3>
-              <p>Track your boss completions and see your weekly mesos progress</p>
-              <p>Check off bosses as you complete them throughout the week</p>
-              <p>Click on pitched item icons to track rare drops from bosses</p>
-            </div>
-
-            <div className="modal-section-content" style={{ marginBottom: 24 }}>
-              <h3 className="modal-section-title">Pitched Items & Stats</h3>
-              <p>• <strong>Pitched tracking:</strong> Click item icons to track rare boss drops</p>
-              <p>• <strong>Historical data:</strong> Navigate between weeks to view past progress</p>
-              <p>• <strong>Stats overview:</strong> View detailed statistics of all your pitched items</p>
-              <p>• <strong>Character management:</strong> Purge data for specific characters if needed</p>
-            </div>
-
-            <div className="modal-section-content" style={{ marginBottom: 24 }}>
-              <h3 className="modal-section-title">Week Navigation</h3>
-              <p>• <strong>Current week:</strong> Full editing capabilities for this week's progress</p>
-              <p>• <strong>Historical weeks:</strong> View-only mode for past weeks (toggle edit mode if needed)</p>
-              <p>• <strong>Smart navigation:</strong> Only shows weeks where you have data</p>
-            </div>
-
-            <div className="modal-section-content">
-              <h3 className="modal-section-title">Quick Tips</h3>
-              <p>• Use "Tick All" to quickly mark all bosses completed for a character</p>
-              <p>• Hide completed characters to focus on remaining work</p>
-              <p>• Weekly reset happens every Thursday at 00:00 UTC</p>
-              <p>• Pitched items are automatically linked to boss completions</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Account Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="modal-backdrop modal-backdrop-critical"
-        onClick={() => setShowDeleteConfirm(false)}
-        >
-          <div className="modal-fade modal-content-critical"
-          onClick={e => e.stopPropagation()}
-          >
-            <div className="critical-modal-icon">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <h2 className="critical-modal-title">Delete Account</h2>
-            <div className="critical-modal-warning">
-              <p>
-                <strong>This will permanently delete your account and all associated data.</strong>
-                <br />
-                This action cannot be undone.
-              </p>
-            </div>
-            <div className="modal-button-container">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={showDeleteLoading}
-                className="modal-btn-cancel"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteAccountWrapper}
-                disabled={showDeleteLoading}
-                className="modal-btn-critical"
-              >
-                {showDeleteLoading && (
-                  <div className="loading-spinner" />
-                )}
-                {showDeleteLoading ? 'Deleting...' : 'Delete Forever'}
-              </button>
-            </div>
-            {deleteError && (
-              <div className="modal-error-message">
-                {deleteError}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Consolidated page modals for better organization */}
+      <HelpModal
+        showHelp={showHelp}
+        onClose={() => setShowHelp(false)}
+      >
+        <WeeklyTrackerHelpContent />
+      </HelpModal>
+      
+      <DeleteAccountModal
+        showDeleteConfirm={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDeleteAccountWrapper}
+        showDeleteLoading={showDeleteLoading}
+        deleteError={deleteError}
+      />
     </div>
   );
 }

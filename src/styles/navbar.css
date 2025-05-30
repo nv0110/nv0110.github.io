@@ -55,6 +55,12 @@
 }
 
 /* Right section container - action buttons */
+.navbar-right {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
 .navbar-actions {
   display: flex;
   gap: 8px;
@@ -211,7 +217,170 @@
 
 /* ===== BUTTON VARIANTS ===== */
 
-/* Logout button styling - purple/blue soft gradient, like delete but purple */
+/* Icon Button Base Styling */
+.navbar-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.navbar-icon-button svg {
+  width: 22px;
+  height: 22px;
+  transition: all 0.3s ease;
+  z-index: 2;
+  position: relative;
+}
+
+/* Premium Account/Settings Button */
+.navbar-icon-button.settings {
+  background: linear-gradient(135deg,
+    rgba(162, 89, 247, 0.2) 0%,
+    rgba(124, 58, 237, 0.25) 50%,
+    rgba(107, 33, 168, 0.3) 100%
+  );
+  border: 2px solid rgba(162, 89, 247, 0.4);
+  box-shadow:
+    0 4px 20px rgba(162, 89, 247, 0.25),
+    0 1px 0 rgba(255, 255, 255, 0.1) inset,
+    0 0 24px rgba(162, 89, 247, 0.15);
+  color: #e6e0ff;
+}
+
+.navbar-icon-button.settings::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: conic-gradient(from var(--angle, 0deg),
+    transparent 0deg,
+    rgba(162, 89, 247, 0.3) 90deg,
+    rgba(255, 255, 255, 0.1) 180deg,
+    rgba(162, 89, 247, 0.3) 270deg,
+    transparent 360deg
+  );
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  animation: premium-border-spin 3s linear infinite;
+}
+
+.navbar-icon-button.settings:hover::before {
+  opacity: 1;
+}
+
+.navbar-icon-button.settings:hover {
+  background: linear-gradient(135deg,
+    rgba(162, 89, 247, 0.35) 0%,
+    rgba(124, 58, 237, 0.4) 50%,
+    rgba(107, 33, 168, 0.45) 100%
+  );
+  border-color: rgba(162, 89, 247, 0.7);
+  box-shadow:
+    0 6px 32px rgba(162, 89, 247, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.15) inset,
+    0 0 40px rgba(162, 89, 247, 0.25);
+  color: #fff;
+  transform: translateY(-2px);
+}
+
+.navbar-icon-button.settings:hover svg {
+  transform: rotate(45deg) scale(1.1);
+  filter: drop-shadow(0 0 8px rgba(162, 89, 247, 0.6));
+}
+
+/* Premium Logout Button */
+.navbar-icon-button.logout {
+  background: linear-gradient(135deg,
+    rgba(239, 68, 68, 0.2) 0%,
+    rgba(220, 38, 38, 0.25) 50%,
+    rgba(185, 28, 28, 0.3) 100%
+  );
+  border: 2px solid rgba(239, 68, 68, 0.4);
+  box-shadow:
+    0 4px 20px rgba(239, 68, 68, 0.25),
+    0 1px 0 rgba(255, 255, 255, 0.1) inset,
+    0 0 24px rgba(239, 68, 68, 0.15);
+  color: #ffe6e6;
+}
+
+.navbar-icon-button.logout::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: conic-gradient(from var(--angle, 0deg),
+    transparent 0deg,
+    rgba(239, 68, 68, 0.3) 90deg,
+    rgba(255, 255, 255, 0.1) 180deg,
+    rgba(239, 68, 68, 0.3) 270deg,
+    transparent 360deg
+  );
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  animation: premium-border-spin 4s linear infinite reverse;
+}
+
+.navbar-icon-button.logout:hover::before {
+  opacity: 1;
+}
+
+.navbar-icon-button.logout:hover {
+  background: linear-gradient(135deg,
+    rgba(239, 68, 68, 0.35) 0%,
+    rgba(220, 38, 38, 0.4) 50%,
+    rgba(185, 28, 28, 0.45) 100%
+  );
+  border-color: rgba(239, 68, 68, 0.7);
+  box-shadow:
+    0 6px 32px rgba(239, 68, 68, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.15) inset,
+    0 0 40px rgba(239, 68, 68, 0.25);
+  color: #fff;
+  transform: translateY(-2px);
+}
+
+.navbar-icon-button.logout:hover svg {
+  transform: translateX(3px) scale(1.1);
+  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6));
+}
+
+.navbar-icon-button.logout:active {
+  transform: translateY(0px);
+  box-shadow:
+    0 2px 12px rgba(239, 68, 68, 0.3),
+    0 1px 0 rgba(255, 255, 255, 0.1) inset;
+}
+
+.navbar-icon-button.settings:active {
+  transform: translateY(0px);
+  box-shadow:
+    0 2px 12px rgba(162, 89, 247, 0.3),
+    0 1px 0 rgba(255, 255, 255, 0.1) inset;
+}
+
+@keyframes premium-border-spin {
+  to {
+    --angle: 1turn;
+  }
+}
+
+/* Legacy logout button styling - kept for compatibility */
 .navbar-btn.logout {
   background: linear-gradient(135deg, rgba(128, 90, 213, 0.15), rgba(64, 64, 255, 0.18));
   color: #e6e0ff;

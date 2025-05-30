@@ -1,10 +1,12 @@
 import { useState, useRef } from 'react';
 import { toggleBossClearStatus, clearAllBossesForCharacter, markAllBossesForCharacter } from '../../services/userWeeklyDataService.js';
 import { getCurrentMapleWeekStartDate } from '../../utils/mapleWeekUtils.js';
+import { getBossRegistryId } from '../utils/bossCodeMapping.js';
 
 /**
- * Hook for managing boss clear actions in the new schema
- * Integrates with user_boss_data table via userWeeklyDataService
+ * Hook for managing boss actions (check/uncheck, tick all)
+ * @param {Object} options - Configuration options
+ * @returns {Object} - Boss action handlers and state
  */
 export function useBossActions({
   userId,
@@ -17,26 +19,17 @@ export function useBossActions({
   onDataChange
 }) {
   const [isUpdating, setIsUpdating] = useState(false);
-  const lastUpdateRef = useRef(null);
+  const lastUpdateRef = useRef(0);
 
   /**
-   * Handle individual boss check/uncheck
+   * Handle checking/unchecking a boss
    */
-  const handleCheck = async (bossOrEvent, checkedValOrBoss, event = null) => {
+  const handleCheck = async (boss, checkedVal, e) => {
     try {
       if (isUpdating || !userId) return;
 
-      let boss, checkedVal, e;
-      
-      if (bossOrEvent && bossOrEvent.name) {
-        boss = bossOrEvent;
-        checkedVal = checkedValOrBoss;
-        e = event;
-      } else if (bossOrEvent && bossOrEvent.target) {
-        e = bossOrEvent;
-        boss = checkedValOrBoss;
-        checkedVal = e.target.checked;
-      } else {
+      // Validate parameters
+      if (!boss || checkedVal === undefined) {
         console.error('Invalid parameters to handleCheck');
         return;
       }
@@ -79,12 +72,11 @@ export function useBossActions({
       };
       setChecked(newChecked);
 
-      // Convert boss name and difficulty to boss code
-      // This assumes boss code format like "DH" for "Darknell Hard"
-      const bossCode = getBossCodeFromNameAndDifficulty(bossName, bossDifficulty);
+      // Convert boss name and difficulty to boss registry ID
+      const bossRegistryId = await getBossRegistryId(bossName, bossDifficulty);
       
-      if (!bossCode) {
-        throw new Error(`Could not determine boss code for ${bossName} ${bossDifficulty}`);
+      if (!bossRegistryId) {
+        throw new Error(`Could not find boss registry ID for ${bossName} ${bossDifficulty}`);
       }
 
       // Update database
@@ -93,7 +85,7 @@ export function useBossActions({
         userId,
         currentWeekStart,
         charIdx,
-        bossCode,
+        bossRegistryId,
         checkedVal
       );
 
@@ -215,23 +207,4 @@ export function useBossActions({
     isUpdating,
     lastUpdate: lastUpdateRef.current
   };
-}
-
-/**
- * Helper function to convert boss name and difficulty to boss code
- * Creates a consistent code from any boss name and difficulty
- */
-function getBossCodeFromNameAndDifficulty(bossName, difficulty) {
-  if (!bossName || !difficulty) return null;
-  
-  // Create a consistent boss code by combining first letters of boss name with difficulty
-  const bossInitials = bossName
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase())
-    .join('');
-  
-  const difficultyCode = difficulty.charAt(0).toUpperCase();
-  
-  // Return format: BossInitials + DifficultyCode (e.g., "DH" for Darknell Hard)
-  return `${bossInitials}${difficultyCode}`;
-}
+} 

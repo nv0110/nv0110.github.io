@@ -1,0 +1,16 @@
+badge.png
+berserked.png
+blackheart.png
+book.webp
+cfe.webp
+dreamy.png
+emblem.webp
+et.webp
+eyepatch.webp
+grindstone.webp
+helm.webp
+mark.webp
+module.webp
+sos.png
+tc.png
+whisper.png

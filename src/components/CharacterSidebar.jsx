@@ -1,19 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { formatMesoBillions } from '../utils/formatUtils';
-import PitchedItemsModal from './PitchedItemsModal';
-import { useAuth } from '../hooks/useAuth';
-import { usePitchedItems } from '../hooks/usePitchedItems';
-
-// Helper to create a stable hash for characterBossSelections
-function hashCharacterSelections(chars) {
-  return JSON.stringify(
-    (chars || []).map(c => ({
-      name: c.name,
-      idx: c.idx ?? c.index ?? 0,
-      bosses: (c.bosses || []).map(b => `${b.name}-${b.difficulty}`)
-    }))
-  );
-}
 
 const CharacterSidebar = React.memo(function CharacterSidebar({
   sidebarVisible,
@@ -28,45 +14,13 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
   setSelectedCharIdx,
   setPurgeTargetCharacter,
   setShowCharacterPurgeConfirm,
-  characterBossSelections = []
+  setShowCharacterPitchedModal,
+  onShowTreasureAnalytics
 }) {
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
-  const [showPitchedModal, setShowPitchedModal] = useState(false);
-  const [selectedCharacterPitched, setSelectedCharacterPitched] = useState(null);
   const characterListRef = useRef(null);
   const scrollTimeoutRef = useRef(null);
-
-  // Get userCode from auth
-  const { userCode } = useAuth();
-
-  // Memoize character data with bosses to prevent unnecessary re-renders
-  const charHash = useMemo(() => hashCharacterSelections(characterBossSelections), [characterBossSelections]);
-  const charLength = characterBossSelections.length;
-  const stableCharacterData = useMemo(() => {
-    return characterBossSelections.map(char => ({
-      ...char,
-      bosses: char.bosses || []
-    }));
-  }, [charHash, charLength]);
-
-  // Get all pitched items from the cloud - use stable character data
-  const { cloudPitchedItems } = usePitchedItems(
-    userCode,
-    stableCharacterData,
-    {},
-    () => {},
-    selectedWeekKey
-  );
-
-  // Filter pitched items for the selected character
-  const selectedCharacterIdx = selectedCharacterPitched?.idx;
-  const pitchedItemsForCharacter = useMemo(() => {
-    if (selectedCharacterIdx === undefined || selectedCharacterIdx === null) {
-      return [];
-    }
-    return cloudPitchedItems.filter(item => item.characterIdx === selectedCharacterIdx);
-  }, [cloudPitchedItems, selectedCharacterIdx]);
 
   // Check if scroll indicator should be shown
   useEffect(() => {
@@ -121,9 +75,12 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
 
   const handlePitchedClick = useCallback((e, character) => {
     e.stopPropagation();
-    setSelectedCharacterPitched(character);
-    setShowPitchedModal(true);
-  }, []);
+    // Switch to the character and open the modal
+    setSelectedCharIdx(character.idx);
+    if (setShowCharacterPitchedModal) {
+      setShowCharacterPitchedModal(true);
+    }
+  }, [setSelectedCharIdx, setShowCharacterPitchedModal]);
 
   return (
     <>
@@ -133,7 +90,13 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
         <div className="sidebar-content">
           {/* Sidebar Header */}
           <div className="sidebar-header">
-            <h3 className="sidebar-title">Characters</h3>
+            <h3 
+              className="sidebar-title"
+              onClick={onShowTreasureAnalytics}
+              title="View logged item analytics across all characters"
+            >
+              Characters
+            </h3>
           </div>
 
           {/* Progress Bar - only for current week */}
@@ -209,7 +172,7 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
                           <div className="pitched-btn-content">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                               <path
-                                d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+                                d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7.75735 13.2574L2 9.27L8.91 8.26L12 2Z"
                                 fill="url(#starGradient)"
                                 stroke="url(#starStrokeGradient)"
                                 strokeWidth="1.5"
@@ -265,12 +228,6 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
           </div>
         </div>
       </div>
-      <PitchedItemsModal
-        isOpen={showPitchedModal}
-        onClose={() => setShowPitchedModal(false)}
-        characterName={selectedCharacterPitched?.name}
-        pitchedItems={pitchedItemsForCharacter}
-      />
     </>
   );
 });

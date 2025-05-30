@@ -9,7 +9,10 @@
 
 /* Import modular CSS files in dependency order */
 
-/* Base styles and reset - must be first */
+/* Variables and utilities - must be first */
+@import './styles/variables.css';
+
+/* Base styles and reset */
 @import './styles/base.css';
 
 /* Core component styles */

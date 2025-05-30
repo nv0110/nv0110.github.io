@@ -19,4 +19,122 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Page Header Container */
+.page-header-container {
+  padding: 0rem 0;
+  margin-bottom: 0rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.page-title-main {
+  font-size: 2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #e6e0ff 0%, #a259f7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.5rem;
+}
+
+.page-description {
+  color: #b39ddb;
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  font-weight: 400;
+}
+
+/* Action Buttons Container */
+.action-buttons-container {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin: 0;
+  padding: 0 1rem;
+}
+
+/* Primary Action Button */
+.action-button-primary {
+  background: linear-gradient(135deg, #a259f7 0%, #805ad5 100%);
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.action-button-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(162, 89, 247, 0.2);
+}
+
+/* Secondary Action Button */
+.action-button-secondary {
+  background: rgba(162, 89, 247, 0.1);
+  border: 1px solid rgba(162, 89, 247, 0.2);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  color: #a259f7;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.action-button-secondary:hover {
+  background: rgba(162, 89, 247, 0.15);
+  border-color: rgba(162, 89, 247, 0.3);
+}
+
+/* Button Icon */
+.action-button-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* ===== DATA MANAGEMENT BUTTONS (Backup/Restore) ===== */
+.data-management-container {
+  display: flex;
+  justify-content: flex-end; /* Align to the right */
+  gap: 0.75rem;
+  padding: 1rem 0;
+  margin-top: 1.5rem;
+  border-top: 1px solid rgba(162, 89, 247, 0.15);
+}
+
+.data-management-button {
+  background: rgba(162, 89, 247, 0.1);
+  border: 1px solid rgba(162, 89, 247, 0.2);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  color: #a259f7;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.data-management-button:hover {
+  background: rgba(162, 89, 247, 0.15);
+  border-color: rgba(162, 89, 247, 0.3);
+}
+
+.data-management-button svg {
+  width: 16px;
+  height: 16px;
 } 

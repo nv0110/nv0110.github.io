@@ -5,6 +5,8 @@
  * Handles create, login, and delete account operations for user_data table.
  */
 
+import { logger } from '../src/utils/logger.js';
+
 // Helper: get supabase client dynamically for code splitting
 async function getSupabase() {
   const { supabase } = await import('../src/supabaseClient');
@@ -22,8 +24,12 @@ export async function createAccount() {
     
     const supabase = await getSupabase();
     
+    // Get current maple week start date for initial user_boss_data row
+    const { getCurrentMapleWeekStartDate } = await import('../utils/mapleWeekUtils.js');
+    const currentWeekStart = getCurrentMapleWeekStartDate();
+    
     // Insert new record into user_data with minimal data structure
-    const { error } = await supabase
+    const { error: userDataError } = await supabase
       .from('user_data')
       .insert([{
         id: userCode,
@@ -31,22 +37,43 @@ export async function createAccount() {
         pitched_items: [] // Initialize empty pitched items array
       }]);
     
-    if (error) {
-      console.error('Error creating account:', error);
-      return { 
-        success: false, 
-        error: 'Failed to create account. Please try again.' 
+    if (userDataError) {
+      logger.error('Error creating user_data:', userDataError);
+      return {
+        success: false,
+        error: 'Failed to create account. Please try again.'
       };
     }
     
-    console.log('✅ Created new account:', userCode);
+    // Create initial empty user_boss_data row for the current week
+    // This ensures the row exists immediately when user logs in
+    const { error: bossDataError } = await supabase
+      .from('user_boss_data')
+      .insert([{
+        user_id: userCode,
+        maple_week_start: currentWeekStart,
+        char_map: {},
+        boss_config: {},
+         weekly_clears: {}
+      }]);
+    
+    if (bossDataError) {
+      logger.error('Error creating initial user_boss_data:', bossDataError);
+      // This is not critical - the row will be created when first character is added
+      // So we don't fail the account creation, just log the error
+      logger.info('⚠️ Account created but initial weekly data setup failed. Will be created on first character addition.');
+    } else {
+      logger.info('✅ Created initial user_boss_data row for week:', currentWeekStart);
+    }
+    
+    logger.info('✅ Created new account:', userCode);
     return { success: true, code: userCode };
     
   } catch (error) {
-    console.error('Unexpected error during account creation:', error);
-    return { 
-      success: false, 
-      error: 'Failed to create account. Please try again.' 
+    logger.error('Unexpected error during account creation:', error);
+    return {
+      success: false,
+      error: 'Failed to create account. Please try again.'
     };
   }
 }
@@ -75,11 +102,11 @@ export async function loginUser(userId) {
       return { success: false, error: 'Invalid code.' };
     }
     
-    console.log('✅ Login successful for user:', userId);
+    logger.info('✅ Login successful for user:', userId);
     return { success: true };
     
   } catch (error) {
-    console.error('Unexpected error during login:', error);
+    logger.error('Unexpected error during login:', error);
     return { 
       success: false, 
       error: 'Failed to login. Please try again.' 
@@ -104,43 +131,59 @@ export async function deleteUserAccount(userId) {
   try {
     const supabase = await getSupabase();
     
-    // Perform cascading delete using Supabase transaction-like approach
-    // Note: Supabase doesn't have explicit transactions, but we can batch operations
+    logger.info('🗑️ Starting account deletion for user:', userId);
+    
+    // Perform cascading delete with detailed logging
     
     // 1. Delete all user_boss_data records for this user
-    const { error: bossDataDeleteError } = await supabase
+    logger.info('🗑️ Deleting user_boss_data records...');
+    const { data: deletedBossData, error: bossDataDeleteError } = await supabase
       .from('user_boss_data')
       .delete()
-      .eq('user_id', userId.trim());
+      .eq('user_id', userId.trim())
+      .select(); // Select to see what was deleted
     
     if (bossDataDeleteError) {
-      console.error('Error deleting user_boss_data:', bossDataDeleteError);
-      // Continue with user_data deletion even if user_boss_data deletion fails
-      // as the user_data deletion is more critical
+      logger.error('❌ Error deleting user_boss_data:', bossDataDeleteError);
+      // Don't stop - continue with user_data deletion
+    } else {
+      logger.info(`✅ Deleted ${deletedBossData?.length || 0} user_boss_data records`);
     }
     
     // 2. Delete the main user_data record (this also removes pitched_items)
-    const { error: userDataDeleteError } = await supabase
+    logger.info('🗑️ Deleting user_data record...');
+    const { data: deletedUserData, error: userDataDeleteError } = await supabase
       .from('user_data')
       .delete()
-      .eq('id', userId.trim());
+      .eq('id', userId.trim())
+      .select(); // Select to see what was deleted
     
     if (userDataDeleteError) {
-      console.error('Error deleting user_data:', userDataDeleteError);
-      return { 
-        success: false, 
-        error: 'Failed to delete account. Please try again.' 
+      logger.error('❌ Error deleting user_data:', userDataDeleteError);
+      return {
+        success: false,
+        error: 'Failed to delete account. Please try again.'
       };
     }
     
-    console.log('✅ Account deleted successfully for user:', userId);
+    if (!deletedUserData || deletedUserData.length === 0) {
+      logger.info('⚠️ No user_data record found for deletion. User may not exist.');
+      return {
+        success: false,
+        error: 'Account not found or already deleted.'
+      };
+    }
+    
+    logger.info('✅ Account deleted successfully for user:', userId);
+    logger.info(`✅ Deleted user_data records: ${deletedUserData.length}`);
+    
     return { success: true };
     
   } catch (error) {
-    console.error('Unexpected error during account deletion:', error);
-    return { 
-      success: false, 
-      error: 'Failed to delete account. Please try again.' 
+    logger.error('❌ Unexpected error during account deletion:', error);
+    return {
+      success: false,
+      error: 'Failed to delete account. Please try again.'
     };
   }
 }

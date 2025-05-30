@@ -1485,9 +1485,9 @@
 
 /* Weekly tracker specific wrapper */
 .boss-table-wrapper-weekly {
-  width: 100%;
-  max-width: 800px;
-  margin: -0.5rem auto 0 auto;
+  max-width: 80vh;
+  max-height: 40vh;
+  margin: -6.5rem auto 0 auto;
   display: flex;
   flex-direction: column;
   flex-grow: 1;
@@ -1515,8 +1515,7 @@
 /* Weekly tracker table styling */
 .boss-table-weekly {
   border-collapse: collapse;
-  min-width: 700px;
-  max-width: 800px;
+
   width: 100%;
   table-layout: fixed;
 }

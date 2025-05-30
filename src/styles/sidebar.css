@@ -102,22 +102,105 @@
   opacity: 0; /* Fade out */
 }
 
-/* Sidebar header section - title and crystal icons */
+/* Sidebar header section - title centered with clickable analytics */
 .sidebar-header {
   text-align: center; /* Center-align header content */
   margin-bottom: 2.5rem; /* Space below header */
   padding-bottom: 1rem; /* Internal spacing */
   border-bottom: 1px solid rgba(162, 89, 247, 0.15); /* Separator line */
   margin-top: 36px; /* Added top margin to align with toggle button with highest specificity */
+  position: relative; /* For absolute positioned elements */
 }
 
-/* Sidebar main title - "Characters" heading */
+/* Sidebar main title - "Characters" heading - now clickable with premium styling */
 .sidebar-title {
   font-size: 1.3rem; /* Large, prominent title */
   font-weight: 700; /* Bold weight for emphasis */
   margin: 0; /* Remove default margins */
   margin-bottom: 1.5rem; /* Space below title */
-  color: #e6e0ff; /* Light purple text color */
+  
+  /* Premium white-purple gradient text with smooth flow */
+  background: linear-gradient(
+    135deg, 
+    #ffffff 0%, 
+    #e6e0ff 20%, 
+    #d6b4ff 40%, 
+    #c084fc 60%, 
+    #a259f7 80%, 
+    #805ad5 100%
+  );
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  
+  /* Clickable styling */
+  cursor: pointer;
+  position: relative;
+  display: inline-block;
+  
+  /* Smooth transitions */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Subtle text shadow for depth */
+  filter: drop-shadow(0 1px 3px rgba(162, 89, 247, 0.15));
+  
+  /* Very subtle gradient flow */
+  animation: subtleGradientFlow 6s ease-in-out infinite;
+}
+
+/* Very subtle gradient animation */
+@keyframes subtleGradientFlow {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Hover effects for clickable title - enhanced gradient flow */
+.sidebar-title:hover {
+  /* Enhanced gradient animation on hover with faster flow */
+  animation: smoothGradientFlow 2s ease-in-out infinite;
+  
+  /* Enhanced but still subtle glow effect */
+  filter: drop-shadow(0 2px 8px rgba(162, 89, 247, 0.3)) drop-shadow(0 0 12px rgba(255, 255, 255, 0.2));
+  
+  /* Very slight scale up */
+  transform: scale(1.02) translateY(-1px);
+}
+
+/* Smooth gradient flow animation for hover */
+@keyframes smoothGradientFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  25% {
+    background-position: 25% 25%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  75% {
+    background-position: 75% 75%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Active/click state for title */
+.sidebar-title:active {
+  transform: scale(0.98) translateY(0);
+  filter: drop-shadow(0 1px 4px rgba(162, 89, 247, 0.4));
+}
+
+/* Focus state for accessibility */
+.sidebar-title:focus {
+  outline: 2px solid rgba(162, 89, 247, 0.5);
+  outline-offset: 4px;
+  border-radius: 4px;
 }
 
 /* Crystal icons container - decorative boss crystal images */

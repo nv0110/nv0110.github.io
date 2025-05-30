@@ -67,23 +67,6 @@
   border-color: #fc8181;
 }
 
-/* Preset button styling */
-.App.dark .boton-elegante.add-preset {
-  background-color: #356159;
-  border-color: #2B4D4C;
-  color: #F0EEFA;
-}
-
-.App.dark .boton-elegante.preset0,
-.App.dark .boton-elegante.preset1,
-.App.dark .boton-elegante.preset2,
-.App.dark .boton-elegante.preset3,
-.App.dark .boton-elegante.preset4,
-.App.dark .boton-elegante.preset5 {
-  background-color: #447a70;
-  border-color: #498381;
-  color: #F0EEFA;
-}
 
 /* ===== FORM INPUT STYLING OVERRIDES ===== */
 
@@ -149,23 +132,7 @@ body.dark th, body.dark thead th {
   color: #a259f7;
 }
 
-/* ===== LEGACY COMPONENTS ===== */
-
-/* Logo styling for branding elements */
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
+/* ===== UTILITY CLASSES ===== */
 
 /* Card styling for informational content */
 .card {

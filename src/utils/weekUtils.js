@@ -14,7 +14,6 @@ export function getCurrentWeekKey() {
   // Calculate days since Thursday (Thursday = 4, so we need to find how many days back to Thursday)
   const dayOfWeek = utcNow.getUTCDay(); // 0 = Sunday, 1 = Monday, ..., 4 = Thursday, ..., 6 = Saturday
   let daysSinceThursday;
-  
   if (dayOfWeek >= 4) {
     // If today is Thursday (4) or later in the week, days since Thursday
     daysSinceThursday = dayOfWeek - 4;
@@ -35,7 +34,6 @@ export function getCurrentWeekKey() {
   const currentWednesday = new Date(currentThursday);
   currentWednesday.setUTCDate(currentThursday.getUTCDate() + 6); // Wednesday is 6 days after Thursday
 
-  const calendarOnejan = new Date(currentWednesday.getUTCFullYear(), 0, 1);
   // Ensure calendar week calculation considers the correct year if the week spans across year-end.
   // The currentWednesday might roll over to the next year if the MapleStory week does.
   const calendarWeek = Math.ceil((((currentWednesday - new Date(currentWednesday.getUTCFullYear(), 0, 1)) / 86400000) + new Date(currentWednesday.getUTCFullYear(), 0, 1).getUTCDay() + 1) / 7);
@@ -96,7 +94,6 @@ export function getWeekKeyOffset(offset = 0, baseKey = null) {
   const targetWednesday = new Date(targetThursday);
   targetWednesday.setUTCDate(targetThursday.getUTCDate() + 6);
   
-  const calendarOnejan = new Date(targetWednesday.getUTCFullYear(), 0, 1);
   const calendarWeek = Math.ceil((((targetWednesday - new Date(targetWednesday.getUTCFullYear(), 0, 1)) / 86400000) + new Date(targetWednesday.getUTCFullYear(), 0, 1).getUTCDay() + 1) / 7);
   
   return `${targetThursday.getUTCFullYear()}-${mapleWeek}-${calendarWeek}`;
@@ -282,8 +279,56 @@ export function getCurrentMonthKey() {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
+// Convert a date string to week key format
+export function convertDateToWeekKey(dateString) {
+  if (!dateString) return null;
+  
+  try {
+    // Parse the date string (expected format: YYYY-MM-DD)
+    const date = new Date(dateString + 'T00:00:00.000Z'); // Ensure UTC
+    
+    if (isNaN(date.getTime())) {
+      console.warn(`convertDateToWeekKey: Invalid date string '${dateString}'`);
+      return null;
+    }
+    
+    // Find the Thursday that starts this MapleStory week
+    const dayOfWeek = date.getUTCDay(); // 0 = Sunday, 4 = Thursday
+    let daysSinceThursday;
+    
+    if (dayOfWeek >= 4) {
+      // If date is Thursday (4) or later in the week
+      daysSinceThursday = dayOfWeek - 4;
+    } else {
+      // If date is Sunday (0), Monday (1), Tuesday (2), or Wednesday (3)
+      // Go back to previous Thursday
+      daysSinceThursday = dayOfWeek + 3;
+    }
+    
+    const thursdayStart = new Date(date);
+    thursdayStart.setUTCDate(date.getUTCDate() - daysSinceThursday);
+    thursdayStart.setUTCHours(0, 0, 0, 0);
+    
+    // Calculate MapleStory week number
+    const onejan = new Date(thursdayStart.getUTCFullYear(), 0, 1);
+    const mapleWeek = Math.ceil((((thursdayStart - onejan) / 86400000) + onejan.getUTCDay() + 1) / 7);
+    
+    // Calculate calendar week number (based on the Wednesday of this MapleStory week)
+    const wednesdayEnd = new Date(thursdayStart);
+    wednesdayEnd.setUTCDate(thursdayStart.getUTCDate() + 6);
+    
+    const calendarWeek = Math.ceil((((wednesdayEnd - new Date(wednesdayEnd.getUTCFullYear(), 0, 1)) / 86400000) + new Date(wednesdayEnd.getUTCFullYear(), 0, 1).getUTCDay() + 1) / 7);
+    
+    return `${thursdayStart.getUTCFullYear()}-${mapleWeek}-${calendarWeek}`;
+    
+  } catch (error) {
+    console.error(`convertDateToWeekKey: Error processing date '${dateString}':`, error);
+    return null;
+  }
+}
+
 // Get current year key
 export function getCurrentYearKey() {
   const now = new Date();
   return `${now.getUTCFullYear()}`;
-} 
+}

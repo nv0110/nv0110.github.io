@@ -5,6 +5,7 @@
   "type": "module",
   "homepage": "https://nv0110.github.io/",
   "scripts": {
+    "start": "vite",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",

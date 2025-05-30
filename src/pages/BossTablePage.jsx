@@ -1,19 +1,47 @@
-import { useState } from 'react';
-import { useAuth } from '../hooks/useAuth';
+import { useState, useEffect } from 'react';
+import { useAuthentication } from '../../hooks/useAuthentication';
 import { useViewTransition } from '../hooks/useViewTransition';
-import { bossData } from '../data/bossData';
 import Navbar from '../components/Navbar';
 import ViewTransitionWrapper from '../components/ViewTransitionWrapper';
+import { HelpModal, DeleteAccountModal, BossTableHelpContent } from '../features/common/PageModals';
 
 function BossTablePage() {
   const { navigate } = useViewTransition();
-  const { isLoggedIn, handleDeleteAccount } = useAuth();
+  const { isLoggedIn, handleDeleteAccount } = useAuthentication();
 
   // Modal states
   const [showHelp, setShowHelp] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [showDeleteLoading, setShowDeleteLoading] = useState(false);
+  
+  // Boss data from database
+  const [bossData, setBossData] = useState([]);
+  const [isLoadingBossData, setIsLoadingBossData] = useState(true);
+
+  // Load boss data from database
+  useEffect(() => {
+    const loadBossData = async () => {
+      try {
+        const { getBossDataForFrontend } = await import('../../services/bossRegistryService.js');
+        const result = await getBossDataForFrontend();
+        
+        if (result.success) {
+          setBossData(result.data);
+        } else {
+          console.error('Failed to load boss data:', result.error);
+          setBossData([]);
+        }
+      } catch (error) {
+        console.error('Error loading boss data:', error);
+        setBossData([]);
+      } finally {
+        setIsLoadingBossData(false);
+      }
+    };
+    
+    loadBossData();
+  }, []);
 
   // Redirect if not logged in
   if (!isLoggedIn) {
@@ -80,7 +108,13 @@ function BossTablePage() {
             <div className="boss-table-body-container-price">
               <table className="boss-price-table boss-table-body">
                 <tbody>
-                  {(() => {
+                  {isLoadingBossData ? (
+                    <tr>
+                      <td colSpan="3" style={{ textAlign: 'center', padding: '2rem' }}>
+                        Loading boss data...
+                      </td>
+                    </tr>
+                  ) : (() => {
                     // Flatten all boss-difficulty pairs
                     const allBossDiffs = bossData.flatMap(boss =>
                       boss.difficulties.map(diff => ({
@@ -128,98 +162,21 @@ function BossTablePage() {
         </div>
       </ViewTransitionWrapper>
 
-      {/* Help Modal */}
-      {showHelp && (
-        <div
-          className="modal-backdrop"
-          onClick={() => setShowHelp(false)}
-        >
-          <div
-            className="modal-fade modal-content"
-            onClick={e => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setShowHelp(false)}
-              className="modal-close-btn"
-              title="Close"
-            >
-              ×
-            </button>
-            <h2 className="modal-title">Help & FAQ</h2>
-            
-            <div className="modal-section-content" style={{ marginBottom: 24 }}>
-              <h3 className="modal-section-title">Boss Crystal Values</h3>
-              <p>All bosses and difficulties sorted by crystal value (highest to lowest)</p>
-              <p>Use this reference to plan your weekly boss priorities</p>
-              <p>Values shown are for solo runs - adjust for your party size</p>
-            </div>
-
-            <div className="modal-section-content" style={{ marginBottom: 24 }}>
-              <h3 className="modal-section-title">Planning Your Week</h3>
-              <p>• <strong>Prioritize high-value bosses:</strong> Focus on the top of the list for maximum mesos</p>
-              <p>• <strong>Consider time investment:</strong> Some bosses take longer but give more mesos</p>
-              <p>• <strong>Difficulty scaling:</strong> Higher difficulties = more mesos + pitched items</p>
-            </div>
-
-            <div className="modal-section-content">
-              <h3 className="modal-section-title">Quick Tips</h3>
-              <p>• Use this table when setting up characters in the Calculator</p>
-              <p>• Remember that party size divides the mesos shown</p>
-              <p>• Higher difficulties also unlock pitched item tracking</p>
-              <p>• Weekly reset happens every Thursday at 00:00 UTC</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Account Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="modal-backdrop modal-backdrop-critical"
-        onClick={() => setShowDeleteConfirm(false)}
-        >
-          <div className="modal-fade modal-content-critical"
-          onClick={e => e.stopPropagation()}
-          >
-            <div className="critical-modal-icon">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <h2 className="critical-modal-title">Delete Account</h2>
-            <div className="critical-modal-warning">
-              <p>
-                <strong>This will permanently delete your account and all associated data.</strong>
-                <br />
-                This action cannot be undone.
-              </p>
-            </div>
-            <div className="modal-button-container">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={showDeleteLoading}
-                className="modal-btn-cancel"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteAccountWrapper}
-                disabled={showDeleteLoading}
-                className="modal-btn-critical"
-              >
-                {showDeleteLoading && (
-                  <div className="loading-spinner" />
-                )}
-                {showDeleteLoading ? 'Deleting...' : 'Delete Forever'}
-              </button>
-            </div>
-            {deleteError && (
-              <div className="modal-error-message">
-                {deleteError}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Consolidated page modals for better organization */}
+      <HelpModal
+        showHelp={showHelp}
+        onClose={() => setShowHelp(false)}
+      >
+        <BossTableHelpContent />
+      </HelpModal>
+      
+      <DeleteAccountModal
+        showDeleteConfirm={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDeleteAccountWrapper}
+        showDeleteLoading={showDeleteLoading}
+        deleteError={deleteError}
+      />
     </div>
   );
 }

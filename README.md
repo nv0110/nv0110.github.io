@@ -84,3 +84,25 @@ The app uses a centralized state management approach with the `useAppData` hook,
 ## Authentication
 
 Users can create accounts and log in to save their data to the cloud. All routes except `/login` are protected and require authentication.
+
+## 🔧 Development & Debugging
+
+### Debug Mode
+The application uses intelligent logging that's silent in production but can be enabled for debugging:
+
+```javascript
+// Enable debug logging (shows all logs)
+localStorage.setItem('debug', 'true');
+window.location.reload();
+
+// Disable debug logging  
+localStorage.removeItem('debug');
+window.location.reload();
+```
+
+### Log Levels
+- **Production**: Silent (no console logs)
+- **Development**: Important info and errors only
+- **Debug Mode**: All logs including user actions and debug info
+
+## 🎮 MapleStory Boss Crystal Calculator

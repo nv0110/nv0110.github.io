@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getCurrentWeekKey as getRealCurrentWeekKey } from '../utils/weekUtils';
-import { getHistoricalWeekAnalysis } from '../pitched-data-service';
+import { getHistoricalWeekAnalysis } from '../../services/utilityService.js';
 
 export function useWeekNavigation(userCode, appWeekKeyFromProps) {
   const [selectedWeekKey, setSelectedWeekKey] = useState(appWeekKeyFromProps || getRealCurrentWeekKey());
@@ -51,7 +51,7 @@ export function useWeekNavigation(userCode, appWeekKeyFromProps) {
     } catch (error) {
       console.error('Error refreshing historical analysis:', error);
     }
-  }, [userCode, appWeekKeyFromProps, setHistoricalAnalysis]);
+  }, [userCode, appWeekKeyFromProps]);
 
   const handleWeekChange = useCallback((newWeekKey) => {
     if (newWeekKey !== selectedWeekKey) {

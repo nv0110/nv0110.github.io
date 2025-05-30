@@ -1,19 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
-import { 
-  getPitchedItems, 
-  getCurrentWeekPitchedItems, 
-  addPitchedItem, 
-  removePitchedItem, 
+import {
+  getPitchedItems,
+  addPitchedItem,
+  removePitchedItem,
   removeManyPitchedItems,
   clearPitchedItemsForWeek,
   getYearlyPitchedStats,
   purgeAllPitchedItems
 } from '../../services/pitchedItemsService.js';
-import { getCurrentMapleWeekStartDate } from '../../utils/mapleWeekUtils.js';
+import { convertDateToWeekKey } from '../utils/weekUtils.js';
 
 /**
- * Hook for managing pitched items in the new schema
- * Integrates with user_data.pitched_items via pitchedItemsService
+ * Hook for managing pitched items in the new simplified schema
+ * Format: [{ "charId": "CharacterName", "item": "ItemName", "date": "2025-05-23" }]
  */
 export function usePitchedItems(userId) {
   const [pitchedChecked, setPitchedChecked] = useState({});
@@ -25,28 +24,24 @@ export function usePitchedItems(userId) {
   /**
    * Load pitched items from the database
    */
-  const refreshPitchedItems = async (weekKey = null) => {
+  const refreshPitchedItems = async () => {
     try {
       if (!userId) return;
 
       setIsRefreshingPitchedItems(true);
 
-      let result;
-      if (weekKey) {
-        result = await getPitchedItems(userId, weekKey);
-      } else {
-        result = await getCurrentWeekPitchedItems(userId);
-      }
+      // Always load ALL pitched items to maintain proper state
+      const result = await getPitchedItems(userId, {});
 
       if (result.success) {
         setCloudPitchedItems(result.items);
         
-        // Update pitched checked state based on items
+        // Update pitched checked state based on ALL items
         const newPitchedChecked = {};
         result.items.forEach(item => {
-          // Create key format: "CharacterName-idx__BossName__ItemName__WeekKey"
-          // Note: We don't have character index in pitched items, so we'll use 0 as default
-          const key = `${item.character}-0__${item.boss}__${item.item}__${item.weekKey}`;
+          // Create key format: "CharacterName-0__BossName__ItemName__WeekKey"
+          const itemWeekKey = convertDateToWeekKey(item.date);
+          const key = `${item.charId}-0__${item.bossName}__${item.item}__${itemWeekKey}`;
           newPitchedChecked[key] = true;
         });
         setPitchedChecked(newPitchedChecked);
@@ -63,19 +58,28 @@ export function usePitchedItems(userId) {
   /**
    * Add a new pitched item
    */
-  const addNewPitchedItem = async (character, boss, item, date = null) => {
+  const addNewPitchedItem = async (charId, bossName, item, date = null) => {
     try {
       if (!userId) {
-        throw new Error('No user ID provided');
+        console.warn('addNewPitchedItem: No user ID available, user may not be authenticated yet');
+        return { success: false, error: 'User not authenticated' };
       }
 
-      const currentWeekStart = getCurrentMapleWeekStartDate();
+      const itemDate = date || new Date().toISOString().split('T')[0];
+      const itemWeekKey = convertDateToWeekKey(itemDate);
+      const key = `${charId}-0__${bossName}__${item}__${itemWeekKey}`;
+
+      // Check if item already exists to prevent duplicates
+      if (pitchedChecked[key]) {
+        console.log('Item already exists, skipping add');
+        return { success: true, message: 'Item already exists' };
+      }
+
       const pitchedItemData = {
-        character,
-        boss,
+        charId,
+        bossName,
         item,
-        date: date || new Date().toISOString(),
-        weekKey: currentWeekStart
+        date: itemDate
       };
 
       const result = await addPitchedItem(userId, pitchedItemData);
@@ -86,7 +90,6 @@ export function usePitchedItems(userId) {
         setCloudPitchedItems(prev => [...prev, newItem]);
         
         // Update checked state
-        const key = `${character}-0__${boss}__${item}__${currentWeekStart}`;
         setPitchedChecked(prev => ({
           ...prev,
           [key]: true
@@ -105,32 +108,44 @@ export function usePitchedItems(userId) {
   /**
    * Remove a pitched item
    */
-  const removePitchedItemById = async (pitchedItemId) => {
+  const removePitchedItemByDetails = async (charId, bossName, item, date = null) => {
     try {
       if (!userId) {
-        throw new Error('No user ID provided');
+        console.warn('removePitchedItemByDetails: No user ID available, user may not be authenticated yet');
+        return { success: false, error: 'User not authenticated' };
       }
 
-      const result = await removePitchedItem(userId, pitchedItemId);
+      // If no date provided, find the most recent item for this character, boss, and item
+      let targetDate = date;
+      if (!targetDate) {
+        const matchingItems = cloudPitchedItems.filter(
+          pitchedItem => pitchedItem.charId === charId && pitchedItem.bossName === bossName && pitchedItem.item === item
+        );
+        
+        if (matchingItems.length > 0) {
+          // Sort by date descending and get the most recent
+          matchingItems.sort((a, b) => new Date(b.date) - new Date(a.date));
+          targetDate = matchingItems[0].date;
+        } else {
+          console.log('No matching items found to remove');
+          return { success: true, message: 'No items to remove' };
+        }
+      }
+
+      const result = await removePitchedItem(userId, charId, bossName, item, targetDate);
       
       if (result.success) {
         // Update local state
-        setCloudPitchedItems(prev => prev.filter(item => item.id !== pitchedItemId));
+        setCloudPitchedItems(prev => prev.filter(pitchedItem =>
+          !(pitchedItem.charId === charId && pitchedItem.bossName === bossName && pitchedItem.item === item && pitchedItem.date === targetDate)
+        ));
         
-        // Update checked state (remove all matching keys)
+        // Update checked state
+        const itemWeekKey = convertDateToWeekKey(targetDate);
+        const key = `${charId}-0__${bossName}__${item}__${itemWeekKey}`;
         setPitchedChecked(prev => {
           const updated = { ...prev };
-          Object.keys(updated).forEach(key => {
-            // If the key corresponds to the removed item, remove it
-            // This is a simplified approach - you might need more sophisticated matching
-            const item = cloudPitchedItems.find(item => item.id === pitchedItemId);
-            if (item) {
-              const expectedKey = `${item.character}-0__${item.boss}__${item.item}__${item.weekKey}`;
-              if (key === expectedKey) {
-                delete updated[key];
-              }
-            }
-          });
+          delete updated[key];
           return updated;
         });
         
@@ -147,26 +162,50 @@ export function usePitchedItems(userId) {
   /**
    * Remove multiple pitched items
    */
-  const removeManyPitchedItemsById = async (pitchedItemIds) => {
+  const removeManyPitchedItemsByDetails = async (itemsToRemove) => {
     try {
       if (!userId) {
         throw new Error('No user ID provided');
       }
 
-      const result = await removeManyPitchedItems(userId, pitchedItemIds);
+      const result = await removeManyPitchedItems(userId, itemsToRemove);
       
       if (result.success) {
         // Update local state
-        const removedIds = new Set(pitchedItemIds);
-        setCloudPitchedItems(prev => prev.filter(item => !removedIds.has(item.id)));
+        setCloudPitchedItems(prev => {
+          let updated = [...prev];
+          itemsToRemove.forEach(({ charId, item, date }) => {
+            if (date) {
+              updated = updated.filter(
+                pitchedItem => !(pitchedItem.charId === charId && pitchedItem.item === item && pitchedItem.date === date)
+              );
+            } else {
+              const targetIndex = updated.findLastIndex(
+                pitchedItem => pitchedItem.charId === charId && pitchedItem.item === item
+              );
+              if (targetIndex !== -1) {
+                updated.splice(targetIndex, 1);
+              }
+            }
+          });
+          return updated;
+        });
         
         // Update checked state
         setPitchedChecked(prev => {
           const updated = { ...prev };
-          cloudPitchedItems.forEach(item => {
-            if (removedIds.has(item.id)) {
-              const expectedKey = `${item.character}-0__${item.boss}__${item.item}__${item.weekKey}`;
-              delete updated[expectedKey];
+          itemsToRemove.forEach(({ charId, item, date }) => {
+            if (date) {
+              const itemWeekKey = convertDateToWeekKey(date);
+              const key = `${charId}-0__${item}__${itemWeekKey}`;
+              delete updated[key];
+            } else {
+              // Remove all matching keys for this character and item
+              Object.keys(updated).forEach(key => {
+                if (key.startsWith(`${charId}-0__${item}__`)) {
+                  delete updated[key];
+                }
+              });
             }
           });
           return updated;
@@ -195,7 +234,10 @@ export function usePitchedItems(userId) {
       
       if (result.success) {
         // Update local state
-        setCloudPitchedItems(prev => prev.filter(item => item.weekKey !== weekKey));
+        setCloudPitchedItems(prev => prev.filter(item => {
+          const itemWeekKey = convertDateToWeekKey(item.date);
+          return itemWeekKey !== weekKey;
+        }));
         
         // Update checked state
         setPitchedChecked(prev => {
@@ -286,8 +328,8 @@ export function usePitchedItems(userId) {
     
     // New methods
     addNewPitchedItem,
-    removePitchedItemById,
-    removeManyPitchedItemsById,
+    removePitchedItemByDetails,
+    removeManyPitchedItemsByDetails,
     clearWeekPitchedItems,
     getYearlyStats,
     purgeAllItems

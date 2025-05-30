@@ -1,0 +1,156 @@
+.settings-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: settingsBackdropFadeIn 0.2s ease;
+}
+
+.settings-modal-content {
+  background: #201c32;
+  border: 1px solid rgba(162, 89, 247, 0.2);
+  border-radius: 16px;
+  width: 90%;
+  max-width: 480px;
+  padding: 1.5rem;
+  position: relative;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  animation: settingsModalSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.settings-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(162, 89, 247, 0.15);
+}
+
+.settings-modal-header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #e6e0ff 0%, #a259f7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0;
+}
+
+.settings-modal-close {
+  background: transparent;
+  border: none;
+  color: #b39ddb;
+  padding: 0.5rem;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.settings-modal-close:hover {
+  color: #e6e0ff;
+  background: rgba(162, 89, 247, 0.1);
+}
+
+.settings-modal-section {
+  margin-bottom: 2rem;
+}
+
+.settings-modal-section h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e6e0ff;
+  margin-bottom: 1rem;
+}
+
+.settings-button-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.settings-button {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(162, 89, 247, 0.2);
+  background: rgba(162, 89, 247, 0.05);
+  color: #e6e0ff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.settings-button:hover {
+  background: rgba(162, 89, 247, 0.1);
+  border-color: rgba(162, 89, 247, 0.3);
+  transform: translateY(-1px);
+}
+
+.settings-button-icon {
+  width: 24px;
+  height: 24px;
+  color: #a259f7;
+  flex-shrink: 0;
+}
+
+.settings-button-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.settings-button-text .primary {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.settings-button-text .secondary {
+  font-size: 0.8rem;
+  color: #b39ddb;
+}
+
+/* Danger zone styling */
+.settings-modal-section.danger .settings-button {
+  background: rgba(245, 101, 101, 0.05);
+  border-color: rgba(245, 101, 101, 0.2);
+}
+
+.settings-modal-section.danger .settings-button:hover {
+  background: rgba(245, 101, 101, 0.1);
+  border-color: rgba(245, 101, 101, 0.3);
+}
+
+.settings-modal-section.danger .settings-button-icon {
+  color: #f56565;
+}
+
+/* Animations */
+@keyframes settingsBackdropFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes settingsModalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+} 

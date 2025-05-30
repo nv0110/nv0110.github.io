@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthentication } from '../../hooks/useAuthentication';
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -14,7 +14,7 @@ function LoginPage() {
     setShowPassword,
     handleCreateAccount,
     handleLogin,
-  } = useAuth();
+  } = useAuthentication();
 
   const [loginInputFocused, setLoginInputFocused] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -25,7 +25,7 @@ function LoginPage() {
   const performLoginAndNavigate = async () => {
     if (newUserCode && loginInput !== newUserCode) {
       // setLoginInput(newUserCode); // handleCreateAccountWrapper already does this.
-                                 // handleLogin in useAuth should use its internal loginInput state,
+                                 // handleLogin in useAuthentication should use its internal loginInput state,
                                  // which is updated by setLoginInput.
     }
     const loginResult = await handleLogin();
@@ -71,14 +71,14 @@ function LoginPage() {
     const result = await handleCreateAccount();
     if (result.success && result.code) {
       setNewUserCode(result.code);
-      setLoginInput(result.code); // PRE-FILL LOGIN INPUT for useAuth's handleLogin
+      setLoginInput(result.code); // PRE-FILL LOGIN INPUT for useAuthentication's handleLogin
       setShowSuccessModal(true);
       setCountdown(8); 
     }
   };
 
   const handleLoginWrapper = async () => {
-    const result = await handleLogin(); // Uses loginInput from useAuth state
+    const result = await handleLogin(); // Uses loginInput from useAuthentication state
     if (result.success) {
       navigate('/', { replace: true });
     }
@@ -286,7 +286,7 @@ function LoginPage() {
         >
           Login
         </button>
-        {/* loginError from useAuth will be displayed here if present */}
+        {/* loginError from useAuthentication will be displayed here if present */}
       </div>
 
       {/* Success Modal */}
