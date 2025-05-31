@@ -25,7 +25,6 @@
   font-family: var(--font-family);
   color: var(--text-primary);
   border-radius: 16px;
-  overflow: hidden;
   border: 1px solid rgba(58, 51, 90, 0.6);
   background: #201c32;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(162, 89, 247, 0.1);
@@ -44,7 +43,6 @@
   border-bottom: 1px solid rgba(162, 89, 247, 0.2);
   padding: 1.5rem;
   position: relative;
-  overflow: hidden;
 }
 
 .character-controls-header::before {

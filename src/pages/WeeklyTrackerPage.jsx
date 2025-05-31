@@ -6,7 +6,6 @@ import { useAppData } from '../hooks/AppDataContext.jsx';
 import Navbar from '../components/Navbar';
 import ViewTransitionWrapper from '../components/ViewTransitionWrapper';
 import { HelpModal, DeleteAccountModal, WeeklyTrackerHelpContent } from '../features/common/PageModals';
-import { getBossDataForFrontend } from '../../services/bossRegistryService';
 
 function WeeklyTrackerPage() {
   const { navigate } = useViewTransition();
@@ -17,41 +16,17 @@ function WeeklyTrackerPage() {
     setChecked,
     fullUserData,
     weekKey,
-    preservingCheckedStateRef
+    preservingCheckedStateRef,
+    sortedBossData: bossData,
+    isLoading: appDataLoading,
+    hasDataLoaded
   } = useAppData();
-
-  // Boss data state
-  const [bossData, setBossData] = useState([]);
-  const [bossDataLoading, setBossDataLoading] = useState(true);
 
   // Modal states
   const [showHelp, setShowHelp] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [showDeleteLoading, setShowDeleteLoading] = useState(false);
-
-  // Load boss data from registry service
-  useEffect(() => {
-    const loadBossData = async () => {
-      try {
-        setBossDataLoading(true);
-        const result = await getBossDataForFrontend();
-        if (result.success) {
-          setBossData(result.data);
-        } else {
-          console.error('Failed to load boss data:', result.error);
-          setBossData([]);
-        }
-      } catch (error) {
-        console.error('Error loading boss data:', error);
-        setBossData([]);
-      } finally {
-        setBossDataLoading(false);
-      }
-    };
-
-    loadBossData();
-  }, []);
 
   // Redirect if not logged in
   if (!isLoggedIn) {
@@ -79,8 +54,8 @@ function WeeklyTrackerPage() {
     }
   };
 
-  // Show loading while boss data is being fetched
-  if (bossDataLoading) {
+  // Show loading while app data is being fetched (includes boss data)
+  if (appDataLoading || !hasDataLoaded) {
     return (
       <div className="page-container">
         <Navbar
@@ -96,7 +71,7 @@ function WeeklyTrackerPage() {
           color: '#e6e0ff',
           fontSize: '1.2rem'
         }}>
-          Loading boss data...
+          Loading data...
         </div>
       </div>
     );

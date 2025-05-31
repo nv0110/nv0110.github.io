@@ -63,7 +63,7 @@ export function usePitchedItemsManager(userId) {
     const newChecked = {};
     items.forEach(item => {
       const weekKey = convertDateToWeekKey(item.date);
-      const key = `${item.charId}-0__${item.item}__${weekKey}`;
+      const key = `${item.charId}__${item.bossName}__${item.item}__${weekKey}`;
       newChecked[key] = true;
     });
     setPitchedChecked(newChecked);
@@ -72,13 +72,14 @@ export function usePitchedItemsManager(userId) {
   /**
    * Add a new pitched item
    */
-  const addPitchedItem = async (charId, item, date = null) => {
+  const addPitchedItem = async (charId, bossName, item, date = null) => {
     try {
       setError(null);
       userInteractionRef.current = true;
 
       const pitchedItemData = {
         charId,
+        bossName,
         item,
         date: date || new Date().toISOString().split('T')[0]
       };
@@ -89,9 +90,9 @@ export function usePitchedItemsManager(userId) {
         // Update local state
         setPitchedItems(prev => [...prev, result.pitchedItem]);
         
-        // Update checked state
+        // Update checked state with correct key format
         const weekKey = convertDateToWeekKey(result.pitchedItem.date);
-        const key = `${charId}-0__${item}__${weekKey}`;
+        const key = `${charId}__${bossName}__${item}__${weekKey}`;
         setPitchedChecked(prev => ({ ...prev, [key]: true }));
         
         return { success: true };
@@ -108,24 +109,24 @@ export function usePitchedItemsManager(userId) {
   /**
    * Remove a pitched item
    */
-  const removePitchedItem = async (charId, item, date = null) => {
+  const removePitchedItem = async (charId, bossName, item, date = null) => {
     try {
       setError(null);
       userInteractionRef.current = true;
 
-      const result = await removePitchedItemService(userId, charId, item, date);
+      const result = await removePitchedItemService(userId, charId, bossName, item, date);
       
       if (result.success) {
         // Update local state
         setPitchedItems(prev => {
           if (date) {
             return prev.filter(pitchedItem => 
-              !(pitchedItem.charId === charId && pitchedItem.item === item && pitchedItem.date === date)
+              !(pitchedItem.charId === charId && pitchedItem.bossName === bossName && pitchedItem.item === item && pitchedItem.date === date)
             );
           } else {
             const reversedItems = [...prev].reverse();
             const targetIndex = reversedItems.findIndex(
-              pitchedItem => pitchedItem.charId === charId && pitchedItem.item === item
+              pitchedItem => pitchedItem.charId === charId && pitchedItem.bossName === bossName && pitchedItem.item === item
             );
             if (targetIndex !== -1) {
               const actualIndex = prev.length - 1 - targetIndex;
@@ -135,21 +136,21 @@ export function usePitchedItemsManager(userId) {
           }
         });
         
-        // Update checked state
+        // Update checked state with correct key format
         if (date) {
           const weekKey = convertDateToWeekKey(date);
-          const key = `${charId}-0__${item}__${weekKey}`;
+          const key = `${charId}__${bossName}__${item}__${weekKey}`;
           setPitchedChecked(prev => {
             const updated = { ...prev };
             delete updated[key];
             return updated;
           });
         } else {
-          // Remove all matching keys for this character and item
+          // Remove all matching keys for this character, boss, and item
           setPitchedChecked(prev => {
             const updated = { ...prev };
             Object.keys(updated).forEach(key => {
-              if (key.startsWith(`${charId}-0__${item}__`)) {
+              if (key.startsWith(`${charId}__${bossName}__${item}__`)) {
                 delete updated[key];
               }
             });
@@ -190,8 +191,8 @@ export function usePitchedItemsManager(userId) {
   /**
    * Check if an item is obtained for a character in a specific week
    */
-  const isItemObtained = (charId, item, weekKey) => {
-    const key = `${charId}-0__${item}__${weekKey}`;
+  const isItemObtained = (charId, bossName, item, weekKey) => {
+    const key = `${charId}__${bossName}__${item}__${weekKey}`;
     return !!pitchedChecked[key];
   };
 

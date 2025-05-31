@@ -150,35 +150,30 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  flex: 1;
+  margin-left: 0.75rem;
 }
 
 .historical-boss-name {
-  margin: 0;
   background: linear-gradient(135deg, #f1edff 0%, #e6e0ff 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   color: #f1edff; /* Fallback */
   font-size: 0.95rem;
-  font-weight: 700;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  line-height: 1.2;
-}
-
-.historical-boss-difficulty {
-  color: #c084fc;
-  font-size: 0.75rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  margin: 0;
+  line-height: 1.3;
 }
 
-.historical-boss-party {
-  color: #a259f7;
-  font-size: 0.68rem;
+.historical-boss-difficulties {
+  background: linear-gradient(135deg, #a259f7 0%, #9333ea 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: #a259f7; /* Fallback */
+  font-size: 0.7rem;
   font-weight: 500;
+  margin: 0;
   opacity: 0.9;
 }
 
@@ -232,16 +227,20 @@
 /* Premium Pitched Item Styles */
 .historical-pitched-item {
   position: relative;
-  background: linear-gradient(135deg, 
-    rgba(255, 255, 255, 0.08) 0%, 
-    rgba(162, 89, 247, 0.05) 100%);
-  border: 1.5px solid rgba(162, 89, 247, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0.75rem 0.5rem;
+  min-height: 110px;
   border-radius: 12px;
-  padding: 0.75rem;
-  cursor: pointer;
+  border: 1.5px solid rgba(162, 89, 247, 0.2);
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.05) 0%, 
+    rgba(162, 89, 247, 0.03) 100%);
+  backdrop-filter: blur(8px);
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  text-align: center;
-  backdrop-filter: blur(6px);
+  cursor: pointer;
   overflow: hidden;
 }
 
@@ -309,20 +308,29 @@
   transition: all 0.4s ease;
   background: rgba(255, 255, 255, 0.08);
   display: block;
-  margin-left: auto;
-  margin-right: auto;
   border: 1px solid rgba(162, 89, 247, 0.1);
   position: relative;
   z-index: 2;
 }
 
 .historical-pitched-item.checked .historical-pitched-image {
-  filter: brightness(1.3) saturate(1.3);
+  /* Natural appearance - no filters */
+  filter: none;
   box-shadow: 0 0 12px rgba(162, 89, 247, 0.4);
 }
 
 .historical-pitched-item.unchecked .historical-pitched-image {
-  filter: grayscale(0.5) brightness(0.7);
+  /* Natural appearance - no filters */
+  filter: none;
+}
+
+.historical-pitched-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  text-align: center;
+  width: 100%;
 }
 
 .historical-pitched-name {
@@ -338,9 +346,24 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-top: 0.4rem;
+  width: 100%;
   position: relative;
   z-index: 2;
+}
+
+.historical-pitched-difficulties {
+  background: linear-gradient(135deg, #a259f7 0%, #9333ea 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: #a259f7; /* Fallback */
+  font-size: 0.6rem;
+  font-weight: 400;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
 }
 
 .historical-pitched-checkmark {
@@ -369,11 +392,6 @@
   box-shadow: 
     0 6px 16px rgba(0, 0, 0, 0.5),
     0 3px 8px rgba(56, 161, 105, 0.4);
-}
-
-.historical-pitched-checkmark svg {
-  width: 10px;
-  height: 10px;
 }
 
 /* Empty State */

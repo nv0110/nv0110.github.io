@@ -128,6 +128,144 @@ export async function getHistoricalWeekAnalysis(userCode) {
 }
 
 /**
+ * Get historical week analysis for navigation - CHARACTER SPECIFIC
+ */
+export async function getCharacterHistoricalWeekAnalysis(userCode, characterName) {
+  try {
+    if (!userCode || !characterName) {
+      console.log('No user code or character name provided for character-specific getHistoricalWeekAnalysis');
+      return { success: false, error: 'No user code or character name provided' };
+    }
+
+    const { getCurrentWeekKey } = await import('../src/utils/weekUtils.js');
+    const currentWeek = getCurrentWeekKey();
+    const historicalWeeks = new Set();
+
+    // Query user_boss_data table for historical weeks - FILTER BY CHARACTER
+    const { data: userBossData, error: bossDataError } = await supabase
+      .from('user_boss_data')
+      .select('maple_week_start, weekly_clears')
+      .eq('user_id', userCode);
+
+    if (bossDataError && bossDataError.code !== 'PGRST116') {
+      console.error('Error fetching user_boss_data for character historical analysis:', bossDataError);
+      return { success: false, error: bossDataError.message };
+    }
+
+    // Query user_data for pitched items historical weeks - FILTER BY CHARACTER
+    const { data: userData, error: userDataError } = await supabase
+      .from('user_data')
+      .select('pitched_items')
+      .eq('id', userCode)
+      .single();
+
+    if (userDataError && userDataError.code !== 'PGRST116') {
+      console.error('Error fetching user_data for character historical analysis:', userDataError);
+    }
+
+    // Check pitched items for historical weeks - CHARACTER SPECIFIC
+    if (userData?.pitched_items && Array.isArray(userData.pitched_items)) {
+      userData.pitched_items
+        .filter(item => item.charId === characterName) // Filter by character
+        .forEach((item) => {
+          if (item.date) {
+            const weekKey = convertDateToWeekKey(item.date);
+            if (weekKey && weekKey !== currentWeek) {
+              historicalWeeks.add(weekKey);
+            }
+          }
+        });
+    }
+
+    // Check user_boss_data for historical weeks - CHARACTER SPECIFIC
+    if (userBossData && Array.isArray(userBossData)) {
+      userBossData.forEach((weekData) => {
+        if (weekData.maple_week_start && weekData.weekly_clears && Object.keys(weekData.weekly_clears).length > 0) {
+          // Check if this character has any data in this week
+          const hasCharacterData = Object.keys(weekData.weekly_clears).some(key => 
+            key.includes(characterName)
+          );
+          
+          if (hasCharacterData) {
+            const weekKey = convertDateToWeekKey(weekData.maple_week_start);
+            if (weekKey && weekKey !== currentWeek) {
+              historicalWeeks.add(weekKey);
+            }
+          }
+        }
+      });
+    }
+
+    // Convert to sorted array (oldest to newest)
+    const historicalWeeksList = Array.from(historicalWeeks).sort((a, b) => {
+      const parseWeekForSort = (weekKey) => {
+        const parts = weekKey.split('-');
+        if (parts.length === 2) {
+          return { year: parseInt(parts[0]), week: parseInt(parts[1]) };
+        } else if (parts.length === 3) {
+          return { year: parseInt(parts[0]), week: parseInt(parts[1]) };
+        }
+        return { year: 0, week: 0 };
+      };
+
+      const weekA = parseWeekForSort(a);
+      const weekB = parseWeekForSort(b);
+      
+      if (weekA.year !== weekB.year) return weekA.year - weekB.year;
+      return weekA.week - weekB.week;
+    });
+
+    // Determine user type and adaptive limits
+    const hasHistoricalData = historicalWeeksList.length > 0;
+    let oldestHistoricalWeek = null;
+    let userType = 'new';
+    let adaptiveWeekLimit = 8; // Default 8-week limit
+
+    if (hasHistoricalData) {
+      oldestHistoricalWeek = historicalWeeksList[0];
+      
+      const { getWeekOffset } = await import('../src/utils/weekUtils.js');
+      const oldestOffset = getWeekOffset(oldestHistoricalWeek);
+      const weeksOfHistory = Math.abs(oldestOffset);
+
+      if (weeksOfHistory > 8) {
+        userType = 'existing';
+        adaptiveWeekLimit = weeksOfHistory;
+      }
+    }
+
+    // Count character-specific data
+    const characterPitchedItems = userData?.pitched_items?.filter(item => item.charId === characterName) || [];
+    const characterBossDataWeeks = userBossData?.filter(weekData => {
+      return weekData.weekly_clears && Object.keys(weekData.weekly_clears).some(key => 
+        key.includes(characterName)
+      );
+    }) || [];
+
+    return {
+      success: true,
+      hasHistoricalData,
+      oldestHistoricalWeek,
+      historicalWeeks: historicalWeeksList,
+      totalHistoricalWeeks: historicalWeeksList.length,
+      userType,
+      adaptiveWeekLimit,
+      currentWeek,
+      characterName, // Include character info
+      analysis: {
+        pitchedItemsCount: characterPitchedItems.length,
+        userBossDataCount: characterBossDataWeeks.length,
+        weeksWithData: historicalWeeksList.length + 1 // +1 for current week
+      }
+    };
+
+  } catch (error) {
+    console.error('Error in getCharacterHistoricalWeekAnalysis:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Clear UI pitched item checkmarks for a specific character
  */
 export function clearCharacterPitchedUI(pitchedChecked, characterName, characterIdx, weekKey) {

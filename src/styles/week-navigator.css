@@ -559,7 +559,7 @@
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  display: none; /* Hidden by default, shown on smaller screens */
+  display: block; /* Hidden by default, shown on smaller screens */
 }
 
 .week-navigator-floating-left {
@@ -661,9 +661,9 @@
   }
   
   /* Show floating buttons, hide integrated buttons */
-  .week-navigator-integrated-buttons {
+  /* .week-navigator-integrated-buttons {
     display: none;
-  }
+  } */
   
   .week-navigator-floating-actions {
     display: block;
@@ -723,9 +723,9 @@
   }
   
   /* Show floating buttons, hide integrated buttons */
-  .week-navigator-integrated-buttons {
+  /* .week-navigator-integrated-buttons {
     display: none;
-  }
+  } */
   
   .week-navigator-floating-actions {
     display: block;

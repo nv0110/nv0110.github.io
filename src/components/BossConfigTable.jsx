@@ -138,6 +138,8 @@ function BossConfigTable({
             <div 
               key={boss.name} 
               className={`boss-config-row ${index % 2 === 0 ? 'even' : 'odd'} ${isSelected ? 'selected' : ''}`}
+              onClick={() => handleBossToggle(boss.name, !isSelected)}
+              style={{ cursor: 'pointer' }}
             >
               {/* Boss Cell */}
               <div className="cell-boss">
@@ -157,7 +159,10 @@ function BossConfigTable({
                 {/* Mobile expand button */}
                 <button 
                   className="boss-config-expand-btn mobile-only"
-                  onClick={() => toggleRowExpansion(boss.name)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleRowExpansion(boss.name);
+                  }}
                   aria-label={isExpanded ? 'Collapse row' : 'Expand row'}
                 >
                   <svg 
@@ -184,6 +189,7 @@ function BossConfigTable({
                   <select
                     value={selectedDifficulty}
                     onChange={(e) => handleDifficultyChange(boss.name, e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
                     className="difficulty-dropdown"
                     disabled={!isSelected}
                   >
@@ -210,7 +216,7 @@ function BossConfigTable({
               </div>
 
               {/* Config Cell */}
-              <div className={`cell-config ${isExpanded ? 'expanded' : ''}`}>
+              <div className={`cell-config ${isExpanded ? 'expanded' : ''}`} onClick={(e) => e.stopPropagation()}>
                 <div className="config-controls">
                   {/* Boss Selection Checkbox */}
                   <CustomCheckbox
@@ -223,6 +229,7 @@ function BossConfigTable({
                     <select
                       value={selectedPartySize}
                       onChange={(e) => handlePartySizeChange(boss.name, e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
                       className="party-size-dropdown"
                       title={`Party Size: ${selectedPartySize}`}
                     >

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { STORAGE_KEYS } from './constants';
 import WeekNavigator from './components/WeekNavigator';
 import CrystalAnimation from './components/CrystalAnimation';
@@ -7,6 +7,9 @@ import SidebarToggle from './components/SidebarToggle';
 import BossTable from './components/BossTable';
 import HistoricalWeekCards from './components/HistoricalWeekCards';
 import { logger } from './utils/logger';
+import { getPitchedKey } from './utils/stringUtils';
+import { convertDateToWeekKey, convertWeekKeyToDate } from './utils/weekUtils';
+import './styles/weekly-tracker.css';
 
 // Consolidated modals
 import { WeeklyTrackerModals } from './features/weekly-tracker/WeeklyTrackerModals';
@@ -33,10 +36,13 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
 
   // Basic UI state
   const [sidebarVisible, setSidebarVisible] = useState(true);
-  const [crystalAnimation, setCrystalAnimation] = useState(null);
+  const [crystalAnimations, setCrystalAnimations] = useState([]);
   const [selectedCharIdx, setSelectedCharIdx] = useState(0);
   const [error, setError] = useState(null);
   const [showNoCharactersMessage, setShowNoCharactersMessage] = useState(false);
+
+  // Track when boss unchecking is in progress to prevent auto-check interference
+  const bossUncheckingInProgressRef = useRef(false);
 
   // Hide completed characters toggle
   const [hideCompleted, setHideCompleted] = useState(() => {
@@ -62,13 +68,15 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
   }, [characterBossSelections.length]);
 
   // Custom hooks for complex logic
-  const weekNavigation = useWeekNavigation(userCode, appWeekKey);
+  const weekNavigation = useWeekNavigation(userCode, appWeekKey, characterBossSelections[selectedCharIdx]?.name);
   const {
     pitchedChecked,
     setPitchedChecked,
     cloudPitchedItems,
     refreshPitchedItems,
-    userInteractionRef
+    userInteractionRef,
+    addNewPitchedItem,
+    removePitchedItemByDetails
   } = usePitchedItems(userCode || null);
   
   const bossActions = useBossActions({
@@ -77,21 +85,39 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
     selectedCharIdx,
     checked,
     setChecked,
-    setCrystalAnimation,
+    setCrystalAnimations,
     setError,
     onDataChange: () => {
       refreshWeeklyData();
       refreshPitchedItems();
     },
-    isHistoricalWeek: weekNavigation.isHistoricalWeek
+    isHistoricalWeek: weekNavigation.isHistoricalWeek,
+    onBossUncheckStart: () => {
+      bossUncheckingInProgressRef.current = true;
+    },
+    onBossUncheckEnd: () => {
+      // Small delay to ensure auto-check doesn't interfere
+      setTimeout(() => {
+        bossUncheckingInProgressRef.current = false;
+      }, 500);
+    }
   });
 
   const statsManagement = useStatsManagement(userCode, refreshPitchedItems);
 
+  // Effect to refresh data on mount and user changes
+  useEffect(() => {
+    if (userCode) {
+      logger.debug('WeeklyTracker: Refreshing data on mount/user change');
+      refreshPitchedItems();
+      refreshWeeklyData();
+    }
+  }, [userCode, refreshPitchedItems, refreshWeeklyData]);
+
   // Effect to refresh pitched items when a weekly reset occurs
   useEffect(() => {
     if (lastWeeklyResetTimestamp > 0 && userCode) {
-      logger.info('WeeklyTracker: Detected weekly reset, refreshing pitched items.');
+      logger.debug('WeeklyTracker: Detected weekly reset, refreshing pitched items.');
       const timeoutId = setTimeout(() => {
         refreshPitchedItems();
       }, 500);
@@ -101,7 +127,7 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
 
   // Enhanced week change handler
   const handleWeekChange = (newWeekKey) => {
-    logger.info('WeeklyTracker: Week changed', { 
+    logger.debug('WeeklyTracker: Week changed', { 
       from: weekNavigation.selectedWeekKey, 
       to: newWeekKey,
       isHistorical: weekNavigation.isHistoricalWeek 
@@ -181,51 +207,35 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
       return;
     }
 
-    logger.info('WeeklyTracker: Pitched item clicked', pitchedData);
+    if (!characterBossSelections.length) {
+      logger.error('WeeklyTracker: No characters available');
+      return;
+    }
+
+    logger.debug('WeeklyTracker: Pitched item clicked', pitchedData);
 
     try {
       const { bossName, itemName, characterName, weekKey, isChecked, isHistorical, itemImage } = pitchedData;
       
-      if (isHistorical && !isChecked) {
-        logger.info('WeeklyTracker: Opening historical modal for item', { bossName, itemName, characterName, weekKey });
-        
-        // For historical weeks, open the historical pitched modal instead of direct action
-        const getBossPitchedItems = (await import('../services/bossRegistryService.js')).getBossPitchedItems;
-        const bossItems = getBossPitchedItems(bossName) || [];
-        const item = bossItems.find(i => i.name === itemName);
-        
-        if (item) {
-          const historicalData = {
-            bossName: bossName,
-            itemName: itemName,
-            itemImage: itemImage || item.image,
-            weekKey: weekKey,
-            character: characterName
-          };
-          
-          // Set the historical data and show modal via stats management
-          statsManagement.setHistoricalPitchedData(historicalData);
-          statsManagement.setShowHistoricalPitchedModal(true);
-        }
+      if (!characterName) {
+        logger.error('WeeklyTracker: No character name provided');
         return;
       }
-      
+
+      // Verify character exists
+      const characterExists = characterBossSelections.some(char => char.name === characterName);
+      if (!characterExists) {
+        logger.error('WeeklyTracker: Character not found in character list', { characterName });
+        return;
+      }
+
       if (isChecked) {
-        logger.info('WeeklyTracker: Removing pitched item', { userCode, characterName, bossName, itemName });
-        // Remove the pitched item
-        const { removePitchedItem } = await import('../services/pitchedItemsService.js');
-        const result = await removePitchedItem(userCode, characterName, bossName, itemName);
-        logger.info('WeeklyTracker: Remove result', result);
-        if (result.success) {
-          logger.info('WeeklyTracker: Successfully removed pitched item');
-          refreshPitchedItems();
-        } else {
-          logger.error('WeeklyTracker: Failed to remove pitched item', result.error);
-          setError(`Failed to remove pitched item: ${result.error}`);
-        }
+        // Remove the item
+        await removePitchedItemByDetails(characterName, bossName, itemName, isHistorical ? convertWeekKeyToDate(weekKey) : null);
+        logger.info('WeeklyTracker: Pitched item removed', { characterName, bossName, itemName });
       } else {
         if (isHistorical) {
-          // For historical items that aren't checked, always open the modal
+          // For historical items that aren't checked, open the historical modal
           const getBossPitchedItems = (await import('../services/bossRegistryService.js')).getBossPitchedItems;
           const bossItems = getBossPitchedItems(bossName) || [];
           const item = bossItems.find(i => i.name === itemName);
@@ -242,50 +252,141 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
             statsManagement.setHistoricalPitchedData(historicalData);
             statsManagement.setShowHistoricalPitchedModal(true);
           }
-        } else {
-          // For current week: Add the pitched item AND mark boss as cleared
-          logger.info('WeeklyTracker: Adding pitched item and marking boss as cleared', { userCode, characterName, bossName, itemName });
+          return;
+        }
+        
+        // Add the item (current week)
+        await addNewPitchedItem(characterName, bossName, itemName, isHistorical ? convertWeekKeyToDate(weekKey) : null);
+        logger.info('WeeklyTracker: Pitched item added', { characterName, bossName, itemName });
+        
+        // 🎯 AUTOMATIC BOSS CHECKING: If you got a drop, you must have cleared the boss!
+        if (!isHistorical) {
+          // Skip auto-check if boss unchecking is currently in progress
+          if (bossUncheckingInProgressRef.current) {
+            logger.info('WeeklyTracker: Skipping auto-check because boss unchecking is in progress');
+            return;
+          }
           
-          // Step 1: Add the pitched item
-          const { addPitchedItem } = await import('../services/pitchedItemsService.js');
-          const pitchedItemData = {
-            charId: characterName,
-            bossName: bossName,
-            item: itemName,
-            date: new Date().toISOString().split('T')[0]
-          };
-          
-          const pitchedResult = await addPitchedItem(userCode, pitchedItemData);
-          
-          if (pitchedResult.success) {
-            logger.info('WeeklyTracker: Successfully added pitched item');
+          try {
+            logger.info('WeeklyTracker: Starting automatic boss check process', {
+              characterName,
+              bossName,
+              totalCharacters: characterBossSelections.length,
+              characterNames: characterBossSelections.map(char => char.name)
+            });
             
-            // Step 2: Mark the boss as cleared
-            // Find the boss configuration to get difficulty and other details
-            const char = characterBossSelections[selectedCharIdx];
-            if (char) {
-              const bossConfig = char.bosses.find(b => b.name === bossName);
-              if (bossConfig) {
-                logger.info('WeeklyTracker: Also marking boss as cleared', { bossName, difficulty: bossConfig.difficulty });
+            // Find the character and boss to mark as cleared
+            const targetCharacterIndex = characterBossSelections.findIndex(char => char.name === characterName);
+            const targetCharacter = characterBossSelections[targetCharacterIndex];
+            
+            if (targetCharacter && targetCharacterIndex !== -1) {
+              const targetBoss = targetCharacter.bosses.find(boss => boss.name === bossName);
+              
+              if (targetBoss) {
+                const charKey = `${targetCharacter.name}-${targetCharacterIndex}`;
+                const bossKey = `${targetBoss.name}-${targetBoss.difficulty}`;
                 
-                // Use the existing boss check handler to mark as cleared
-                await bossActions.handleCheck(bossConfig, true, null);
+                // Check if boss is not already marked as cleared
+                const isAlreadyCleared = checked[charKey]?.[bossKey];
+                
+                logger.info('WeeklyTracker: Boss check status verification', {
+                  charKey,
+                  bossKey,
+                  isAlreadyCleared,
+                  shouldAutoCheck: !isAlreadyCleared
+                });
+                
+                if (!isAlreadyCleared) {
+                  logger.info('WeeklyTracker: Auto-checking boss since pitched item was obtained', {
+                    characterName,
+                    characterIndex: targetCharacterIndex,
+                    bossName: targetBoss.name,
+                    difficulty: targetBoss.difficulty
+                  });
+                  
+                  // Use database service directly to avoid UI conflicts
+                  const { getBossRegistryId } = await import('./utils/bossCodeMapping.js');
+                  const { toggleBossClearStatus } = await import('../services/userWeeklyDataService.js');
+                  const { getCurrentMapleWeekStartDate } = await import('../utils/mapleWeekUtils.js');
+                  
+                  const bossRegistryId = await getBossRegistryId(targetBoss.name, targetBoss.difficulty);
+                  const currentWeekStart = getCurrentMapleWeekStartDate();
+                  
+                  const result = await toggleBossClearStatus(
+                    userCode,
+                    currentWeekStart,
+                    targetCharacter.index.toString(),
+                    bossRegistryId,
+                    true
+                  );
+                  
+                  if (result.success) {
+                    // Update local checked state
+                    setChecked(prevChecked => {
+                      const newChecked = { ...prevChecked };
+                      if (!newChecked[charKey]) {
+                        newChecked[charKey] = {};
+                      }
+                      newChecked[charKey] = { ...newChecked[charKey] };
+                      newChecked[charKey][bossKey] = true;
+                      return newChecked;
+                    });
+                    
+                    logger.info('WeeklyTracker: Auto-check boss completed successfully', {
+                      bossName: targetBoss.name,
+                      difficulty: targetBoss.difficulty
+                    });
+                  } else {
+                    logger.error('WeeklyTracker: Auto-check boss failed', {
+                      error: result.error,
+                      bossName: targetBoss.name
+                    });
+                  }
+                } else {
+                  logger.info('WeeklyTracker: Boss already cleared, skipping auto-check', {
+                    characterName,
+                    bossName: targetBoss.name
+                  });
+                }
               } else {
-                logger.warn('WeeklyTracker: Boss configuration not found, cannot auto-mark as cleared', { bossName, characterName });
+                logger.warn('WeeklyTracker: Boss not found in character configuration', {
+                  characterName,
+                  bossName,
+                  characterBosses: targetCharacter.bosses?.map(b => b.name) || []
+                });
               }
+            } else {
+              logger.warn('WeeklyTracker: Character not found in character selections', {
+                characterName,
+                availableCharacters: characterBossSelections.map(char => char.name)
+              });
             }
-            
-            // Refresh data
-            refreshPitchedItems();
-          } else {
-            logger.error('WeeklyTracker: Failed to add pitched item', pitchedResult.error);
-            setError(`Failed to add pitched item: ${pitchedResult.error}`);
+          } catch (autoCheckError) {
+            logger.error('WeeklyTracker: Failed to auto-check boss after pitched item', {
+              error: autoCheckError.message,
+              characterName,
+              bossName
+            });
+            // Don't fail the pitched item operation if auto-check fails
           }
         }
+        
+        // Show crystal animation
+        setCrystalAnimations(prev => [
+          ...prev,
+          {
+            id: Date.now() + Math.random(),
+            image: itemImage || '/images/pitched-items/test-crystal.png',
+            bossName,
+            itemName,
+            characterName,
+            startPosition: { x: 50, y: 50 },
+            endPosition: { x: window.innerWidth - 100, y: 100 }
+          }
+        ]);
       }
     } catch (error) {
       logger.error('WeeklyTracker: Error handling pitched item click', error);
-      setError(`Error: ${error.message}`);
     }
   };
 
@@ -310,13 +411,14 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
 
   return (
     <div className="weekly-tracker">
-      {crystalAnimation && (
+      {crystalAnimations.length > 0 && crystalAnimations.map(animation => (
         <CrystalAnimation
-          startPosition={crystalAnimation.startPosition}
-          endPosition={crystalAnimation.endPosition}
-          onComplete={() => setCrystalAnimation(null)}
+          key={animation.id}
+          startPosition={animation.startPosition}
+          endPosition={animation.endPosition}
+          onComplete={() => setCrystalAnimations(prev => prev.filter(a => a.id !== animation.id))}
         />
-      )}
+      ))}
 
       <div className="weekly-tracker-container">
         {/* Sidebar - DO NOT MODIFY */}
@@ -369,7 +471,6 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
               <>
                 {weekNavigation.isHistoricalWeek ? (
                   <HistoricalWeekCards
-                    bosses={sortedBosses}
                     bossData={bossData}
                     characterKey={charKey}
                     selectedWeekKey={weekNavigation.selectedWeekKey}
@@ -378,6 +479,7 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
                     onPitchedItemClick={handlePitchedItemClick}
                     userCode={userCode}
                     cloudPitchedItems={cloudPitchedItems}
+                    characterBossSelections={characterBossSelections}
                   />
                 ) : (
               <BossTable
@@ -399,6 +501,7 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
                     selectedCharIdx={selectedCharIdx}
                     userInteractionRef={userInteractionRef}
                     cloudPitchedItems={cloudPitchedItems}
+                    characterBossSelections={characterBossSelections}
                   />
                 )}
               </>

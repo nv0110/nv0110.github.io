@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import CustomCheckbox from './CustomCheckbox';
 import { getBossPitchedItems } from '../../services/bossRegistryService';
-import { convertDateToWeekKey } from '../utils/weekUtils';
-import { getBestBossConfigForItems } from '../utils/bossItemDifficulty';
 import { getPitchedKey } from '../utils/stringUtils';
 import '../styles/tables.css';
+import { logger } from '../utils/logger';
 
 function BossTable({
   bosses = [],
@@ -25,9 +24,11 @@ function BossTable({
   selectedCharIdx = 0,
   // Optional: for animations and user interactions
   userInteractionRef = null,
-  cloudPitchedItems = [] // NEW: for showing historical pitched items
+  cloudPitchedItems = [],
+  characterBossSelections = []
 }) {
-  const [enhancedBosses, setEnhancedBosses] = useState([]);
+  // Loading state for individual pitched items
+  const [loadingPitchedItems, setLoadingPitchedItems] = useState(new Set());
 
   // Helper to get boss info from bossData
   const getBossInfo = (bossName) => {
@@ -39,19 +40,13 @@ function BossTable({
     return new Intl.NumberFormat().format(amount);
   };
 
-  // Get character name from characterKey
-  const getCharacterName = () => {
-    const parts = characterKey.split('-');
-    return parts.slice(0, -1).join('-'); // Remove the last part (index)
-  };
-
-  // Memoize character name to prevent unnecessary re-renders
+  // Extract character name from characterKey  
   const characterName = useMemo(() => {
     const parts = characterKey.split('-');
     return parts.slice(0, -1).join('-'); // Remove the last part (index)
   }, [characterKey]);
 
-  // Get pitched items for a boss
+  // Get pitched items for a boss/difficulty combination
   const getBossItems = (bossName, difficulty) => {
     const items = getBossPitchedItems(bossName) || [];
     
@@ -60,102 +55,26 @@ function BossTable({
       if (item.difficulty) {
         return item.difficulty === difficulty;
       }
-      if (item.difficulties) {
-        return item.difficulties.includes(difficulty);
-      }
-      // No difficulty restriction - show for all difficulties
-      return true;
+      return !difficulty; // If boss has no specific difficulty, only show for no difficulty filter
     });
   };
 
-  // Create enhanced bosses list that includes bosses with historical pitched items
-  useEffect(() => {
-    const processEnhancedBosses = async () => {
-      const existingBossesMap = new Map();
-      
-      // Add current configured bosses
-      bosses.forEach(boss => {
-        const key = `${boss.name}-${boss.difficulty}`;
-        existingBossesMap.set(key, boss);
-      });
-
-      // For current week, also add bosses that have pitched items in database
-      if (!isHistoricalWeek && cloudPitchedItems.length > 0) {
-        const currentWeekPitchedItems = cloudPitchedItems.filter(item => {
-          if (item.charId !== characterName) return false;
-          const itemWeekKey = convertDateToWeekKey(item.date);
-          return itemWeekKey === selectedWeekKey;
-        });
-
-        // Group pitched items by boss to intelligently determine configurations
-        const bossPitchedItemsMap = new Map();
-        currentWeekPitchedItems.forEach(item => {
-          const bossName = item.bossName;
-          if (!bossPitchedItemsMap.has(bossName)) {
-            bossPitchedItemsMap.set(bossName, []);
-          }
-          bossPitchedItemsMap.get(bossName).push(item.item);
-        });
-
-        // Add boss configurations based on current week pitched items
-        for (const [bossName, itemNames] of bossPitchedItemsMap.entries()) {
-          // First, check if any existing boss configuration can accommodate these items
-          let compatibleExistingConfig = null;
-          
-          for (const [existingKey, existingBoss] of existingBossesMap.entries()) {
-            if (existingBoss.name === bossName) {
-              // Check if all items are compatible with this existing difficulty
-              const isCompatible = itemNames.every(itemName => {
-                const items = getBossItems(existingBoss.name, existingBoss.difficulty);
-                return items.some(item => item.name === itemName);
-              });
-              
-              if (isCompatible) {
-                compatibleExistingConfig = existingBoss;
-                break;
-              }
-            }
-          }
-          
-          // If no compatible existing config found, create a new one
-          if (!compatibleExistingConfig) {
-            try {
-              const bestConfig = await getBestBossConfigForItems(bossName, itemNames);
-              // Set price to 0 initially - it will be calculated when rendering
-              bestConfig.price = 0;
-              const key = `${bestConfig.name}-${bestConfig.difficulty}`;
-              
-              if (!existingBossesMap.has(key)) {
-                existingBossesMap.set(key, bestConfig);
-              }
-            } catch (error) {
-              console.error('BossTable: Error creating boss config for current week items', {
-                bossName,
-                items: itemNames,
-                error: error.message
-              });
-            }
-          }
-        }
-      }
-
-      setEnhancedBosses(Array.from(existingBossesMap.values()));
-    };
-
-    processEnhancedBosses().catch(error => {
-      console.error('BossTable: Error processing enhanced bosses', error);
-      // Fallback to just configured bosses
-      setEnhancedBosses(bosses);
-    });
-  }, [bosses, cloudPitchedItems, selectedWeekKey, isHistoricalWeek, characterName]); // Removed getBossPrice to prevent infinite loop
-
   // Check if pitched item is checked/obtained
-  const isPitchedItemChecked = (characterName, bossName, itemName, weekKey) => {
-    const key = getPitchedKey(characterName, selectedCharIdx, bossName, itemName, weekKey);
+  const isPitchedItemChecked = (bossName, itemName, weekKey) => {
+    if (!characterName) return false;
+    const key = getPitchedKey(characterName, bossName, itemName, weekKey);
     return !!pitchedChecked[key];
   };
 
-  // Handle pitched item click
+  // Check if pitched item is loading
+  const isPitchedItemLoading = (characterName, bossName, itemName, weekKey) => {
+    // Use the actual character being displayed, not the selected character
+    const actualCharacterName = characterBossSelections[selectedCharIdx]?.name || characterName;
+    const key = getPitchedKey(actualCharacterName, bossName, itemName, weekKey);
+    return loadingPitchedItems.has(key);
+  };
+
+  // Handle pitched item click with loading animation
   const handlePitchedItemClick = async (e, boss, item, characterName) => {
     e.stopPropagation();
     
@@ -163,50 +82,74 @@ function BossTable({
       userInteractionRef.current = true;
     }
 
-    const isCurrentlyChecked = isPitchedItemChecked(characterName, boss.name, item.name, selectedWeekKey);
+    // Use the actual character being displayed, not the selected character
+    const actualCharacterName = characterBossSelections[selectedCharIdx]?.name || characterName;
+    const key = getPitchedKey(actualCharacterName, boss.name, item.name, selectedWeekKey);
+    const isCurrentlyChecked = isPitchedItemChecked(boss.name, item.name, selectedWeekKey);
+    
+    // Don't allow clicks while loading
+    if (loadingPitchedItems.has(key)) {
+      return;
+    }
     
     if (isHistoricalWeek) {
       // For historical weeks, only allow removal if checked
       if (isCurrentlyChecked) {
-        await onPitchedItemClick({
-          bossName: boss.name,
-          itemName: item.name,
-          characterName: characterName,
-          weekKey: selectedWeekKey,
-          isChecked: isCurrentlyChecked,
-          isHistorical: true
-        });
+        // Set loading state
+        setLoadingPitchedItems(prev => new Set([...prev, key]));
+        
+        try {
+          await onPitchedItemClick({
+            bossName: boss.name,
+            itemName: item.name,
+            characterName: actualCharacterName,
+            weekKey: selectedWeekKey,
+            isChecked: isCurrentlyChecked,
+            isHistorical: true
+          });
+        } finally {
+          // Clear loading state
+          setLoadingPitchedItems(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(key);
+            return newSet;
+          });
+        }
       }
       return;
     }
     
-    // Call the pitched item handler for current week
-    await onPitchedItemClick({
-      bossName: boss.name,
-      itemName: item.name,
-      characterName: characterName,
-      weekKey: selectedWeekKey,
-      isChecked: isCurrentlyChecked,
-      isHistorical: false
-    });
+    // For current week: Show loading animation
+    setLoadingPitchedItems(prev => new Set([...prev, key]));
+    
+    try {
+      // Call the pitched item handler for current week
+      await onPitchedItemClick({
+        bossName: boss.name,
+        itemName: item.name,
+        characterName: actualCharacterName,
+        weekKey: selectedWeekKey,
+        isChecked: isCurrentlyChecked,
+        isHistorical: false,
+        itemImage: item.image
+      });
+    } finally {
+      // Clear loading state
+      setLoadingPitchedItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(key);
+        return newSet;
+      });
+    }
   };
 
-  // Handle boss row click
-  const handleBossRowClick = (boss, isChecked, e) => {
-    // Call the boss check handler with the event for animation and persistence
-    onBossCheck(boss, !isChecked, e);
+  // Handle boss row click (for check/uncheck)
+  const handleBossRowClick = (boss, isChecked, event) => {
+    if (event.target.closest('.boss-pitched-items')) {
+      return; // Don't toggle boss if clicking on pitched items
+    }
+    onBossCheck(boss, !isChecked, event);
   };
-
-  // Use enhanced bosses for display
-  const displayBosses = enhancedBosses;
-
-  if (!displayBosses.length) {
-    return (
-      <div className="boss-table-empty">
-        <p>No bosses found for this character.</p>
-      </div>
-    );
-  }
 
   return (
     <div className="boss-table-container">
@@ -226,11 +169,12 @@ function BossTable({
                 {allTicked ? 'Clear All' : 'Complete All'}
               </button>
             )}
+            {!showTickAll && 'Cleared'}
           </div>
         </div>
 
         {/* Rows */}
-        {displayBosses.map((boss, index) => {
+        {bosses.map((boss, index) => {
           const bossInfo = getBossInfo(boss.name);
           const bossKey = `${boss.name}-${boss.difficulty}`;
           const isChecked = !!checked[characterKey]?.[bossKey];
@@ -266,32 +210,45 @@ function BossTable({
                 {bossItems.length > 0 && (
                   <div className="boss-pitched-items" onClick={(e) => e.stopPropagation()}>
                     {bossItems.map((item, itemIndex) => {
-                      const isItemChecked = isPitchedItemChecked(currentCharacterName, boss.name, item.name, selectedWeekKey);
+                      const isItemChecked = isPitchedItemChecked(boss.name, item.name, selectedWeekKey);
+                      const isItemLoading = isPitchedItemLoading(currentCharacterName, boss.name, item.name, selectedWeekKey);
                       
                       return (
                         <div
                           key={`${item.name}-${itemIndex}`}
-                          className={`pitched-item-icon ${isItemChecked ? 'checked' : 'unchecked'} ${isHistoricalWeek ? 'historical' : ''}`}
-                          onClick={(e) => handlePitchedItemClick(e, boss, item, currentCharacterName)}
-                          title={`${item.name} ${isItemChecked ? '(Obtained)' : '(Click to mark as obtained)'}`}
+                          className={`pitched-item-icon ${isItemChecked ? 'checked' : 'unchecked'} ${isHistoricalWeek ? 'historical' : ''} ${isItemLoading ? 'loading' : ''}`}
+                          onClick={(e) => !isItemLoading && handlePitchedItemClick(e, boss, item, currentCharacterName)}
+                          title={isItemLoading ? 'Processing...' : `${item.name} ${isItemChecked ? '(Obtained)' : '(Click to mark as obtained)'}`}
+                          style={{ 
+                            cursor: isItemLoading ? 'not-allowed' : 'pointer',
+                            opacity: isItemLoading ? 0.7 : 1 
+                          }}
                         >
-                          <img
-                            src={item.image}
-                            alt={item.name}
-                            className="pitched-item-image"
-                          />
-                          {isItemChecked && (
-                            <div className="pitched-item-checkmark">
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                                <path
-                                  d="M20 6L9 17L4 12"
-                                  stroke="currentColor"
-                                  strokeWidth="3"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                />
-                              </svg>
+                          {isItemLoading ? (
+                            <div className="pitched-item-loading">
+                              <div className="loading-spinner-small"></div>
                             </div>
+                          ) : (
+                            <>
+                              <img
+                                src={item.image}
+                                alt={item.name}
+                                className="pitched-item-image"
+                              />
+                              {isItemChecked && (
+                                <div className="pitched-item-checkmark">
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                                    <path
+                                      d="M20 6L9 17L4 12"
+                                      stroke="currentColor"
+                                      strokeWidth="3"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       );
@@ -299,15 +256,15 @@ function BossTable({
                   </div>
                 )}
               </div>
-              
+
               <div className="cell-difficulty">
                 {boss.difficulty}
               </div>
-              
+
               <div className="cell-mesos">
-                {formatMesos(mesosAmount)}
+                {formatMesos(Math.ceil(mesosAmount))}
               </div>
-              
+
               <div className="cell-cleared" onClick={(e) => e.stopPropagation()}>
                 <CustomCheckbox
                   checked={isChecked}

@@ -222,8 +222,8 @@
 
 /* Boss Image */
 .boss-image {
-  width: 40px;
-  height: 40px;
+  width: 46px;
+  height: 46px;
   object-fit: contain;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.08);
@@ -254,8 +254,8 @@
 
 .pitched-item-icon {
   position: relative;
-  width: 36px;
-  height: 36px;
+  width: 41px;  /* Increased by 15% from 36px */
+  height: 41px;
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -289,8 +289,8 @@
 }
 
 .pitched-item-image {
-  width: 26px;
-  height: 26px;
+  width: 35px;  /* Increased by 15% from 30px */
+  height: 35px;
   object-fit: contain;
   transition: all 0.3s ease;
   border-radius: 5px;
@@ -303,8 +303,9 @@
 }
 
 .pitched-item-icon.checked .pitched-item-image {
-  filter: grayscale(0.15) brightness(0.9);
-  opacity: 0.8;
+  /* Natural appearance - no filters */
+  filter: none;
+  opacity: 1;
 }
 
 .pitched-item-icon.unchecked {
@@ -457,8 +458,8 @@
   }
   
   .boss-image {
-    width: 48px;
-    height: 48px;
+    width: 40px;  /* Increased by 15% from 48px */
+    height: 40px;
   }
   
   .boss-name {
@@ -466,13 +467,13 @@
   }
   
   .pitched-item-icon {
-    width: 42px;
-    height: 42px;
+    width: 40px;  /* Increased by 15% from 48px */
+    height: 40px;
   }
   
   .pitched-item-image {
-    width: 30px;
-    height: 30px;
+    width: 35px;  /* Increased by 15% from 30px */
+    height: 35px;
   }
   
   .cell-difficulty,
@@ -494,10 +495,12 @@
     margin: -1rem auto;
     width: 80%;
     max-width: 1600px;
+    max-height: 55vh;
   }
   
   .boss-table-grid {
     grid-template-columns: 2.2fr 0.9fr 1.1fr 150px;
+    min-width: 750px;
   }
   
   .boss-table-grid::before {
@@ -507,27 +510,28 @@
   .boss-table-header > div,
   .boss-table-row > div {
     padding: 14px 20px;
+    font-size: 0.95rem;
   }
   
   .boss-image {
-    width: 44px;
-    height: 44px;
+    width: 51px;  /* Increased by 15% from 44px */
+    height: 51px;
   }
   
   .pitched-item-icon {
-    width: 38px;
-    height: 38px;
+    width: 48px;  /* Increased by 15% from 42px */
+    height: 48px;
   }
   
   .pitched-item-image {
-    width: 28px;
-    height: 28px;
+    width: 32px;  /* Increased by 15% from 28px */
+    height: 32px;
   }
   
   .header-tick-all-button {
     width: 120px;
-    height: 30px;
-    font-size: 0.78rem;
+    height: 32px;
+    font-size: 0.8rem;
     padding: 0.45rem 0.9rem;
   }
 }
@@ -567,8 +571,8 @@
   }
   
   .boss-image {
-    width: 36px;
-    height: 36px;
+    width: 41px;  /* Increased by 15% from 36px */
+    height: 41px;
     border-radius: 8px;
   }
   
@@ -577,14 +581,14 @@
   }
 
   .pitched-item-icon {
-    width: 32px;
-    height: 32px;
+    width: 43px;  /* Increased by 15% from 37px */
+    height: 43px;
     border-radius: 8px;
   }
 
   .pitched-item-image {
-    width: 22px;
-    height: 22px;
+    width: 25px;  /* Increased by 15% from 22px */
+    height: 25px;
   }
 
   .boss-pitched-items {
@@ -640,8 +644,8 @@
   }
   
   .boss-image {
-    width: 30px;
-    height: 30px;
+    width: 35px;  /* Increased by 15% from 30px */
+    height: 35px;
     border-radius: 6px;
   }
   
@@ -650,14 +654,14 @@
   }
 
   .pitched-item-icon {
-    width: 26px;
-    height: 26px;
+    width: 34px;  /* Increased by 15% from 30px */
+    height: 34px;
     border-radius: 6px;
   }
 
   .pitched-item-image {
-    width: 18px;
-    height: 18px;
+    width: 21px;  /* Increased by 15% from 18px */
+    height: 21px;
   }
 
   .boss-pitched-items {
@@ -699,27 +703,92 @@
   }
 }
 
-/* Scrollbar Styling */
+/* Scrollbar Styling - HIDDEN */
 .boss-table-container::-webkit-scrollbar {
-  width: 6px;
+  display: none;
 }
 
 .boss-table-container::-webkit-scrollbar-track {
-  background: rgba(42, 36, 70, 0.3);
-  border-radius: 6px;
+  display: none;
 }
 
 .boss-table-container::-webkit-scrollbar-thumb {
-  background: rgba(162, 89, 247, 0.5);
-  border-radius: 6px;
+  display: none;
 }
 
 .boss-table-container::-webkit-scrollbar-thumb:hover {
-  background: rgba(162, 89, 247, 0.7);
+  display: none;
 }
 
-/* Firefox scrollbar */
+/* Firefox scrollbar - hidden */
 .boss-table-container {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(162, 89, 247, 0.5) rgba(42, 36, 70, 0.3);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* Loading state for pitched items */
+.pitched-item-icon.loading {
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.pitched-item-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(162, 89, 247, 0.1);
+  border-radius: 10px;
+  backdrop-filter: blur(2px);
+}
+
+.loading-spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(162, 89, 247, 0.2);
+  border-top: 2px solid #a259f7;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive loading spinner sizes */
+@media (min-width: 2560px) {
+  .loading-spinner-small {
+    width: 20px;
+    height: 20px;
+    border-width: 3px;
+  }
+}
+
+@media (min-width: 1920px) and (max-width: 2559px) {
+  .loading-spinner-small {
+    width: 18px;
+    height: 18px;
+    border-width: 2.5px;
+  }
+}
+
+@media (max-width: 1365px) and (min-width: 769px) {
+  .loading-spinner-small {
+    width: 14px;
+    height: 14px;
+    border-width: 1.5px;
+  }
+}
+
+@media (max-width: 768px) {
+  .loading-spinner-small {
+    width: 12px;
+    height: 12px;
+    border-width: 1.5px;
+  }
 }

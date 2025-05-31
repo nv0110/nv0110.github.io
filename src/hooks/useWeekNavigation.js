@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getCurrentWeekKey as getRealCurrentWeekKey } from '../utils/weekUtils';
-import { getHistoricalWeekAnalysis } from '../../services/utilityService.js';
+import { getHistoricalWeekAnalysis, getCharacterHistoricalWeekAnalysis } from '../../services/utilityService.js';
 import { logger } from '../utils/logger';
 
-export function useWeekNavigation(userCode, appWeekKeyFromProps) {
+export function useWeekNavigation(userCode, appWeekKeyFromProps, selectedCharacterName = null) {
   const [selectedWeekKey, setSelectedWeekKey] = useState(appWeekKeyFromProps || getRealCurrentWeekKey());
   const [historicalAnalysis, setHistoricalAnalysis] = useState({
     hasHistoricalData: false,
@@ -33,11 +33,16 @@ export function useWeekNavigation(userCode, appWeekKeyFromProps) {
     const realCurrentWeek = getRealCurrentWeekKey();
     try {
       setIsLoadingAnalysis(true);
-      logger.info('useWeekNavigation: Refreshing historical analysis', {
-        userCode: userCode,
-        realCurrentWeek: realCurrentWeek
+      logger.debug('useWeekNavigation: Refreshing historical analysis', {
+        userCode,
+        realCurrentWeek,
+        selectedCharacterName
       });
-      const analysisResult = await getHistoricalWeekAnalysis(userCode);
+      
+      // Call character-specific historical analysis
+      const analysisResult = selectedCharacterName 
+        ? await getCharacterHistoricalWeekAnalysis(userCode, selectedCharacterName)
+        : await getHistoricalWeekAnalysis(userCode);
       
       if (analysisResult.success) {
         setHistoricalAnalysis({
@@ -49,12 +54,13 @@ export function useWeekNavigation(userCode, appWeekKeyFromProps) {
           analysis: analysisResult.analysis
         });
         
-        logger.info('useWeekNavigation: Historical analysis refreshed', {
+        logger.debug('useWeekNavigation: Historical analysis refreshed', {
           userType: analysisResult.userType,
           hasData: analysisResult.hasHistoricalData,
           oldestWeek: analysisResult.oldestHistoricalWeek,
           adaptiveLimit: analysisResult.adaptiveWeekLimit,
-          historicalWeeksCount: analysisResult.historicalWeeks?.length || 0
+          historicalWeeksCount: analysisResult.historicalWeeks?.length || 0,
+          characterSpecific: !!selectedCharacterName
         });
       } else {
         logger.error('useWeekNavigation: Error in historical analysis result', analysisResult.error);
@@ -64,7 +70,7 @@ export function useWeekNavigation(userCode, appWeekKeyFromProps) {
     } finally {
       setIsLoadingAnalysis(false);
     }
-  }, [userCode, isLoadingAnalysis]);
+  }, [userCode, isLoadingAnalysis, selectedCharacterName]);
 
   const handleWeekChange = useCallback((newWeekKey) => {
     if (newWeekKey !== selectedWeekKey) {
@@ -92,7 +98,7 @@ export function useWeekNavigation(userCode, appWeekKeyFromProps) {
       }, 150);
       return () => clearTimeout(timeoutId);
     }
-  }, [userCode]); // Only depend on userCode to prevent loops
+  }, [userCode, selectedCharacterName]); // Also depend on selectedCharacterName
 
   return {
     selectedWeekKey,

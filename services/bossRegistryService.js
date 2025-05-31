@@ -173,7 +173,6 @@ export async function getCrystalValue(bossName, difficulty) {
     // Force fresh data for crystal values to ensure accuracy
     const bossInfo = await getBossInfo(bossName, difficulty);
     if (bossInfo.success) {
-      console.log(`Crystal value for ${bossName} ${difficulty}: ${bossInfo.data.crystal_value}`);
       return bossInfo.data.crystal_value;
     } else {
       console.warn(`Boss not found for crystal value: ${bossName} ${difficulty}`);

@@ -6,6 +6,7 @@ import {
   parseWeekKey,
   getWeekDateRange
 } from '../utils/weekUtils';
+import { logger } from '../utils/logger';
 import '../styles/week-navigator.css';
 
 function WeekNavigator({
@@ -100,6 +101,29 @@ function WeekNavigator({
       offset: selectedOffset
     };
   }, [selectedWeekKey, appWeekKey, isSelectedWeekTheCurrentAppWeek, selectedOffset]);
+
+  // Debug button visibility
+  useEffect(() => {
+    const currentBtnVisible = !isSelectedWeekTheCurrentAppWeek;
+    const oldestBtnVisible = (historicalAnalysis?.hasHistoricalData && 
+      historicalAnalysis?.oldestHistoricalWeek && 
+      selectedWeekKey !== historicalAnalysis.oldestHistoricalWeek && 
+      !isSelectedWeekTheCurrentAppWeek);
+    
+    logger.debug('WeekNavigator: Button visibility debug', {
+      selectedWeekKey,
+      appWeekKey,
+      isSelectedWeekTheCurrentAppWeek,
+      currentBtnVisible,
+      oldestBtnVisible,
+      historicalAnalysis: {
+        hasHistoricalData: historicalAnalysis?.hasHistoricalData,
+        oldestHistoricalWeek: historicalAnalysis?.oldestHistoricalWeek,
+        userType: historicalAnalysis?.userType,
+        adaptiveWeekLimit: historicalAnalysis?.adaptiveWeekLimit
+      }
+    });
+  }, [selectedWeekKey, appWeekKey, isSelectedWeekTheCurrentAppWeek, historicalAnalysis]);
 
   return (
     <div className="week-navigator-wrapper">

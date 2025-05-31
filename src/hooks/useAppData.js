@@ -1,10 +1,9 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, createContext, useContext } from 'react';
 import { useAuthentication } from '../../hooks/useAuthentication';
 import { useBossCalculations } from './useBossCalculations';
 import { LIMITS, COOLDOWNS, ANIMATION_DURATIONS } from '../constants';
-// Aliased import for clarity
 import { getCurrentWeekKey as getRealCurrentWeekKeyUtil } from '../utils/weekUtils';
-
+import { logger } from '../utils/logger';
 import { useForceUpdate } from './ForceUpdateContext';
 
 export function useAppData() {
@@ -52,6 +51,13 @@ export function useAppData() {
     getBossDifficulties,
   } = useBossCalculations(characterBossSelections, bossData);
 
+  // Combined data loading state
+  const [dataLoadingState, setDataLoadingState] = useState({
+    isLoading: true,
+    hasLoaded: false,
+    error: null
+  });
+
   const calculateAndSetActualLastResetTimestampSnapshot = useCallback(() => {
     const now = new Date();
     const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
@@ -81,37 +87,298 @@ export function useAppData() {
     }, 10);
   }, []); // Empty dependency array to run only once
 
-  // Load boss data from database on mount (force fresh data)
+  // COMBINED data loading effect - prevent cascading loops and double loads
   useEffect(() => {
-    const loadBossData = async () => {
+    if (!userCode || !isLoggedIn) {
+      setCharacterBossSelections([]);
+      setChecked({});
+      setError('');
+      setDataLoadingState({ isLoading: false, hasLoaded: true, error: null });
+      return;
+    }
+
+    let isMounted = true;
+    let isLoadingData = false; // Prevent multiple simultaneous loads
+    
+    const loadAllData = async () => {
+      if (isLoadingData) return;
+      isLoadingData = true;
+      
       try {
-        const { getBossDataForFrontend, forceRefreshBossRegistry } = await import('../../services/bossRegistryService.js');
+        setDataLoadingState({ isLoading: true, hasLoaded: false, error: null });
+        setError('');
         
-        // Force refresh to ensure we have latest database values
-        await forceRefreshBossRegistry();
+        // Load boss data and user data in parallel
+        const [bossDataResult, weekDataResult] = await Promise.all([
+          (async () => {
+            try {
+              const { getBossDataForFrontend, forceRefreshBossRegistry } = await import('../../services/bossRegistryService.js');
+              await forceRefreshBossRegistry();
+              return await getBossDataForFrontend(true);
+            } catch (error) {
+              logger.error('useAppData: Error loading boss data', { error });
+              return { success: false, error: error.message };
+            }
+          })(),
+          (async () => {
+            try {
+              const { fetchCurrentWeekData } = await import('../../services/userWeeklyDataService.js');
+              return await fetchCurrentWeekData(userCode);
+            } catch (error) {
+              logger.error('useAppData: Error loading weekly data', { error });
+              return { success: false, error: error.message };
+            }
+          })()
+        ]);
         
-        const result = await getBossDataForFrontend(true); // Force fresh data
-        
-        if (result.success) {
-          setBossData(result.data);
-          console.log('✅ Loaded fresh boss data from database:', result.data.length, 'bosses');
+        // Process boss data
+        if (bossDataResult.success) {
+          setBossData(bossDataResult.data);
+          logger.info('useAppData: Loaded fresh boss data from database', {
+            dataLength: bossDataResult.data.length
+          });
         } else {
-          console.error('Failed to load boss data:', result.error);
-          // Fallback to empty array
+          logger.error('useAppData: Failed to load boss data', { error: bossDataResult.error });
           setBossData([]);
         }
-      } catch (error) {
-        console.error('Error loading boss data:', error);
-        setBossData([]);
+        
+        // Process user weekly data
+        if (weekDataResult.success && weekDataResult.data) {
+          const weeklyData = weekDataResult.data;
+          
+          // Convert user_boss_data format to characterBossSelections format
+          const characters = [];
+          const charMap = weeklyData.char_map || {};
+          const bossConfig = weeklyData.boss_config || {};
+          
+          // Import boss code mapping utility
+          const { parseBossConfigStringToFrontend } = await import('../utils/bossCodeMapping.js');
+          
+          Object.entries(charMap).forEach(([index, name]) => {
+            const character = {
+              name,
+              index: parseInt(index),
+              bosses: []
+            };
+            
+            // Parse boss config for this character using new mapping utility
+            const configString = bossConfig[index] || '';
+            if (configString) {
+              try {
+                const bosses = parseBossConfigStringToFrontend(configString);
+                character.bosses = bosses;
+              } catch (error) {
+                logger.error('useAppData: Error parsing boss config', { error });
+                character.bosses = [];
+              }
+            }
+            
+            characters.push(character);
+          });
+          
+          // Sort by index
+          characters.sort((a, b) => a.index - b.index);
+          
+          // Load checked state from user_boss_data weekly_clears
+          const reconstructedChecked = {};
+          const weeklyClearData = weeklyData.weekly_clears || {};
+          
+          logger.debug('useAppData: Converting weekly_clears to checked state', {
+            weeklyClearData,
+            charMapEntries: Object.entries(charMap).length,
+            weeklyClearEntries: Object.entries(weeklyClearData).length,
+            weeklyClearKeys: Object.keys(weeklyClearData),
+            weeklyClearSample: Object.fromEntries(Object.entries(weeklyClearData).slice(0, 2))
+          });
+          
+          // Fetch boss registry once for all conversions
+          let bossRegistryData = [];
+          try {
+            const { fetchBossRegistry } = await import('../../services/bossRegistryService.js');
+            const registryResult = await fetchBossRegistry();
+            if (registryResult.success) {
+              bossRegistryData = registryResult.data;
+              logger.debug('useAppData: Boss registry loaded', { 
+                entriesCount: bossRegistryData.length,
+                sampleEntries: bossRegistryData.slice(0, 3).map(entry => ({
+                  id: entry.id,
+                  boss_name: entry.boss_name,
+                  difficulty: entry.difficulty,
+                  boss_code: entry.boss_code,
+                  difficulty_code: entry.difficulty_code
+                }))
+              });
+            }
+          } catch (error) {
+            logger.error('useAppData: Error fetching boss registry for checked state conversion', error);
+          }
+          
+          // Convert boss registry IDs back to UI format
+          for (const [charIndex, clearsString] of Object.entries(weeklyClearData)) {
+            const characterName = charMap[charIndex];
+            if (characterName && clearsString) {
+              const charKey = `${characterName}-${charIndex}`;
+              const clearedBossIds = clearsString.split(',').map(id => id.trim()).filter(id => id);
+              
+              logger.debug('useAppData: Processing weekly clears for character', {
+                charIndex,
+                characterName,
+                charKey,
+                clearedBossIds,
+                clearsString,
+                clearedBossIdsCount: clearedBossIds.length
+              });
+              
+              if (clearedBossIds.length > 0) {
+                reconstructedChecked[charKey] = {};
+                
+                // Convert each boss registry ID to UI format
+                for (const bossId of clearedBossIds) {
+                  let bossEntry = null;
+                  
+                  // Try to parse as numeric ID first (new format)
+                  const numericId = parseInt(bossId);
+                  if (!isNaN(numericId)) {
+                    bossEntry = bossRegistryData.find(entry => entry.id === numericId);
+                    if (bossEntry) {
+                      const uiKey = `${bossEntry.boss_name}-${bossEntry.difficulty}`;
+                      reconstructedChecked[charKey][uiKey] = true;
+                      logger.debug('useAppData: Converted boss clear (numeric ID)', {
+                        bossId: numericId,
+                        uiKey,
+                        bossName: bossEntry.boss_name,
+                        difficulty: bossEntry.difficulty
+                      });
+                      continue;
+                    } else {
+                      logger.warn('useAppData: Boss entry not found for numeric ID', { bossId: numericId });
+                    }
+                  }
+                  
+                  // If not found as numeric ID, try as boss code (old format for backward compatibility)
+                  if (bossId.includes('-')) {
+                    const [bossCode, diffCode] = bossId.split('-');
+                    bossEntry = bossRegistryData.find(entry => 
+                      entry.boss_code === bossCode && entry.difficulty_code === diffCode
+                    );
+                    if (bossEntry) {
+                      const uiKey = `${bossEntry.boss_name}-${bossEntry.difficulty}`;
+                      reconstructedChecked[charKey][uiKey] = true;
+                      logger.debug('useAppData: Converted boss clear (boss code)', {
+                        bossId,
+                        uiKey,
+                        bossName: bossEntry.boss_name,
+                        difficulty: bossEntry.difficulty
+                      });
+                      continue;
+                    } else {
+                      logger.warn('useAppData: Boss entry not found for boss code', { bossId });
+                    }
+                  }
+                  
+                  // If still not found, log warning with more detail
+                  logger.warn('useAppData: Boss entry not found for ID/code', { 
+                    bossId, 
+                    bossIdType: typeof bossId,
+                    isNumeric: !isNaN(parseInt(bossId)),
+                    includesDash: bossId.includes('-'),
+                    bossRegistryCount: bossRegistryData.length
+                  });
+                }
+                
+                logger.debug('useAppData: Character weekly clears processed', {
+                  charKey,
+                  processedBossIds: clearedBossIds,
+                  resultingUIKeys: Object.keys(reconstructedChecked[charKey]),
+                  uiKeysCount: Object.keys(reconstructedChecked[charKey]).length
+                });
+              } else {
+                logger.debug('useAppData: No cleared boss IDs for character', { charIndex, characterName });
+              }
+            } else {
+              logger.debug('useAppData: Skipping weekly clears entry', {
+                charIndex,
+                characterName,
+                hasClearsString: !!clearsString,
+                clearsString
+              });
+            }
+          }
+          
+          // Update all state at once to prevent bounce
+          if (isMounted) {
+            setCharacterBossSelections(characters);
+            debugSetChecked(reconstructedChecked);
+            
+            logger.info('useAppData: Loaded characters and checked state from user_boss_data', {
+              charactersCount: characters.length,
+              checkedKeys: Object.keys(reconstructedChecked).length,
+              sampleCheckedKeys: Object.keys(reconstructedChecked).slice(0, 3),
+              reconstructedChecked: Object.keys(reconstructedChecked).reduce((sample, key) => {
+                sample[key] = Object.keys(reconstructedChecked[key]).length;
+                return sample;
+              }, {}),
+              finalReconstructedChecked: reconstructedChecked
+            });
+          }
+        } else if (weekDataResult.success && weekDataResult.data === null) {
+          // Explicitly handle the case where no user_boss_data row exists yet
+          logger.info('useAppData: No user_boss_data found for current week - starting with empty state');
+          if (isMounted) {
+            setCharacterBossSelections([]);
+            debugSetChecked({});
+          }
+        } else {
+          // Handle actual errors
+          logger.error('useAppData: Error fetching weekly data', weekDataResult.error);
+          if (isMounted) {
+            setCharacterBossSelections([]);
+            debugSetChecked({});
+          }
+        }
+        
+        if (isMounted) {
+          setDataLoadingState({ isLoading: false, hasLoaded: true, error: null });
+        }
+      } catch (err) {
+        if (isMounted) {
+          logger.error('useAppData: Failed to load user data', { error: err });
+          setError('Failed to load data. Please try again.');
+          setCharacterBossSelections([]);
+          debugSetChecked({});
+          setDataLoadingState({ isLoading: false, hasLoaded: true, error: err.message });
+        }
+      } finally {
+        isLoadingData = false;
       }
     };
-    
-    loadBossData();
-  }, []);
-  
+
+    loadAllData();
+    return () => { 
+      isMounted = false; 
+      isLoadingData = false;
+    };
+  }, [userCode, isLoggedIn]); // FIXED: Removed lastWeeklyResetTimestamp to prevent infinite loop
+
+  // Separate effect for timestamp initialization to prevent loops
+  useEffect(() => {
+    if (lastWeeklyResetTimestamp === 0 && userCode && isLoggedIn) {
+      const now = new Date();
+      const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      let dayOfWeek = today.getUTCDay(); // 0 (Sun) to 6 (Sat)
+      let daysToSubtract = (dayOfWeek - 4 + 7) % 7; // 4 is Thursday
+      today.setUTCDate(today.getUTCDate() - daysToSubtract);
+      today.setUTCHours(0,0,0,0);
+      const timestamp = today.getTime();
+      
+      logger.debug('useAppData: Initializing timestamp for new user', { timestamp });
+      setLastWeeklyResetTimestamp(timestamp);
+    }
+  }, [lastWeeklyResetTimestamp, userCode, isLoggedIn]); // Separate effect for timestamp
+
   // SIMPLIFIED: UI-only simulation actions (no database manipulation)
   const performSafeSimulationActions = useCallback(async (endedWeekKey, newCurrentWeekKey, newResetTimestampVal) => {
-    console.log(`🔮 UI simulation: ${endedWeekKey} → ${newCurrentWeekKey}`);
+    logger.info('useAppData: UI simulation', { endedWeekKey, newCurrentWeekKey });
     
     try {
       // Clear local UI state for simulated week
@@ -123,16 +390,16 @@ export function useAppData() {
         setLastWeeklyResetTimestamp(newResetTimestampVal);
       }, 50);
       
-      console.log(`✅ UI simulation active - Week ${newCurrentWeekKey} (UI only)`);
+      logger.info('useAppData: UI simulation active - Week', { newCurrentWeekKey });
       
     } catch (error) {
-      console.error('🚨 Error during UI simulation:', error);
+      logger.error('useAppData: Error during UI simulation', { error });
     }
   }, [setChecked, setCurrentOperatingWeekKey, setLastWeeklyResetTimestamp]);
 
   // SIMPLIFIED: UI-only revert actions (no database manipulation)
   const performSafeRevertActions = useCallback(async (lastSimulatedWeekKey, restoredRealWeek, restoredRealTimestamp) => {
-    console.log(`🔄 UI revert: ${lastSimulatedWeekKey} → ${restoredRealWeek}`);
+    logger.info('useAppData: UI revert', { lastSimulatedWeekKey, restoredRealWeek });
     
     try {
       // Restore local UI state only
@@ -149,16 +416,16 @@ export function useAppData() {
         forceUpdate();
       }, 100);
       
-      console.log(`✅ UI revert complete - returned to real week ${restoredRealWeek}`);
+      logger.info('useAppData: UI revert complete - returned to real week', { restoredRealWeek });
       
     } catch (error) {
-      console.error('🚨 Error during UI revert:', error);
+      logger.error('useAppData: Error during UI revert', { error });
     }
   }, [setChecked, setCurrentOperatingWeekKey, setLastWeeklyResetTimestamp, forceUpdate]);
 
   // SIMPLIFIED: Weekly reset for new user_boss_data system
   const performWeeklyResetActions = useCallback(async (endedWeekKey, newCurrentWeekKey, newResetTimestampVal) => {
-    console.log(`Performing weekly reset: ended ${endedWeekKey}, new current ${newCurrentWeekKey}`);
+    logger.info('useAppData: Performing weekly reset', { endedWeekKey, newCurrentWeekKey });
     
     try {
       // Clear weekly_clears in user_boss_data for the new week using new service
@@ -181,25 +448,25 @@ export function useAppData() {
       // Use setTimeout to batch state updates and prevent cascading effects
       setTimeout(updates, 10);
       
-      console.log(`✅ Weekly reset complete. New week: ${newCurrentWeekKey}`);
+      logger.info('useAppData: Weekly reset complete. New week', { newCurrentWeekKey });
     } catch (error) {
-      console.error('❌ Error during weekly reset:', error);
+      logger.error('useAppData: Error during weekly reset', { error });
     }
   }, [userCode, isLoggedIn]); // Simplified dependencies
 
   const handleExternalWeeklyReset = useCallback(async (endedRealWeekKey) => {
-    console.log(`Handle External (Real) Weekly Reset. Ended week: ${endedRealWeekKey}`);
+    logger.info('useAppData: Handle External (Real) Weekly Reset. Ended week', { endedRealWeekKey });
     
     // Prevent multiple simultaneous resets
     if (handleExternalWeeklyReset._isRunning) {
-      console.log('Weekly reset already in progress, skipping...');
+      logger.info('useAppData: Weekly reset already in progress, skipping...');
       return;
     }
     handleExternalWeeklyReset._isRunning = true;
     
     try {
       if (simulatedWeeksForward > 0) {
-        console.warn("Real weekly reset occurred during simulation. Reverting simulation first.");
+        logger.warn('useAppData: Real weekly reset occurred during simulation. Reverting simulation first.');
         // Revert simulation without triggering its own full reset actions again, just state.
         setSimulatedWeeksForward(0);
         setRealCurrentWeekKeySnapshot(null);
@@ -212,7 +479,11 @@ export function useAppData() {
       // Update the snapshot state separately to avoid circular dependencies
       updateLastResetTimestamp(currentActualTimestamp);
       
-      console.log(`Processing real reset. Ended: ${endedRealWeekKey}, New Real Current: ${newRealCurrentWeekKey}, New Real Timestamp: ${new Date(currentActualTimestamp)}`);
+      logger.info('useAppData: Processing real reset', {
+        endedRealWeekKey,
+        newRealCurrentWeekKey,
+        newRealTimestamp: new Date(currentActualTimestamp)
+      });
       await performWeeklyResetActions(endedRealWeekKey, newRealCurrentWeekKey, currentActualTimestamp);
       
     } finally {
@@ -224,7 +495,7 @@ export function useAppData() {
   }, [simulatedWeeksForward, performWeeklyResetActions, calculateAndSetActualLastResetTimestampSnapshot, updateLastResetTimestamp]);
 
   const simulateWeekForward = useCallback(async () => {
-    console.log('🔮 Starting safe week forward simulation...');
+    logger.info('useAppData: Starting safe week forward simulation...');
     
     try {
       let previousEffectiveWeekKey;
@@ -243,7 +514,7 @@ export function useAppData() {
       } else {
         // Continuing simulation - validate snapshots
         if (!currentRealKeySnap || currentActualTsSnap === null) {
-          console.error("🚨 Simulation snapshots corrupted. Aborting simulation.");
+          logger.error('useAppData: Simulation snapshots corrupted. Aborting simulation.');
           return;
         }
         const { getWeekKeyOffset } = await import('../utils/weekUtils');
@@ -257,7 +528,7 @@ export function useAppData() {
       // SAFE: Calculate new timestamp without affecting real timestamp
       const newSimulatedResetTimestamp = currentActualTsSnap + newSimulatedCount * 7 * 24 * 60 * 60 * 1000;
       
-      console.log(`🔮 Simulating Week +1: From ${previousEffectiveWeekKey} to ${newSimulatedWeekKey}`);
+      logger.info('useAppData: Simulating Week +1', { from: previousEffectiveWeekKey, to: newSimulatedWeekKey });
       
       // Update simulation count first
       setSimulatedWeeksForward(newSimulatedCount);
@@ -266,7 +537,7 @@ export function useAppData() {
       await performSafeSimulationActions(previousEffectiveWeekKey, newSimulatedWeekKey, newSimulatedResetTimestamp);
       
     } catch (error) {
-      console.error('🚨 Error during week simulation:', error);
+      logger.error('useAppData: Error during week simulation', { error });
       // Reset simulation state on error
       setSimulatedWeeksForward(0);
       setRealCurrentWeekKeySnapshot(null);
@@ -276,11 +547,11 @@ export function useAppData() {
 
   const revertWeekSimulation = useCallback(async (forceRevert = false) => {
     if (simulatedWeeksForward === 0 && !forceRevert) {
-      console.log('🔮 No simulation to revert');
+      logger.info('useAppData: No simulation to revert');
       return;
     }
     
-    console.log('🔄 Reverting safe week simulation...');
+    logger.info('useAppData: Reverting safe week simulation...');
     
     try {
       let lastSimulatedEffectiveWeekKey;
@@ -288,7 +559,7 @@ export function useAppData() {
       let restoredRealTimestamp;
 
       if (!realCurrentWeekKeySnapshot || actualLastResetTimestampSnapshot === null) {
-        console.warn("🚨 Cannot revert simulation: no snapshot data. Restoring to real state.");
+        logger.warn('useAppData: Cannot revert simulation: no snapshot data. Restoring to real state.');
         lastSimulatedEffectiveWeekKey = currentOperatingWeekKey;
         restoredRealWeek = getRealCurrentWeekKeyUtil();
         restoredRealTimestamp = calculateAndSetActualLastResetTimestampSnapshot();
@@ -299,7 +570,7 @@ export function useAppData() {
         restoredRealTimestamp = actualLastResetTimestampSnapshot;
       }
 
-      console.log(`🔄 Reverting from ${lastSimulatedEffectiveWeekKey} back to real week ${restoredRealWeek}`);
+      logger.info('useAppData: Reverting from', { lastSimulatedEffectiveWeekKey }, 'back to real week', { restoredRealWeek });
       
       // Reset simulation count first
       setSimulatedWeeksForward(0);
@@ -312,7 +583,7 @@ export function useAppData() {
       setActualLastResetTimestampSnapshot(null);
       
     } catch (error) {
-      console.error('🚨 Error during simulation revert:', error);
+      logger.error('useAppData: Error during simulation revert', { error });
       // Force clean state on error
       setSimulatedWeeksForward(0);
       setRealCurrentWeekKeySnapshot(null);
@@ -322,187 +593,6 @@ export function useAppData() {
   }, [simulatedWeeksForward, realCurrentWeekKeySnapshot, actualLastResetTimestampSnapshot, currentOperatingWeekKey, calculateAndSetActualLastResetTimestampSnapshot, performSafeRevertActions]);
   
   const isWeekSimulated = simulatedWeeksForward > 0;
-
-  // FIXED: Data loading effect - prevent cascading loops
-  useEffect(() => {
-    if (!userCode || !isLoggedIn) {
-      setCharacterBossSelections([]);
-      setChecked({});
-      setError('');
-      return;
-    }
-
-    let isMounted = true;
-    let isLoading = false; // Prevent multiple simultaneous loads
-    
-    const loadData = async () => {
-      if (isLoading) return;
-      isLoading = true;
-      
-      try {
-        setIsLoading(true);
-        setError('');
-        
-        // Load ONLY from user_boss_data table (new system)
-        try {
-          const { fetchCurrentWeekData } = await import('../../services/userWeeklyDataService.js');
-          const weekDataResult = await fetchCurrentWeekData(userCode);
-          
-          if (weekDataResult.success && weekDataResult.data) {
-            const weeklyData = weekDataResult.data;
-            
-            // Convert user_boss_data format to characterBossSelections format
-            const characters = [];
-            const charMap = weeklyData.char_map || {};
-            const bossConfig = weeklyData.boss_config || {};
-            
-            // Import boss code mapping utility
-            const { parseBossConfigStringToFrontend } = await import('../utils/bossCodeMapping.js');
-            
-            Object.entries(charMap).forEach(([index, name]) => {
-              const character = {
-                name,
-                index: parseInt(index),
-                bosses: []
-              };
-              
-              // Parse boss config for this character using new mapping utility
-              const configString = bossConfig[index] || '';
-              if (configString) {
-                try {
-                  const bosses = parseBossConfigStringToFrontend(configString);
-                  character.bosses = bosses;
-                } catch (error) {
-                  console.error('Error parsing boss config:', error);
-                  character.bosses = [];
-                }
-              }
-              
-              characters.push(character);
-            });
-            
-            // Sort by index
-            characters.sort((a, b) => a.index - b.index);
-            setCharacterBossSelections(characters);
-            
-            // Load checked state from user_boss_data weekly_clears
-            const reconstructedChecked = {};
-            const weeklyClearData = weeklyData.weekly_clears || {};
-            
-            // Fetch boss registry once for all conversions
-            let bossRegistryData = [];
-            try {
-              const { fetchBossRegistry } = await import('../../services/bossRegistryService.js');
-              const registryResult = await fetchBossRegistry();
-              if (registryResult.success) {
-                bossRegistryData = registryResult.data;
-              }
-            } catch (error) {
-              console.error('Error fetching boss registry for checked state conversion:', error);
-            }
-            
-            // Convert boss registry IDs back to UI format
-            for (const [charIndex, clearsString] of Object.entries(weeklyClearData)) {
-              const characterName = charMap[charIndex];
-              if (characterName && clearsString) {
-                const charKey = `${characterName}-${charIndex}`;
-                const clearedBossIds = clearsString.split(',').map(id => id.trim()).filter(id => id);
-                
-                if (clearedBossIds.length > 0) {
-                  reconstructedChecked[charKey] = {};
-                  
-                  // Convert each boss registry ID to UI format
-                  for (const bossId of clearedBossIds) {
-                    let bossEntry = null;
-                    
-                    // Try to parse as numeric ID first (new format)
-                    const numericId = parseInt(bossId);
-                    if (!isNaN(numericId)) {
-                      bossEntry = bossRegistryData.find(entry => entry.id === numericId);
-                      if (bossEntry) {
-                        const uiKey = `${bossEntry.boss_name}-${bossEntry.difficulty}`;
-                        reconstructedChecked[charKey][uiKey] = true;
-                        continue;
-                      }
-                    }
-                    
-                    // If not found as numeric ID, try as boss code (old format for backward compatibility)
-                    if (bossId.includes('-')) {
-                      const [bossCode, diffCode] = bossId.split('-');
-                      bossEntry = bossRegistryData.find(entry => 
-                        entry.boss_code === bossCode && entry.difficulty_code === diffCode
-                      );
-                      if (bossEntry) {
-                        const uiKey = `${bossEntry.boss_name}-${bossEntry.difficulty}`;
-                        reconstructedChecked[charKey][uiKey] = true;
-                        continue;
-                      }
-                    }
-                    
-                    // If still not found, log warning
-                    console.warn(`Boss entry not found for ID/code: ${bossId}`);
-                  }
-                }
-              }
-            }
-            
-            debugSetChecked(reconstructedChecked);
-            console.log('✅ Loaded characters and checked state from user_boss_data:', characters.length);
-          } else if (weekDataResult.success && weekDataResult.data === null) {
-            // Explicitly handle the case where no user_boss_data row exists yet
-            // This is normal for new accounts or weeks where no characters have been created
-            console.log('ℹ️ No user_boss_data found for current week - starting with empty state');
-            setCharacterBossSelections([]);
-            debugSetChecked({});
-          } else {
-            // Handle actual errors
-            console.error('Error fetching weekly data:', weekDataResult.error);
-            setCharacterBossSelections([]);
-            debugSetChecked({});
-          }
-        } catch (weekDataError) {
-          console.error('Unexpected error loading weekly data:', weekDataError);
-          setCharacterBossSelections([]);
-          debugSetChecked({});
-        }
-
-        // Initialize timestamp for new users only once
-        if (lastWeeklyResetTimestamp === 0) {
-          const now = new Date();
-          const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-          let dayOfWeek = today.getUTCDay(); // 0 (Sun) to 6 (Sat)
-          let daysToSubtract = (dayOfWeek - 4 + 7) % 7; // 4 is Thursday
-          today.setUTCDate(today.getUTCDate() - daysToSubtract);
-          today.setUTCHours(0,0,0,0);
-          const timestamp = today.getTime();
-          // Use a longer delay to prevent cascading effects
-          setTimeout(() => {
-            if (isMounted) {
-              setLastWeeklyResetTimestamp(timestamp);
-            }
-          }, 200);
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.error('Failed to load user data:', err);
-          setError('Failed to load data. Please try again.');
-          setCharacterBossSelections([]);
-          debugSetChecked({});
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-        isLoading = false;
-      }
-    };
-
-    loadData();
-    return () => { 
-      isMounted = false; 
-      isLoading = false;
-    };
-  }, [userCode, isLoggedIn, lastWeeklyResetTimestamp]); // Include lastWeeklyResetTimestamp to prevent redundant timestamp initialization
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -569,10 +659,10 @@ export function useAppData() {
       // Trigger a force update to ensure Navbar reflects character count change
       forceUpdate();
       
-      console.log('✅ Character added to user_boss_data table:', newCharacter.name);
+      logger.info('useAppData: Character added to user_boss_data table', { newCharacter: newCharacter.name });
       
     } catch (error) {
-      console.error('Error adding character:', error);
+      logger.error('useAppData: Error adding character', { error });
       setError('Failed to add character. Please try again.');
       setTimeout(() => setError(''), COOLDOWNS.ERROR_MESSAGE);
     }
@@ -626,13 +716,13 @@ export function useAppData() {
       const removeResult = await removeCharacterFromWeeklySetup(userCode, currentWeekStart, charToRemove.index);
       
       if (!removeResult.success) {
-        console.error('Error removing character from user_boss_data:', removeResult.error);
+        logger.error('useAppData: Error removing character from user_boss_data', { error: removeResult.error });
         setError('Failed to remove character from database.');
       } else {
-        console.log('✅ Character removed from user_boss_data table');
+        logger.info('useAppData: Character removed from user_boss_data table');
       }
     } catch (serviceError) {
-      console.error('Error calling remove character service:', serviceError);
+      logger.error('useAppData: Error calling remove character service', { error: serviceError });
       setError('Failed to remove character.');
     }
     
@@ -641,7 +731,7 @@ export function useAppData() {
       const { purgePitchedRecords } = await import('../../services/utilityService.js');
       await purgePitchedRecords(userCode, charToRemove.name, charToRemove.index);
     } catch (purgeError) {
-      console.error('Error purging pitched records for removed character:', purgeError);
+      logger.warn('useAppData: Error purging pitched records for removed character', { error: purgeError });
       // Non-critical, continue
     }
     
@@ -673,9 +763,9 @@ export function useAppData() {
       updatedCharacters[idx].name = newName;
       setCharacterBossSelections(updatedCharacters);
       
-      console.log('✅ Character name updated in user_boss_data table');
+      logger.info('useAppData: Character name updated in user_boss_data table');
     } catch (error) {
-      console.error('Error updating character name:', error);
+      logger.error('useAppData: Error updating character name', { error });
       setError('Failed to update character name');
       setTimeout(() => setError(''), 3000);
     }
@@ -732,15 +822,13 @@ export function useAppData() {
       );
       
       if (!result.success) {
-        console.error('Failed to save boss configuration:', result.error);
+        logger.error('useAppData: Failed to save boss configuration', { error: result.error });
         setError('Failed to save boss configuration. Please try again.');
         setTimeout(() => setError(''), 3000);
-      } else {
-        console.log('✅ Boss configuration saved to database');
       }
       
     } catch (error) {
-      console.error('Error saving boss configuration:', error);
+      logger.error('useAppData: Error saving boss configuration', { error });
       setError('Failed to save boss configuration. Please try again.');
       setTimeout(() => setError(''), 3000);
     }
@@ -788,15 +876,13 @@ export function useAppData() {
       );
       
       if (!result.success) {
-        console.error('Failed to save Quick Select configuration:', result.error);
+        logger.error('useAppData: Failed to save Quick Select configuration', { error: result.error });
         setError('Failed to save boss configuration. Please try again.');
         setTimeout(() => setError(''), 3000);
-      } else {
-        console.log('✅ Quick Select configuration saved to database');
       }
       
     } catch (error) {
-      console.error('Error saving Quick Select configuration:', error);
+      logger.error('useAppData: Error saving Quick Select configuration', { error });
       setError('Failed to save boss configuration. Please try again.');
       setTimeout(() => setError(''), 3000);
     }
@@ -833,15 +919,13 @@ export function useAppData() {
       );
       
       if (!result.success) {
-        console.error('Failed to save party size update:', result.error);
+        logger.error('useAppData: Failed to save party size update', { error: result.error });
         setError('Failed to save party size change. Please try again.');
         setTimeout(() => setError(''), 3000);
-      } else {
-        console.log(`✅ Party size updated to ${newSize} for ${bossName} ${difficulty}`);
       }
       
     } catch (error) {
-      console.error('Error updating party size:', error);
+      logger.error('useAppData: Error updating party size', { error });
       setError('Failed to save party size change. Please try again.');
       setTimeout(() => setError(''), 3000);
     }
@@ -872,6 +956,96 @@ export function useAppData() {
     }
   };
 
+  // Function to copy a character with numbered naming
+  const copyCharacter = async (sourceCharIdx, newName) => {
+    const charToCopy = characterBossSelections[sourceCharIdx];
+    if (!charToCopy) {
+      logger.error('useAppData: Character to copy not found at index', { sourceCharIdx });
+      return { success: false, error: 'Character not found' };
+    }
+
+    if (characterBossSelections.length >= LIMITS.CHARACTER_CAP) {
+      setCloneError('Cannot copy: Maximum character limit reached');
+      setTimeout(() => setCloneError(''), 3000);
+      return { success: false, error: 'Character limit reached' };
+    }
+
+    // Check account-wide crystal cap
+    const totalCrystals = characterBossSelections.reduce((sum, char) => sum + (char.bosses ? char.bosses.length : 0), 0);
+    const copyCrystals = charToCopy.bosses ? charToCopy.bosses.length : 0;
+
+    if (totalCrystals + copyCrystals > LIMITS.CRYSTAL_CAP) {
+      setCloneError(`Cannot copy: Would exceed ${LIMITS.CRYSTAL_CAP} crystal limit`);
+      setTimeout(() => setCloneError(''), 3000);
+      return { success: false, error: 'Crystal limit would be exceeded' };
+    }
+
+    try {
+      // Import necessary services
+      const { addCharacterToWeeklySetup, updateCharacterBossConfigInWeeklySetup } = await import('../../services/userWeeklyDataService.js');
+      const { getCurrentMapleWeekStartDate } = await import('../../utils/mapleWeekUtils.js');
+      
+      const currentWeekStart = getCurrentMapleWeekStartDate();
+      
+      // 1. Add the character to user_boss_data
+      const addResult = await addCharacterToWeeklySetup(userCode, currentWeekStart, newName);
+      
+      if (!addResult.success) {
+        setCloneError(addResult.error || 'Failed to copy character');
+        setTimeout(() => setCloneError(''), 3000);
+        return { success: false, error: addResult.error };
+      }
+
+      // 2. If the original character has bosses, copy their boss configuration
+      if (charToCopy.bosses && charToCopy.bosses.length > 0) {
+        try {
+          // Convert bosses array to boss config string format using new mapping utility
+          const { convertBossesToConfigString } = await import('../utils/bossCodeMapping.js');
+          const bossConfigString = await convertBossesToConfigString(charToCopy.bosses);
+
+          const configResult = await updateCharacterBossConfigInWeeklySetup(
+            userCode,
+            currentWeekStart,
+            addResult.characterIndex,
+            bossConfigString
+          );
+
+          if (!configResult.success) {
+            logger.warn('useAppData: Failed to copy boss configuration', { error: configResult.error });
+            // Don't fail the whole operation, just log warning
+          }
+        } catch (error) {
+          logger.error('useAppData: Error converting boss configuration for copy', { error });
+          // Don't fail the whole operation, just log error
+        }
+      }
+
+      // 3. Update local state
+      const copiedChar = {
+        ...charToCopy,
+        name: newName,
+        index: addResult.characterIndex,
+        bosses: [...(charToCopy.bosses || [])]
+      };
+
+      const newCharacterBossSelections = [...characterBossSelections, copiedChar];
+      setCharacterBossSelections(newCharacterBossSelections);
+      
+      // Trigger a force update to ensure Navbar reflects character count change
+      forceUpdate();
+      
+      logger.info('useAppData: Character successfully copied', { original: charToCopy.name, copy: newName });
+      
+      return { success: true, newCharacter: copiedChar };
+      
+    } catch (error) {
+      logger.error('useAppData: Error copying character', { error });
+      setCloneError('Failed to copy character');
+      setTimeout(() => setCloneError(''), 3000);
+      return { success: false, error: 'Failed to copy character' };
+    }
+  };
+
   return {
     // Core character data
     characterBossSelections,
@@ -886,6 +1060,7 @@ export function useAppData() {
     addCharacter,
     removeCharacter,
     updateCharacterName,
+    copyCharacter,
     
     // Boss selection and calculations (for InputPage - configuration)
     checked,
@@ -903,7 +1078,8 @@ export function useAppData() {
     // UI states
     error,
     setError,
-    isLoading,
+    isLoading: dataLoadingState.isLoading,
+    hasDataLoaded: dataLoadingState.hasLoaded,
     showCrystalCapError,
     setShowCrystalCapError,
     
@@ -934,5 +1110,8 @@ export function useAppData() {
     fileInputRef,
     cloneError,
     setCloneError,
+    
+    // Combined data loading state
+    dataLoadingState,
   };
 } 

@@ -47,6 +47,7 @@ function InputPage() {
     batchSetBosses,
     showCrystalCapError,
     isLoading,
+    copyCharacter,
   } = useAppData();
 
   // Modal states
@@ -326,6 +327,9 @@ function InputPage() {
             // Validation and errors
             cloneError={cloneError}
             showCrystalCapError={showCrystalCapError}
+            
+            // Character copy functionality
+            onCopyCharacter={copyCharacter}
                 />
               )}
       </ViewTransitionWrapper>

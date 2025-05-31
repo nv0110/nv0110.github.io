@@ -37,14 +37,37 @@ export function usePitchedItems(userId) {
       if (result.success) {
         setCloudPitchedItems(result.items);
         
+        // Log current week info for debugging
+        const { getCurrentWeekKey } = await import('../utils/weekUtils');
+        const currentWeek = getCurrentWeekKey();
+        logger.debug('usePitchedItems: Current week info', { 
+          currentWeek,
+          totalItems: result.items.length
+        });
+        
         // Update pitched checked state based on ALL items
         const newPitchedChecked = {};
         result.items.forEach(item => {
-          // Create key format: "CharacterName-0__BossName__ItemName__WeekKey"
+          // Create key format: "CharacterName__BossName__ItemName__WeekKey"
           const itemWeekKey = convertDateToWeekKey(item.date);
-          const key = `${item.charId}-0__${item.bossName}__${item.item}__${itemWeekKey}`;
+          const key = `${item.charId}__${item.bossName}__${item.item}__${itemWeekKey}`;
           newPitchedChecked[key] = true;
         });
+        
+        logger.debug('usePitchedItems: Loaded pitched items from database', {
+          itemCount: result.items.length,
+          checkedKeys: Object.keys(newPitchedChecked).length,
+          sampleKeys: Object.keys(newPitchedChecked).slice(0, 3),
+          sampleItems: result.items.slice(0, 3).map(item => ({
+            charId: item.charId,
+            bossName: item.bossName,
+            item: item.item,
+            date: item.date,
+            weekKey: convertDateToWeekKey(item.date)
+          })),
+          currentWeekItems: result.items.filter(item => convertDateToWeekKey(item.date) === currentWeek).length
+        });
+        
         setPitchedChecked(newPitchedChecked);
       } else {
         logger.error('usePitchedItems: Failed to refresh pitched items', result.error);
@@ -57,6 +80,19 @@ export function usePitchedItems(userId) {
   }, [userId]);
 
   /**
+   * Update checked state based on pitched items
+   */
+  const updateCheckedState = (items) => {
+    const newChecked = {};
+    items.forEach(item => {
+      const weekKey = convertDateToWeekKey(item.date);
+      const key = `${item.charId}__${item.bossName}__${item.item}__${weekKey}`;
+      newChecked[key] = true;
+    });
+    setPitchedChecked(newChecked);
+  };
+
+  /**
    * Add a new pitched item
    */
   const addNewPitchedItem = useCallback(async (charId, bossName, item, date = null) => {
@@ -67,13 +103,29 @@ export function usePitchedItems(userId) {
 
       const itemDate = date || new Date().toISOString().split('T')[0];
       const itemWeekKey = convertDateToWeekKey(itemDate);
-      const key = `${charId}-0__${bossName}__${item}__${itemWeekKey}`;
+      const key = `${charId}__${bossName}__${item}__${itemWeekKey}`;
 
       // Check if item already exists to prevent duplicates
       if (pitchedChecked[key]) {
-      logger.info('usePitchedItems: Item already exists, skipping add');
+        logger.info('usePitchedItems: Item already exists, skipping add', { 
+          key, 
+          existingChecked: !!pitchedChecked[key],
+          charId,
+          bossName,
+          item,
+          itemWeekKey
+        });
         return { success: true, message: 'Item already exists' };
       }
+
+      logger.debug('usePitchedItems: Adding new pitched item', {
+        key,
+        charId,
+        bossName,
+        item,
+        itemWeekKey,
+        pitchedCheckedKeys: Object.keys(pitchedChecked).length
+      });
 
       const pitchedItemData = {
         charId,
@@ -110,6 +162,14 @@ export function usePitchedItems(userId) {
         return { success: false, error: 'User not authenticated' };
       }
 
+      logger.debug('usePitchedItems: Attempting to remove pitched item', {
+        charId,
+        bossName,
+        item,
+        providedDate: date,
+        cloudItemsCount: cloudPitchedItems.length
+      });
+
       // If no date provided, find the most recent item for this character, boss, and item
       let targetDate = date;
       if (!targetDate) {
@@ -117,15 +177,85 @@ export function usePitchedItems(userId) {
           pitchedItem => pitchedItem.charId === charId && pitchedItem.bossName === bossName && pitchedItem.item === item
         );
         
+        logger.debug('usePitchedItems: Searching for matching items without date', {
+          matchingItemsCount: matchingItems.length,
+          matchingItems: matchingItems.map(item => ({
+            charId: item.charId,
+            bossName: item.bossName,
+            item: item.item,
+            date: item.date
+          }))
+        });
+        
         if (matchingItems.length > 0) {
           // Sort by date descending and get the most recent
           matchingItems.sort((a, b) => new Date(b.date) - new Date(a.date));
           targetDate = matchingItems[0].date;
+          logger.debug('usePitchedItems: Found most recent item', { targetDate });
         } else {
-        logger.info('usePitchedItems: No matching items found to remove');
+        logger.info('usePitchedItems: No matching items found to remove', {
+          charId,
+          bossName,
+          item,
+          availableItems: cloudPitchedItems.map(item => ({
+            charId: item.charId,
+            bossName: item.bossName,
+            item: item.item,
+            date: item.date
+          })).slice(0, 5) // Show first 5 for debugging
+        });
           return { success: true, message: 'No items to remove' };
         }
+      } else {
+        // Verify the specific date item exists
+        const exactMatch = cloudPitchedItems.find(
+          pitchedItem => pitchedItem.charId === charId && 
+                        pitchedItem.bossName === bossName && 
+                        pitchedItem.item === item && 
+                        pitchedItem.date === date
+        );
+        
+        if (!exactMatch) {
+          logger.warn('usePitchedItems: Exact date match not found', {
+            charId,
+            bossName,
+            item,
+            targetDate: date,
+            availableItemsForCharacter: cloudPitchedItems.filter(item => item.charId === charId).map(item => ({
+              bossName: item.bossName,
+              item: item.item,
+              date: item.date
+            }))
+          });
+          
+          // Try to find alternative matches with same character/boss/item but different dates
+          const alternativeMatches = cloudPitchedItems.filter(
+            pitchedItem => pitchedItem.charId === charId && 
+                          pitchedItem.bossName === bossName && 
+                          pitchedItem.item === item
+          );
+          
+          if (alternativeMatches.length > 0) {
+            logger.info('usePitchedItems: Found alternative matches, using most recent', {
+              alternativeCount: alternativeMatches.length,
+              alternatives: alternativeMatches.map(item => item.date)
+            });
+            // Use the most recent alternative
+            alternativeMatches.sort((a, b) => new Date(b.date) - new Date(a.date));
+            targetDate = alternativeMatches[0].date;
+          } else {
+            logger.error('usePitchedItems: No alternative matches found');
+            throw new Error('Pitched item not found');
+          }
+        }
       }
+
+      logger.debug('usePitchedItems: Proceeding with removal', {
+        charId,
+        bossName,
+        item,
+        targetDate
+      });
 
       const result = await removePitchedItem(userId, charId, bossName, item, targetDate);
       
@@ -137,11 +267,19 @@ export function usePitchedItems(userId) {
         
         // Update checked state
         const itemWeekKey = convertDateToWeekKey(targetDate);
-        const key = `${charId}-0__${bossName}__${item}__${itemWeekKey}`;
+        const key = `${charId}__${bossName}__${item}__${itemWeekKey}`;
         setPitchedChecked(prev => {
           const updated = { ...prev };
           delete updated[key];
           return updated;
+        });
+        
+        logger.info('usePitchedItems: Successfully removed pitched item', {
+          charId,
+          bossName,
+          item,
+          targetDate,
+          removedKey: key
         });
         
         return { success: true };
@@ -164,14 +302,14 @@ export function usePitchedItems(userId) {
         // Update local state
         setCloudPitchedItems(prev => {
           let updated = [...prev];
-          itemsToRemove.forEach(({ charId, item, date }) => {
+          itemsToRemove.forEach(({ charId, bossName, item, date }) => {
             if (date) {
               updated = updated.filter(
-                pitchedItem => !(pitchedItem.charId === charId && pitchedItem.item === item && pitchedItem.date === date)
+                pitchedItem => !(pitchedItem.charId === charId && pitchedItem.bossName === bossName && pitchedItem.item === item && pitchedItem.date === date)
               );
             } else {
               const targetIndex = updated.findLastIndex(
-                pitchedItem => pitchedItem.charId === charId && pitchedItem.item === item
+                pitchedItem => pitchedItem.charId === charId && pitchedItem.bossName === bossName && pitchedItem.item === item
               );
               if (targetIndex !== -1) {
                 updated.splice(targetIndex, 1);
@@ -184,15 +322,15 @@ export function usePitchedItems(userId) {
         // Update checked state
         setPitchedChecked(prev => {
           const updated = { ...prev };
-          itemsToRemove.forEach(({ charId, item, date }) => {
+          itemsToRemove.forEach(({ charId, bossName, item, date }) => {
             if (date) {
               const itemWeekKey = convertDateToWeekKey(date);
-              const key = `${charId}-0__${item}__${itemWeekKey}`;
+              const key = `${charId}__${bossName}__${item}__${itemWeekKey}`;
               delete updated[key];
             } else {
-              // Remove all matching keys for this character and item
+              // Remove all matching keys for this character, boss, and item
               Object.keys(updated).forEach(key => {
-                if (key.startsWith(`${charId}-0__${item}__`)) {
+                if (key.startsWith(`${charId}__${bossName}__${item}__`)) {
                   delete updated[key];
                 }
               });
@@ -284,7 +422,7 @@ export function usePitchedItems(userId) {
     if (userId) {
       refreshPitchedItems();
     }
-  }, [refreshPitchedItems]);
+  }, [userId]);
 
   return {
     pitchedChecked,

@@ -36,7 +36,10 @@ function CharacterManagementContainer({
   
   // Validation and errors
   cloneError = '',
-  showCrystalCapError = false
+  showCrystalCapError = false,
+  
+  // Character copy functionality
+  onCopyCharacter = () => {}
 }) {
   
   const selectedCharacter = characterBossSelections[selectedCharIdx];
@@ -55,6 +58,7 @@ function CharacterManagementContainer({
                   selectedCharIdx={selectedCharIdx}
                   onCharacterChange={handleCharacterChange}
                   onRemoveCharacter={removeCharacter}
+                  onCopyCharacter={onCopyCharacter}
                 />
               </div>
               
@@ -62,7 +66,7 @@ function CharacterManagementContainer({
                 <CharacterCreator
                   newCharName={newCharName}
                   setNewCharName={setNewCharName}
-                  addCharacter={addCharacter}
+                  onAddCharacter={addCharacter}
                   characterBossSelections={characterBossSelections}
                 />
               </div>

@@ -327,6 +327,30 @@ export function convertDateToWeekKey(dateString) {
   }
 }
 
+// Convert week key back to date (returns the Monday of that week as YYYY-MM-DD)
+export function convertWeekKeyToDate(weekKey) {
+  if (!weekKey) return null;
+  
+  try {
+    const weekRange = getWeekDateRange(weekKey);
+    if (!weekRange || !weekRange.start) return null;
+    
+    // Get the Monday of this week (3 days before Thursday start)
+    const monday = new Date(weekRange.start);
+    monday.setUTCDate(weekRange.start.getUTCDate() - 3);
+    
+    // Format as YYYY-MM-DD
+    const year = monday.getUTCFullYear();
+    const month = String(monday.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(monday.getUTCDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+  } catch (error) {
+    console.error(`convertWeekKeyToDate: Error processing week key '${weekKey}':`, error);
+    return null;
+  }
+}
+
 // Get current year key
 export function getCurrentYearKey() {
   const now = new Date();
