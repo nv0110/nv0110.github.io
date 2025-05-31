@@ -60,13 +60,6 @@ function InputPage() {
   // Custom hooks
   const quickSelectHook = useQuickSelect();
 
-  // Redirect if not logged in - using useEffect to prevent navigation during render
-  useEffect(() => {
-    if (!isLoggedIn) {
-      navigate('/login', { replace: true });
-    }
-  }, [isLoggedIn, navigate]);
-
   // Handle export (simplified version)
   const handleExport = async () => {
     try {
@@ -216,7 +209,7 @@ function InputPage() {
       const result = await handleDeleteAccount();
       if (result.success) {
         setShowDeleteConfirm(false);
-        navigate('/login', { replace: true });
+        // Navigation is now handled by the authentication hook
       } else {
         setDeleteError(result.error);
       }
@@ -469,6 +462,15 @@ function InputPage() {
         lastQuickSelectBosses={quickSelectHook.lastQuickSelectBosses}
         selectedCharIdx={selectedCharIdx}
         characterBossSelections={characterBossSelections}
+      />
+
+      {/* Hidden File Input for Backup/Restore Functionality */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        onChange={handleImport}
+        style={{ display: 'none' }}
       />
 
       {/* CSS Animations */}

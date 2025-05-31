@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import CustomCheckbox from './CustomCheckbox';
 import QuickSelectButton from './QuickSelectButton';
 import { logger } from '../utils/logger';
+import { LIMITS } from '../constants';
 import '../styles/components/boss-config-table.css';
 
 function BossConfigTable({
@@ -23,10 +24,13 @@ function BossConfigTable({
   formatPrice = (price) => price.toLocaleString()
 }) {
   const [expandedRows, setExpandedRows] = useState({});
+  const [characterCapError, setCharacterCapError] = useState('');
 
   // Get current character data
   const selectedCharacter = characterBossSelections[selectedCharIdx];
   const characterBosses = selectedCharacter?.bosses || [];
+  const currentBossCount = characterBosses.length;
+  const isAtCharacterLimit = currentBossCount >= LIMITS.CHARACTER_BOSS_CAP;
 
   // Helper to check if boss is selected for current character
   const isBossSelected = (bossName) => {
@@ -41,6 +45,13 @@ function BossConfigTable({
   // Handle boss selection toggle
   const handleBossToggle = async (bossName, checked) => {
     if (checked) {
+      // Check character boss limit before adding
+      if (currentBossCount >= LIMITS.CHARACTER_BOSS_CAP) {
+        setCharacterCapError(`Character can only have ${LIMITS.CHARACTER_BOSS_CAP} bosses maximum`);
+        setTimeout(() => setCharacterCapError(''), 3000);
+        return;
+      }
+
       // If checking, we need to select a difficulty first
       const bossData = sortedBossData.find(b => b.name === bossName);
       if (bossData && bossData.difficulties.length > 0) {
@@ -109,6 +120,23 @@ function BossConfigTable({
 
   return (
     <div className="boss-config-table-container">
+      {/* Character Boss Count Display */}
+      <div className="character-boss-count">
+        <span className={`boss-count ${isAtCharacterLimit ? 'at-limit' : ''}`}>
+          {currentBossCount}/{LIMITS.CHARACTER_BOSS_CAP} bosses
+        </span>
+        {isAtCharacterLimit && (
+          <span className="limit-warning">Character boss limit reached</span>
+        )}
+      </div>
+
+      {/* Character Cap Error */}
+      {characterCapError && (
+        <div className="character-cap-error">
+          {characterCapError}
+        </div>
+      )}
+
       <div className="boss-config-table-grid">
         {/* Table Header */}
         <div className="boss-config-header">
@@ -130,6 +158,7 @@ function BossConfigTable({
           const selectedDifficulty = selectedBoss?.difficulty || '';
           const selectedPartySize = selectedBoss?.partySize || 1;
           const isExpanded = expandedRows[boss.name];
+          const isDisabledDueToLimit = !isSelected && isAtCharacterLimit;
 
           const difficulties = getBossDifficulties(boss);
           const availablePartySizes = getAvailablePartySizes(boss.name, selectedDifficulty);
@@ -137,22 +166,23 @@ function BossConfigTable({
           return (
             <div 
               key={boss.name} 
-              className={`boss-config-row ${index % 2 === 0 ? 'even' : 'odd'} ${isSelected ? 'selected' : ''}`}
-              onClick={() => handleBossToggle(boss.name, !isSelected)}
-              style={{ cursor: 'pointer' }}
+              className={`boss-config-row ${index % 2 === 0 ? 'even' : 'odd'} ${isSelected ? 'selected' : ''} ${isDisabledDueToLimit ? 'disabled-due-to-limit' : ''}`}
+              onClick={() => !isDisabledDueToLimit && handleBossToggle(boss.name, !isSelected)}
+              style={{ cursor: isDisabledDueToLimit ? 'not-allowed' : 'pointer' }}
+              title={isDisabledDueToLimit ? `Character boss limit reached (${LIMITS.CHARACTER_BOSS_CAP} max)` : ''}
             >
               {/* Boss Cell */}
-              <div className="cell-boss">
-                <div className="boss-info-section">
+              <div className="boss-config-cell-boss">
+                <div className="boss-config-info-section">
                   {boss.image && (
                     <img 
                       alt={boss.name} 
-                      className="boss-image" 
+                      className="boss-config-image" 
                       src={boss.image}
                     />
                   )}
-                  <div className="boss-details">
-                    <span className="boss-name">{boss.name}</span>
+                  <div className="boss-config-details">
+                    <span className="boss-config-name">{boss.name}</span>
                   </div>
                 </div>
                 
@@ -184,7 +214,7 @@ function BossConfigTable({
               </div>
 
               {/* Difficulty Cell */}
-              <div className={`cell-difficulty ${isExpanded ? 'expanded' : ''}`}>
+              <div className={`boss-config-cell-difficulty ${isExpanded ? 'expanded' : ''}`}>
                 {isSelected ? (
                   <select
                     value={selectedDifficulty}
@@ -205,7 +235,7 @@ function BossConfigTable({
               </div>
 
               {/* Mesos Cell */}
-              <div className={`cell-mesos ${isExpanded ? 'expanded' : ''}`}>
+              <div className={`boss-config-cell-mesos ${isExpanded ? 'expanded' : ''}`}>
                 {isSelected && selectedDifficulty ? (
                   <span className="mesos-amount">
                     {getFormattedMesos(boss.name, selectedDifficulty, selectedPartySize)}
@@ -216,12 +246,13 @@ function BossConfigTable({
               </div>
 
               {/* Config Cell */}
-              <div className={`cell-config ${isExpanded ? 'expanded' : ''}`} onClick={(e) => e.stopPropagation()}>
+              <div className={`boss-config-cell-config ${isExpanded ? 'expanded' : ''}`} onClick={(e) => e.stopPropagation()}>
                 <div className="config-controls">
                   {/* Boss Selection Checkbox */}
                   <CustomCheckbox
                     checked={isSelected}
-                    onChange={(e) => handleBossToggle(boss.name, e.target.checked)}
+                    onChange={(e) => !isDisabledDueToLimit && handleBossToggle(boss.name, e.target.checked)}
+                    disabled={isDisabledDueToLimit}
                   />
 
                   {/* Party Size Dropdown */}

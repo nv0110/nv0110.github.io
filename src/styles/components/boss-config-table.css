@@ -16,10 +16,91 @@
   max-height: 55vh;
   overflow-y: auto;
   scrollbar-width: none;
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
 }
 
 .boss-config-table-container::-webkit-scrollbar {
   display: none;
+}
+
+/* ===== CHARACTER BOSS COUNT DISPLAY ===== */
+
+.character-boss-count {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, rgba(162, 89, 247, 0.08) 0%, rgba(128, 90, 213, 0.05) 100%);
+  border-bottom: 1px solid rgba(162, 89, 247, 0.15);
+  font-size: 0.9rem;
+  font-weight: 600;
+  backdrop-filter: blur(8px);
+}
+
+.boss-count {
+  color: var(--text-accent);
+  letter-spacing: 0.5px;
+  transition: color 0.3s ease;
+}
+
+.boss-count.at-limit {
+  color: #ff6b6b;
+}
+
+.limit-warning {
+  color: #ff9999;
+  font-size: 0.8rem;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+/* ===== CHARACTER CAP ERROR ===== */
+
+.character-cap-error {
+  padding: 0.75rem 1.25rem;
+  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  border-radius: 8px;
+  color: #ff9999;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin: 0 1.25rem 0.75rem;
+  text-align: center;
+  backdrop-filter: blur(8px);
+  animation: errorFadeIn 0.3s ease;
+}
+
+@keyframes errorFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== DISABLED BOSS ROWS ===== */
+
+.boss-config-row.disabled-due-to-limit {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.boss-config-row.disabled-due-to-limit:hover {
+  background: inherit;
+  transform: none;
+}
+
+.boss-config-row.disabled-due-to-limit .boss-config-image {
+  filter: grayscale(1);
+  opacity: 0.5;
+}
+
+.boss-config-row.disabled-due-to-limit .boss-config-name {
+  color: var(--text-disabled);
 }
 
 /* ===== GRID LAYOUT ===== */
@@ -119,19 +200,19 @@
 
 /* ===== BOSS CELL ===== */
 
-.cell-boss {
+.boss-config-cell-boss {
   justify-content: flex-start;
   padding-left: 1.25rem;
 }
 
-.boss-info-section {
+.boss-config-info-section {
   display: flex;
   align-items: center;
   flex: 1;
   width: 100%;
 }
 
-.boss-image {
+.boss-config-image {
   width: 46px;
   height: 46px;
   object-fit: contain;
@@ -143,19 +224,19 @@
   flex-shrink: 0;
 }
 
-.boss-config-row:hover .boss-image {
+.boss-config-row:hover .boss-config-image {
   border-color: rgba(162, 89, 247, 0.3);
   background: rgba(162, 89, 247, 0.08);
 }
 
-.boss-details {
+.boss-config-details {
   flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-.boss-name {
+.boss-config-name {
   font-weight: 600;
   font-size: 0.95rem;
   color: var(--text-primary);
@@ -192,7 +273,7 @@
 
 /* ===== DIFFICULTY CELL ===== */
 
-.cell-difficulty {
+.boss-config-cell-difficulty {
   justify-content: center;
 }
 
@@ -239,7 +320,7 @@
 
 /* ===== MESOS CELL ===== */
 
-.cell-mesos {
+.boss-config-cell-mesos {
   justify-content: center;
 }
 
@@ -258,7 +339,7 @@
 
 /* ===== CONFIG CELL ===== */
 
-.cell-config {
+.boss-config-cell-config {
   justify-content: center;
 }
 
@@ -342,12 +423,12 @@
     padding: 1rem 1.25rem;
   }
   
-  .boss-image {
+  .boss-config-image {
     width: 52px;
     height: 52px;
   }
   
-  .boss-name {
+  .boss-config-name {
     font-size: 1rem;
   }
   
@@ -378,7 +459,7 @@
     padding: 0.625rem 0.875rem;
   }
   
-  .boss-image {
+  .boss-config-image {
     width: 42px;
     height: 42px;
   }
@@ -441,15 +522,15 @@
     border-bottom: none;
   }
   
-  .cell-difficulty,
-  .cell-mesos,
-  .cell-config {
+  .boss-config-cell-difficulty,
+  .boss-config-cell-mesos,
+  .boss-config-cell-config {
     display: none;
   }
   
-  .cell-difficulty.expanded,
-  .cell-mesos.expanded,
-  .cell-config.expanded {
+  .boss-config-cell-difficulty.expanded,
+  .boss-config-cell-mesos.expanded,
+  .boss-config-cell-config.expanded {
     display: flex;
     padding: 0.75rem 1rem;
   }
@@ -458,20 +539,20 @@
     display: flex;
   }
   
-  .boss-info-section {
+  .boss-config-info-section {
     gap: 0.75rem;
   }
   
-  .cell-boss {
+  .boss-config-cell-boss {
     justify-content: space-between;
   }
   
-  .boss-image {
+  .boss-config-image {
     width: 36px;
     height: 36px;
   }
   
-  .boss-name {
+  .boss-config-name {
     font-size: 0.9rem;
   }
   
@@ -493,12 +574,12 @@
     padding: 0.5rem 0.75rem;
   }
   
-  .boss-image {
+  .boss-config-image {
     width: 32px;
     height: 32px;
   }
   
-  .boss-name {
+  .boss-config-name {
     font-size: 0.85rem;
   }
   

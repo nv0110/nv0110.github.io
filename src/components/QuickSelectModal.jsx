@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { getBossPrice } from '../../services/bossRegistryService';
 import '../styles/components/quick-select-modal.css';
 
@@ -20,22 +20,97 @@ function QuickSelectModal({
   characterBossSelections
 }) {
   const [partySizeModal, setPartySizeModal] = useState({ show: false, boss: null, difficulty: null });
+  const [showInstantApplyPopup, setShowInstantApplyPopup] = useState(false);
+  const [lastSelectedCount, setLastSelectedCount] = useState(0);
+
+  const selectedCount = Object.keys(quickSelectBosses).length;
+
+  // Show instant apply popup when reaching 14 bosses (but only if we haven't dismissed it)
+  useEffect(() => {
+    if (selectedCount === 14 && lastSelectedCount < 14) {
+      setShowInstantApplyPopup(true);
+    } else if (selectedCount < 14) {
+      setShowInstantApplyPopup(false);
+    }
+    setLastSelectedCount(selectedCount);
+  }, [selectedCount, lastSelectedCount]);
+
+  // Reset instant apply popup when modal opens/closes
+  useEffect(() => {
+    if (show) {
+      setShowInstantApplyPopup(selectedCount === 14);
+      setLastSelectedCount(selectedCount);
+    } else {
+      setShowInstantApplyPopup(false);
+    }
+  }, [show, selectedCount]);
 
   if (!show) return null;
 
-  const selectedCount = Object.keys(quickSelectBosses).length;
-  const showInstantApply = selectedCount === 14;
-
   const handleInstantApply = () => {
     applyQuickSelection();
+    setShowInstantApplyPopup(false);
   };
 
   const handleContinueSelecting = () => {
-    // Just close the instant apply popup, user can continue selecting
+    // Close the instant apply popup, user can continue selecting
+    setShowInstantApplyPopup(false);
+  };
+
+  const handleInstantApplyBackgroundClick = (e) => {
+    // Close instant apply popup when clicking outside of it
+    if (e.target.classList.contains('quick-select-instant-apply')) {
+      setShowInstantApplyPopup(false);
+    }
   };
 
   const handleDifficultySelect = (bossName, difficulty) => {
-    handleQuickSelectBoss(bossName, difficulty);
+    const currentSelectedDifficulty = getSelectedDifficulty(bossName);
+    
+    // If clicking on the already selected difficulty, unselect the boss
+    if (currentSelectedDifficulty === difficulty) {
+      handleQuickSelectBoss(bossName, null); // Unselect the boss
+    } else {
+      handleQuickSelectBoss(bossName, difficulty);
+    }
+  };
+
+  const handleBossCardClick = (boss, event) => {
+    // Prevent if clicking on difficulty buttons or party size indicator
+    if (event.target.closest('.quick-select-difficulty-option') || 
+        event.target.closest('.quick-select-party-indicator')) {
+      return;
+    }
+
+    const bossName = boss.name;
+    const currentSelectedDifficulty = getSelectedDifficulty(bossName);
+    const difficulties = getBossDifficulties(boss);
+    
+    // Sort difficulties by price (highest to lowest) for cycling
+    const sortedDifficulties = difficulties.sort((a, b) => {
+      const priceA = getBossPrice(boss, a);
+      const priceB = getBossPrice(boss, b);
+      return priceB - priceA;
+    });
+
+    if (!currentSelectedDifficulty) {
+      // Boss not selected, select with highest price difficulty
+      handleQuickSelectBoss(bossName, sortedDifficulties[0]);
+    } else {
+      // Boss is selected, cycle to next difficulty or unselect
+      const currentIndex = sortedDifficulties.indexOf(currentSelectedDifficulty);
+      
+      if (currentIndex === -1) {
+        // Fallback: select highest price difficulty
+        handleQuickSelectBoss(bossName, sortedDifficulties[0]);
+      } else if (currentIndex === sortedDifficulties.length - 1) {
+        // At the last (cheapest) difficulty, unselect
+        handleQuickSelectBoss(bossName, null);
+      } else {
+        // Cycle to next (cheaper) difficulty
+        handleQuickSelectBoss(bossName, sortedDifficulties[currentIndex + 1]);
+      }
+    }
   };
 
   const handlePartySizeIndicatorClick = (boss, difficulty) => {
@@ -88,7 +163,7 @@ function QuickSelectModal({
             </h1>
 
             <p className="quick-select-subtitle">
-              Select up to 14 bosses • Click party size indicator to adjust
+              Select up to 14 bosses • Click cards to cycle difficulties • Click party size to adjust
             </p>
           </div>
 
@@ -136,12 +211,21 @@ function QuickSelectModal({
                 <div 
                   key={boss.name} 
                   className={`quick-select-boss-card ${isSelected ? 'selected' : 'unselected'}`}
+                  onClick={(e) => handleBossCardClick(boss, e)}
+                  style={{ cursor: 'pointer' }}
+                  title={isSelected ? 
+                    "Click to cycle through difficulties or unselect" : 
+                    "Click to select with highest difficulty"
+                  }
                 >
                   {/* Party Size Indicator - Replaces Rank Badge */}
                   {isSelected && (
                     <div 
                       className="quick-select-party-indicator"
-                      onClick={() => handlePartySizeIndicatorClick(boss, selectedDifficulty)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePartySizeIndicatorClick(boss, selectedDifficulty);
+                      }}
                       title={`Party Size: ${partySize}`}
                     >
                       {partySize}
@@ -182,7 +266,10 @@ function QuickSelectModal({
                         return (
                           <button
                             key={difficulty}
-                            onClick={() => handleDifficultySelect(boss.name, difficulty)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDifficultySelect(boss.name, difficulty);
+                            }}
                             className={`quick-select-difficulty-option ${
                               isThisDifficultySelected ? 'selected' : ''
                             } ${isMostExpensive ? 'most-expensive' : ''}`}
@@ -247,30 +334,32 @@ function QuickSelectModal({
           )}
 
           {/* Instant Apply Popup */}
-          {showInstantApply && selectedCharIdx !== null && (
-            <div className={`quick-select-instant-apply ${showInstantApply ? 'show' : ''}`}>
-              <div className="quick-select-instant-apply-icon">
-                🎉
-              </div>
-              <div className="quick-select-instant-apply-title">
-                Perfect Selection!
-              </div>
-              <div className="quick-select-instant-apply-subtitle">
-                You've selected 14 bosses - ready to apply?
-              </div>
-              <div className="quick-select-instant-apply-actions">
-                <button 
-                  onClick={handleInstantApply}
-                  className="quick-select-instant-apply-btn primary"
-                >
-                  Apply Now
-                </button>
-                <button 
-                  onClick={handleContinueSelecting}
-                  className="quick-select-instant-apply-btn secondary"
-                >
-                  Keep Selecting
-                </button>
+          {showInstantApplyPopup && selectedCharIdx !== null && (
+            <div className={`quick-select-instant-apply ${showInstantApplyPopup ? 'show' : ''}`} onClick={handleInstantApplyBackgroundClick}>
+              <div className="quick-select-instant-apply-content" onClick={(e) => e.stopPropagation()}>
+                <div className="quick-select-instant-apply-icon">
+                  🎉
+                </div>
+                <div className="quick-select-instant-apply-title">
+                  Perfect Selection!
+                </div>
+                <div className="quick-select-instant-apply-subtitle">
+                  You've selected 14 bosses - ready to apply?
+                </div>
+                <div className="quick-select-instant-apply-actions">
+                  <button 
+                    onClick={handleInstantApply}
+                    className="quick-select-instant-apply-btn primary"
+                  >
+                    Apply Now
+                  </button>
+                  <button 
+                    onClick={handleContinueSelecting}
+                    className="quick-select-instant-apply-btn secondary"
+                  >
+                    Keep Selecting
+                  </button>
+                </div>
               </div>
             </div>
           )}

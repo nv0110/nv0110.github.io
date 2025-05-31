@@ -433,71 +433,60 @@
 /* Mobile and Small Tablets */
 @media (max-width: 768px) {
   .modal-content {
-    max-width: none;
-    padding: 1.5rem 1rem;
-    margin: 0.5rem;
-    width: calc(100vw - 1rem);
-    border-radius: 10px;
+    padding: 2rem 1.5rem;
+    margin: 1rem;
+    min-width: 280px;
+    width: calc(100vw - 2rem);
   }
   
   .modal-content-critical {
-    max-width: none;
-    padding: 2rem 1.5rem;
-    margin: 0.5rem;
-    width: calc(100vw - 1rem);
-    border-radius: 12px;
+    padding: 2.5rem 2rem;
+    margin: 1rem;
+    min-width: 280px;
+    width: calc(100vw - 2rem);
   }
   
   .modal-title {
-    font-size: 1.2rem;
-    margin-bottom: 1.25rem;
+    font-size: 1.5rem;
   }
   
   .critical-modal-title {
-    font-size: 1.1rem;
-    margin-bottom: 0.75rem;
+    font-size: 1.3rem;
   }
   
   .critical-modal-icon {
-    width: 60px;
-    height: 60px;
-    margin-bottom: 1.25rem;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 20px;
   }
   
   .critical-modal-warning {
-    padding: 0.75rem;
-    margin-bottom: 1.25rem;
-    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
   }
   
   .critical-modal-warning p {
-    font-size: 0.9rem;
-    line-height: 1.4;
+    font-size: 1rem;
   }
   
   .modal-button-container {
-    gap: 0.75rem;
     flex-direction: column;
+    gap: 12px;
   }
   
   .modal-btn-cancel,
   .modal-btn-critical {
-    padding: 0.6rem 1.5rem;
-    font-size: 0.9rem;
-    min-width: 100px;
     width: 100%;
-    border-radius: 8px;
+    min-width: auto;
   }
   
   .modal-section-content p {
-    font-size: 0.85rem;
-    margin-bottom: 0.4rem;
+    font-size: 0.9rem;
     line-height: 1.4;
   }
   
   .modal-section-title {
-    font-size: 0.9rem;
-    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
   }
   
   .modal-close-btn {
@@ -505,14 +494,68 @@
     right: 12px;
     width: 28px;
     height: 28px;
-    font-size: 1.2rem;
+    font-size: 1.3rem;
   }
   
   .modal-error-message {
-    padding: 0.75rem;
-    font-size: 0.85rem;
-    margin-top: 1rem;
-    border-radius: 6px;
+    font-size: 0.9rem;
+    padding: 0.6rem 1rem;
+  }
+  
+  /* Account Created Modal - Mobile */
+  .account-created-modal {
+    max-width: 100%;
+  }
+  
+  .account-created-icon {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 20px;
+  }
+  
+  .account-created-title {
+    font-size: 1.5rem;
+    margin-bottom: 12px;
+  }
+  
+  .account-created-subtitle {
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+  }
+  
+  .account-created-code-container {
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .account-created-code {
+    font-size: 1.2rem;
+    letter-spacing: 1.5px;
+  }
+  
+  .account-created-warning {
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  
+  .account-created-warning p {
+    font-size: 0.9rem;
+  }
+  
+  .account-created-countdown {
+    margin-bottom: 20px;
+  }
+  
+  .account-created-countdown p {
+    font-size: 0.9rem;
+  }
+  
+  .account-created-toast {
+    bottom: 16px;
+    font-size: 0.8rem;
+    padding: 6px 12px;
   }
 }
 
@@ -600,4 +643,156 @@
     margin-top: 0.75rem;
     border-radius: 4px;
   }
+}
+
+/* ===== ACCOUNT CREATED MODAL ===== */
+
+/* Account Created Success Modal */
+.account-created-modal {
+  max-width: 500px;
+  text-align: center;
+  position: relative;
+}
+
+.account-created-icon {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #a259f7, #b470ff);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+  box-shadow: 0 4px 20px rgba(162, 89, 247, 0.4);
+  color: #fff;
+}
+
+.account-created-title {
+  color: #a259f7;
+  font-weight: 700;
+  font-size: 1.8rem;
+  margin-bottom: 16px;
+}
+
+.account-created-subtitle {
+  color: #e6e0ff;
+  font-size: 1rem;
+  margin-bottom: 20px;
+}
+
+.account-created-code-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: #3a335a;
+  padding: 16px 20px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  border: 1px solid #4a3b73;
+  position: relative;
+}
+
+.account-created-code {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #f0e6ff;
+  letter-spacing: 2px;
+  font-family: 'Roboto Mono', 'Courier New', monospace;
+}
+
+.account-created-copy-btn {
+  background: transparent;
+  border: none;
+  color: #a259f7;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.account-created-copy-btn:hover {
+  background: rgba(162, 89, 247, 0.1);
+  color: #b470ff;
+}
+
+.account-created-warning {
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.account-created-warning p {
+  margin: 0;
+  color: #ffd93d;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.account-created-countdown {
+  margin-bottom: 24px;
+}
+
+.account-created-countdown p {
+  color: #e6e0ff;
+  font-size: 1rem;
+  margin: 0;
+}
+
+.account-created-countdown strong {
+  color: #a259f7;
+  font-size: 1.1rem;
+}
+
+.account-created-toast {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #a259f7;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  box-shadow: 0 2px 10px rgba(162, 89, 247, 0.4);
+  animation: toastFadeInOut 2s ease-in-out forwards;
+  z-index: 10;
+}
+
+.modal-btn-primary {
+  background: linear-gradient(135deg, #a259f7, #b470ff);
+  color: #fff;
+  border: 2px solid #a259f7;
+  border-radius: 12px;
+  padding: 0.8rem 2rem;
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: pointer;
+  min-width: 140px;
+  transition: all 0.2s ease;
+}
+
+.modal-btn-primary:hover {
+  background: linear-gradient(135deg, #b470ff, #c485ff);
+  border-color: #b470ff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(162, 89, 247, 0.3);
+}
+
+.modal-btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(162, 89, 247, 0.3);
+}
+
+@keyframes toastFadeInOut {
+  0% { opacity: 0; transform: translateY(10px) translateX(-50%); }
+  10% { opacity: 1; transform: translateY(0) translateX(-50%); }
+  90% { opacity: 1; transform: translateY(0) translateX(-50%); }
+  100% { opacity: 0; transform: translateY(10px) translateX(-50%); }
 } 

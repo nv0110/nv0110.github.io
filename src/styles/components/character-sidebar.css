@@ -1,0 +1,49 @@
+/* ===== ONBOARDING ENHANCEMENTS ===== */
+
+/* Enhanced styling for onboarding highlights */
+.sidebar-title.onboarding-highlight,
+.sidebar-progress-section.onboarding-highlight {
+  position: relative;
+  cursor: pointer !important;
+  transform: scale(1.02);
+  filter: brightness(1.15);
+  border: 2px solid rgba(162, 89, 247, 0.5) !important;
+  border-radius: 8px !important;
+  background: linear-gradient(135deg, rgba(162, 89, 247, 0.15), rgba(106, 17, 203, 0.1)) !important;
+  transition: all 0.3s ease;
+  z-index: 10001;
+}
+
+.sidebar-title.onboarding-highlight:hover,
+.sidebar-progress-section.onboarding-highlight:hover {
+  transform: scale(1.05);
+  filter: brightness(1.25);
+  border-color: rgba(162, 89, 247, 0.8) !important;
+  box-shadow: 0 0 20px rgba(162, 89, 247, 0.4);
+}
+
+.sidebar-title.onboarding-highlight {
+  padding: 0.5rem 0.75rem;
+  margin: -0.5rem -0.75rem;
+}
+
+.sidebar-progress-section.onboarding-highlight {
+  padding: 0.75rem;
+  margin: -0.75rem;
+  border-radius: 12px !important;
+}
+
+/* Pulse animation for enhanced visibility during onboarding */
+@keyframes onboarding-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(162, 89, 247, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(162, 89, 247, 0);
+  }
+}
+
+.sidebar-title.onboarding-highlight,
+.sidebar-progress-section.onboarding-highlight {
+  animation: onboarding-pulse 2s ease-in-out infinite;
+} 

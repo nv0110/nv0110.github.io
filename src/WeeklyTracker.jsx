@@ -22,7 +22,7 @@ import { useStatsManagement } from './hooks/useStatsManagement';
 import { useAppData } from './hooks/AppDataContext.jsx';
 import { useUserWeeklyData } from '../hooks/useUserWeeklyData.js';
 
-function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked, userCode, appWeekKey }) {
+function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked, userCode, appWeekKey, showOnboardingIndicators }) {
   const { lastWeeklyResetTimestamp } = useAppData();
   const { refreshWeeklyData } = useUserWeeklyData(userCode);
 
@@ -77,7 +77,7 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
     userInteractionRef,
     addNewPitchedItem,
     removePitchedItemByDetails
-  } = usePitchedItems(userCode || null);
+  } = usePitchedItems(userCode || null, weekNavigation.selectedWeekKey);
   
   const bossActions = useBossActions({
     userId: userCode,
@@ -107,7 +107,15 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
 
   // Effect to refresh data on mount and user changes
   useEffect(() => {
+    // Enhanced guard: Only run if user is properly logged in
     if (userCode) {
+      // Additional check to ensure we're not in a logout transition
+      const currentStoredCode = localStorage.getItem(STORAGE_KEYS.USER_CODE);
+      if (!currentStoredCode || currentStoredCode !== userCode) {
+        logger.debug('WeeklyTracker: Skipping data refresh - logout in progress');
+        return;
+      }
+      
       logger.debug('WeeklyTracker: Refreshing data on mount/user change');
       refreshPitchedItems();
       refreshWeeklyData();
@@ -116,14 +124,25 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
 
   // Effect to refresh pitched items when a weekly reset occurs
   useEffect(() => {
+    // Enhanced guard: Only run if user is properly logged in and we have valid timestamp
     if (lastWeeklyResetTimestamp > 0 && userCode) {
+      // Additional check to ensure we're not in a logout transition
+      const currentStoredCode = localStorage.getItem(STORAGE_KEYS.USER_CODE);
+      if (!currentStoredCode || currentStoredCode !== userCode) {
+        logger.debug('WeeklyTracker: Skipping weekly reset refresh - logout in progress');
+        return;
+      }
+      
       logger.debug('WeeklyTracker: Detected weekly reset, refreshing pitched items.');
       const timeoutId = setTimeout(() => {
-        refreshPitchedItems();
+        // Final check before executing async operation
+        if (userCode && localStorage.getItem(STORAGE_KEYS.USER_CODE) === userCode) {
+          refreshPitchedItems();
+        }
       }, 500);
       return () => clearTimeout(timeoutId);
     }
-  }, [lastWeeklyResetTimestamp]);
+  }, [lastWeeklyResetTimestamp, userCode, refreshPitchedItems]);
 
   // Enhanced week change handler
   const handleWeekChange = (newWeekKey) => {
@@ -439,6 +458,7 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
           setShowCharacterPitchedModal={statsManagement.setShowCharacterPitchedModal}
           onShowTreasureAnalytics={() => statsManagement.setShowStats(true)}
           characterBossSelections={characterBossSelections}
+          showOnboardingIndicators={showOnboardingIndicators}
         />
 
         <SidebarToggle 

@@ -1,0 +1,584 @@
+/* =====================================================================================
+   ONBOARDING GUIDE STYLES
+   =====================================================================================
+   
+   Sleek, animated onboarding guide for Weekly Tracker page with spotlight effects
+   and smooth transitions. Matches the dark purple theme of the application.
+   
+   ===================================================================================== */
+
+/* ===== BASE ONBOARDING STYLES ===== */
+
+/* Background overlay */
+.onboarding-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(10, 8, 20, 0.85);
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+
+.onboarding-overlay.visible {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* Spotlight effect for highlighted elements */
+.onboarding-spotlight {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10000;
+  pointer-events: none;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.onboarding-spotlight::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+    circle at var(--spotlight-x, 50%) var(--spotlight-y, 50%),
+    transparent var(--spotlight-size, 150px),
+    rgba(10, 8, 20, 0.7) calc(var(--spotlight-size, 150px) + 50px)
+  );
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Global body class when onboarding is active */
+body.onboarding-active {
+  overflow: hidden;
+}
+
+/* Enhance highlighted elements */
+body.onboarding-active .sidebar-title,
+body.onboarding-active .sidebar-progress-section {
+  position: relative;
+  z-index: 10001;
+  cursor: pointer !important;
+  transition: all 0.3s ease;
+}
+
+body.onboarding-active .sidebar-title:hover,
+body.onboarding-active .sidebar-progress-section:hover {
+  transform: scale(1.02);
+  filter: brightness(1.1);
+}
+
+/* Clickable indicators for highlighted elements */
+body.onboarding-active .sidebar-title::after,
+body.onboarding-active .sidebar-progress-section::after {
+  content: '👆';
+  position: absolute;
+  top: -35px;
+  right: -15px;
+  font-size: 1.5rem;
+  z-index: 10002;
+  animation: bounce 1.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* ===== MAIN MODAL ===== */
+
+.onboarding-modal {
+  position: fixed;
+  z-index: 10001;
+  background: linear-gradient(145deg, #1a1730 0%, #2d2540 50%, #4a3b6b 100%);
+  border: 2px solid rgba(162, 89, 247, 0.6);
+  border-radius: 16px;
+  box-shadow: 
+    0 25px 80px rgba(0, 0, 0, 0.8),
+    0 15px 40px rgba(162, 89, 247, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  color: #e6e0ff;
+  max-width: 420px;
+  width: 90%;
+  opacity: 0;
+  transition: opacity 0.25s ease-in-out;
+  pointer-events: none;
+}
+
+.onboarding-modal.visible {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.onboarding-modal.transitioning {
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+}
+
+/* Modal positioning */
+.onboarding-modal.position-center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.onboarding-modal.position-right {
+  top: 50%;
+  right: 80px;
+}
+
+.onboarding-modal.position-left {
+  top: 50%;
+  left: 80px;
+}
+
+.onboarding-modal.position-top {
+  top: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.onboarding-modal.position-bottom {
+  bottom: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* ===== MODAL CONTENT ===== */
+
+.onboarding-content {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Header */
+.onboarding-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.onboarding-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #a259f7, #ff9d00);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0;
+  line-height: 1.3;
+  flex: 1;
+}
+
+.onboarding-skip {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.onboarding-skip:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Body */
+.onboarding-body {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #c4b5d4;
+}
+
+.onboarding-body p {
+  margin: 0 0 0.75rem 0;
+}
+
+.onboarding-body p:last-child {
+  margin-bottom: 0;
+}
+
+.onboarding-body ul {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.onboarding-body li {
+  margin-bottom: 0.5rem;
+}
+
+.onboarding-body strong {
+  color: #e6e0ff;
+  font-weight: 600;
+}
+
+/* Reset tip styling */
+.onboarding-reset-tip {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(162, 89, 247, 0.1);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  border: 1px solid rgba(162, 89, 247, 0.2);
+}
+
+/* Compact content for specific steps */
+.onboarding-modal[data-step="week-navigation"].position-bottom {
+  bottom: auto !important; /* Override position-bottom class */
+}
+
+.onboarding-modal[data-step="week-navigation"] .onboarding-content {
+  padding: 1rem 1.5rem;
+  gap: 0.5rem; /* Reduce gap significantly */
+}
+
+.onboarding-modal[data-step="week-navigation"] .onboarding-body {
+  margin: 0;
+}
+
+.onboarding-modal[data-step="week-navigation"] .onboarding-body p {
+  margin: 0;
+}
+
+.onboarding-modal[data-step="week-navigation"] .onboarding-footer {
+  padding-top: 0.5rem; /* Reduce footer padding */
+}
+
+/* Footer */
+.onboarding-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Progress */
+.onboarding-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.onboarding-step-counter {
+  font-size: 0.85rem;
+  color: #9d8bbc;
+  font-weight: 500;
+}
+
+.onboarding-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.onboarding-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #a259f7, #ff9d00);
+  border-radius: 2px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  width: 0%; /* Default width */
+}
+
+/* Dynamic width based on progress */
+.onboarding-progress-fill[data-progress="16.666666666666664"],
+.onboarding-progress-fill[data-progress="16.67"] { width: 16.67%; }
+
+.onboarding-progress-fill[data-progress="33.33333333333333"],
+.onboarding-progress-fill[data-progress="33.33"] { width: 33.33%; }
+
+.onboarding-progress-fill[data-progress="50"] { width: 50%; }
+
+.onboarding-progress-fill[data-progress="66.66666666666666"],
+.onboarding-progress-fill[data-progress="66.67"] { width: 66.67%; }
+
+.onboarding-progress-fill[data-progress="83.33333333333334"],
+.onboarding-progress-fill[data-progress="83.33"] { width: 83.33%; }
+
+.onboarding-progress-fill[data-progress="100"] { width: 100%; }
+
+.onboarding-progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 100%
+  );
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+/* Actions */
+.onboarding-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.onboarding-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+  white-space: nowrap;
+}
+
+.onboarding-btn.primary {
+  background: linear-gradient(135deg, #a259f7, #6a11cb);
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(162, 89, 247, 0.4);
+}
+
+.onboarding-btn.primary:hover {
+  background: linear-gradient(135deg, #b366f9, #7c1cbf);
+  box-shadow: 0 8px 25px rgba(162, 89, 247, 0.5);
+  transform: translateY(-2px);
+}
+
+.onboarding-btn.secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e6e0ff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.onboarding-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+/* ===== ARROWS ===== */
+
+.onboarding-arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 10002;
+}
+
+.onboarding-arrow.arrow-left {
+  top: 50%;
+  left: -12px;
+  transform: translateY(-50%);
+  border-top: 12px solid transparent;
+  border-bottom: 12px solid transparent;
+  border-right: 12px solid rgba(162, 89, 247, 0.6);
+}
+
+.onboarding-arrow.arrow-right {
+  top: 50%;
+  right: -12px;
+  transform: translateY(-50%);
+  border-top: 12px solid transparent;
+  border-bottom: 12px solid transparent;
+  border-left: 12px solid rgba(162, 89, 247, 0.6);
+}
+
+.onboarding-arrow.arrow-bottom {
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-top: 12px solid rgba(162, 89, 247, 0.6);
+}
+
+.onboarding-arrow.arrow-top {
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-bottom: 12px solid rgba(162, 89, 247, 0.6);
+}
+
+/* ===== ANIMATIONS ===== */
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  60% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fadeInSlide {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+
+@media (max-width: 768px) {
+  .onboarding-modal {
+    max-width: 95%;
+    margin: 0 10px;
+  }
+
+  .onboarding-modal.position-right,
+  .onboarding-modal.position-left {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%);
+  }
+
+  .onboarding-content {
+    padding: 1.25rem;
+    gap: 0.75rem;
+  }
+
+  .onboarding-title {
+    font-size: 1.2rem;
+  }
+
+  .onboarding-body {
+    font-size: 0.9rem;
+  }
+
+  .onboarding-footer {
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: stretch;
+  }
+
+  .onboarding-actions {
+    justify-content: center;
+  }
+
+  .onboarding-btn {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.85rem;
+  }
+
+  /* Hide arrows on mobile */
+  .onboarding-arrow {
+    display: none;
+  }
+
+  /* Adjust clickable indicators for mobile */
+  body.onboarding-active .sidebar-title::after,
+  body.onboarding-active .sidebar-progress-section::after {
+    font-size: 1.2rem;
+    top: -30px;
+    right: -10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .onboarding-modal {
+    max-width: 100%;
+    margin: 0 5px;
+    border-radius: 12px;
+  }
+
+  .onboarding-content {
+    padding: 1rem;
+  }
+
+  .onboarding-title {
+    font-size: 1.1rem;
+  }
+
+  .onboarding-header {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: stretch;
+  }
+
+  .onboarding-skip {
+    align-self: flex-end;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* ===== HIGH CONTRAST MODE ===== */
+
+@media (prefers-contrast: high) {
+  .onboarding-modal {
+    border: 3px solid #a259f7;
+    background: #000;
+  }
+
+  .onboarding-title {
+    color: #fff;
+    background: none;
+    -webkit-text-fill-color: initial;
+  }
+
+  .onboarding-body {
+    color: #fff;
+  }
+
+  .onboarding-btn.primary {
+    background: #a259f7;
+    border: 2px solid #fff;
+  }
+}
+
+/* ===== REDUCED MOTION ===== */
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-modal,
+  .onboarding-overlay,
+  .onboarding-spotlight,
+  .onboarding-progress-fill,
+  .onboarding-btn {
+    transition: none;
+    animation: none;
+  }
+
+  .onboarding-progress-fill::after {
+    display: none;
+  }
+
+  body.onboarding-active .sidebar-title::after,
+  body.onboarding-active .sidebar-progress-section::after {
+    animation: none;
+  }
+} 

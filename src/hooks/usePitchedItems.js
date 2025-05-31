@@ -15,7 +15,7 @@ import { logger } from '../utils/logger';
  * Hook for managing pitched items in the new simplified schema
  * Format: [{ "charId": "CharacterName", "item": "ItemName", "date": "2025-05-23" }]
  */
-export function usePitchedItems(userId) {
+export function usePitchedItems(userId, selectedWeekKey = null) {
   const [pitchedChecked, setPitchedChecked] = useState({});
   const [cloudPitchedItems, setCloudPitchedItems] = useState([]);
   const [loadingPitchedItems, setLoadingPitchedItems] = useState({});
@@ -39,33 +39,36 @@ export function usePitchedItems(userId) {
         
         // Log current week info for debugging
         const { getCurrentWeekKey } = await import('../utils/weekUtils');
-        const currentWeek = getCurrentWeekKey();
+        const currentAppWeekKey = getCurrentWeekKey();
+        const currentViewingWeekKey = selectedWeekKey || currentAppWeekKey;
+        
         logger.debug('usePitchedItems: Current week info', { 
-          currentWeek,
+          currentAppWeekKey,
+          currentViewingWeekKey,
+          selectedWeekKey,
           totalItems: result.items.length
         });
         
-        // Update pitched checked state based on ALL items
+        // 🎯 FIX: Only mark items as checked if they belong to current viewing week
         const newPitchedChecked = {};
         result.items.forEach(item => {
-          // Create key format: "CharacterName__BossName__ItemName__WeekKey"
           const itemWeekKey = convertDateToWeekKey(item.date);
-          const key = `${item.charId}__${item.bossName}__${item.item}__${itemWeekKey}`;
-          newPitchedChecked[key] = true;
+          
+          // Only include items that match the currently selected/viewing week
+          if (itemWeekKey === currentViewingWeekKey) {
+            // Create key format: "CharacterName__BossName__ItemName__WeekKey"
+            const key = `${item.charId}__${item.bossName}__${item.item}__${itemWeekKey}`;
+            newPitchedChecked[key] = true;
+          }
         });
         
-        logger.debug('usePitchedItems: Loaded pitched items from database', {
-          itemCount: result.items.length,
-          checkedKeys: Object.keys(newPitchedChecked).length,
-          sampleKeys: Object.keys(newPitchedChecked).slice(0, 3),
-          sampleItems: result.items.slice(0, 3).map(item => ({
-            charId: item.charId,
-            bossName: item.bossName,
-            item: item.item,
-            date: item.date,
-            weekKey: convertDateToWeekKey(item.date)
-          })),
-          currentWeekItems: result.items.filter(item => convertDateToWeekKey(item.date) === currentWeek).length
+        logger.debug('usePitchedItems: Loaded pitched items with week filtering', {
+          totalItemsInDatabase: result.items.length,
+          checkedKeysForCurrentWeek: Object.keys(newPitchedChecked).length,
+          currentViewingWeekKey,
+          sampleCheckedKeys: Object.keys(newPitchedChecked).slice(0, 3),
+          itemsInCurrentWeek: result.items.filter(item => convertDateToWeekKey(item.date) === currentViewingWeekKey).length,
+          itemsInOtherWeeks: result.items.filter(item => convertDateToWeekKey(item.date) !== currentViewingWeekKey).length
         });
         
         setPitchedChecked(newPitchedChecked);
@@ -77,17 +80,24 @@ export function usePitchedItems(userId) {
     } finally {
       setIsRefreshingPitchedItems(false);
     }
-  }, [userId]);
+  }, [userId, selectedWeekKey]); // 🎯 Add selectedWeekKey to dependencies
 
   /**
-   * Update checked state based on pitched items
+   * Update checked state based on pitched items for specific week
    */
-  const updateCheckedState = (items) => {
+  const updateCheckedState = (items, targetWeekKey = null) => {
+    const { getCurrentWeekKey } = require('../utils/weekUtils');
+    const currentViewingWeekKey = targetWeekKey || selectedWeekKey || getCurrentWeekKey();
+    
     const newChecked = {};
     items.forEach(item => {
-      const weekKey = convertDateToWeekKey(item.date);
-      const key = `${item.charId}__${item.bossName}__${item.item}__${weekKey}`;
-      newChecked[key] = true;
+      const itemWeekKey = convertDateToWeekKey(item.date);
+      
+      // Only mark as checked if it belongs to the target week
+      if (itemWeekKey === currentViewingWeekKey) {
+        const key = `${item.charId}__${item.bossName}__${item.item}__${itemWeekKey}`;
+        newChecked[key] = true;
+      }
     });
     setPitchedChecked(newChecked);
   };
@@ -419,10 +429,39 @@ export function usePitchedItems(userId) {
 
   // Load pitched items when userId changes
   useEffect(() => {
+    // Enhanced guard: Only load if we have a valid userId and we're not in a logout transition
     if (userId) {
-      refreshPitchedItems();
+      // Additional check to ensure we're not in a logout transition
+      // Import STORAGE_KEYS from constants to check localStorage
+      const checkAuthAndLoad = async () => {
+        try {
+          const { STORAGE_KEYS } = await import('../constants');
+          const currentStoredCode = localStorage.getItem(STORAGE_KEYS.USER_CODE);
+          
+          // Only proceed if localStorage matches the provided userId
+          if (currentStoredCode && currentStoredCode === userId) {
+            logger.debug('usePitchedItems: Loading pitched items for user', { userId });
+            refreshPitchedItems();
+          } else {
+            logger.debug('usePitchedItems: Skipping load - logout in progress or userId mismatch', {
+              userId,
+              storedCode: currentStoredCode
+            });
+          }
+        } catch (error) {
+          logger.error('usePitchedItems: Error checking auth state', { error });
+        }
+      };
+      
+      checkAuthAndLoad();
+    } else {
+      // Clear state when userId is null (during logout)
+      logger.debug('usePitchedItems: Clearing state for logout');
+      setCloudPitchedItems([]);
+      setPitchedChecked({});
+      setIsRefreshingPitchedItems(false);
     }
-  }, [userId]);
+  }, [userId, refreshPitchedItems]); // Add refreshPitchedItems to dependencies
 
   return {
     pitchedChecked,

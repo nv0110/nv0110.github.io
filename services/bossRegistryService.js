@@ -5,6 +5,8 @@
  * This replaces the local bossData.js file as the single source of truth.
  */
 
+import { logger } from '../src/utils/logger.js';
+
 // Helper: get supabase client dynamically for code splitting
 async function getSupabase() {
   const { supabase } = await import('../src/supabaseClient');
@@ -188,11 +190,20 @@ export async function getCrystalValue(bossName, difficulty) {
  * Force refresh boss registry cache
  */
 export async function forceRefreshBossRegistry() {
-  console.log('🔄 Forcing boss registry cache refresh...');
+  // Check if we're in a logout scenario (no user code in localStorage)
+  const userCode = localStorage.getItem('userCode');
+  if (!userCode) {
+    // During logout, use cached data if available instead of forcing refresh
+    if (bossRegistryCache && cacheTimestamp) {
+      return { success: true, data: bossRegistryCache };
+    }
+  }
+  
+  logger.debug('🔄 Refreshing boss registry cache...');
   bossRegistryCache = null;
   cacheTimestamp = null;
   const result = await fetchBossRegistry(true);
-  console.log('✅ Boss registry cache refreshed');
+  logger.debug('✅ Boss registry cache refreshed');
   return result;
 }
 
@@ -246,28 +257,28 @@ export function getBossPitchedItems(bossName) {
       { name: 'Total Control', image: '/items/tc.png' }
     ],
     'Damien': [
-      { name: 'Magic Eyepatch', image: '/items/eyepatch.webp' }
+      { name: 'Magic Eyepatch', image: '/items/eyepatch.webp', difficulty: 'Hard' }
     ],
     'Lucid': [
-      { name: 'Dreamy Belt', image: '/items/dreamy.png' }
+      { name: 'Dreamy Belt', image: '/items/dreamy.png', difficulty: 'Hard' }
     ],
     'Will': [
-      { name: 'Cursed Spellbook', image: '/items/book.webp' }
+      { name: 'Cursed Spellbook', image: '/items/book.webp', difficulty: 'Hard' }
     ],
     'Gloom': [
       { name: 'Endless Terror', image: '/items/et.webp' }
     ],
     'Darknell': [
-      { name: 'Commanding Force Earring', image: '/items/cfe.webp' }
+      { name: 'Commanding Force Earring', image: '/items/cfe.webp', difficulty: 'Hard' }
     ],
     'Verus Hilla': [
-      { name: 'Source of Suffering', image: '/items/sos.png' }
+      { name: 'Source of Suffering', image: '/items/sos.png', difficulty: 'Hard' }
     ],
     'Limbo': [
       { name: 'Whisper of the Source', image: '/items/whisper.png', difficulty: 'Hard' }
     ],
     'Chosen Seren': [
-      { name: "Mitra's Rage", image: '/items/emblem.webp' },
+      { name: "Mitra's Rage", image: '/items/emblem.webp', difficulties: ['Hard', 'Extreme'] },
       { name: 'Gravity Module', image: '/items/module.webp', difficulty: 'Extreme' }
     ],
     'Watcher Kalos': [

@@ -9,9 +9,10 @@ import { Tooltip } from './Tooltip';
 import SettingsModal from './SettingsModal';
 import { DeleteAccountModal } from '../features/common/PageModals';
 import { logger } from '../utils/logger';
+import { STORAGE_KEYS } from '../constants';
 
 function Navbar({ onWeeklyReset, onExport, onImport, fileInputRef }) {
-  const { userCode, handleLogout, handleDeleteAccount } = useAuthentication();
+  const { userCode, handleLogout, handleDeleteAccount, isLoggedIn } = useAuthentication();
   const { navigate } = useViewTransition();
   const location = useLocation();
   const { characterBossSelections } = useAppData();
@@ -29,20 +30,32 @@ function Navbar({ onWeeklyReset, onExport, onImport, fileInputRef }) {
   // State to track if weekly tracker should be enabled
   const [hasCharacters, setHasCharacters] = useState(false);
   
+  // Timer state managed within navbar
+  const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilReset());
+  const previousWeekKeyRef = useRef(getCurrentWeekKey()); // Keep track of the week key
+  const resetThrottleRef = useRef(false); // Add throttling to prevent rapid reset calls
+
   // Update hasCharacters state whenever characterBossSelections changes OR when forceUpdate is triggered
   useEffect(() => {
     const characterCount = characterBossSelections?.length || 0;
     setHasCharacters(characterCount > 0);
   }, [characterBossSelections, lastUpdate]);
 
-  // Timer state managed within navbar
-  const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilReset());
-  const previousWeekKeyRef = useRef(getCurrentWeekKey()); // Keep track of the week key
-  const resetThrottleRef = useRef(false); // Add throttling to prevent rapid reset calls
-
   // Update countdown timer and check for week change
   useEffect(() => {
+    // Enhanced guard: Check if user is still logged in before doing any operations
+    if (!isLoggedIn || !userCode) {
+      return; // Don't run timer operations during logout transition
+    }
+    
     const timer = setInterval(() => {
+      const currentStoredCode = localStorage.getItem(STORAGE_KEYS.USER_CODE);
+      
+      if (!userCode || !currentStoredCode || currentStoredCode !== userCode) {
+        // Don't run timer operations during logout transition
+        return;
+      }
+      
       setTimeUntilReset(getTimeUntilReset());
 
       const currentWeek = getCurrentWeekKey();
@@ -51,6 +64,13 @@ function Navbar({ onWeeklyReset, onExport, onImport, fileInputRef }) {
       // Only trigger reset if week actually changed and we're not already throttled
       if (currentWeek !== previousWeek && !resetThrottleRef.current) {
         logger.info(`Weekly reset detected. Old week: ${previousWeek}, New week: ${currentWeek}`);
+        
+        // Final check before triggering reset to ensure user is still logged in
+        const finalStoredCode = localStorage.getItem(STORAGE_KEYS.USER_CODE);
+        if (!finalStoredCode || finalStoredCode !== userCode) {
+          logger.debug('Navbar: Skipping weekly reset trigger - logout in progress');
+          return;
+        }
         
         // Set throttle to prevent rapid successive calls
         resetThrottleRef.current = true;
@@ -69,7 +89,7 @@ function Navbar({ onWeeklyReset, onExport, onImport, fileInputRef }) {
     }, 5000); // Reduce frequency from 1 second to 5 seconds to reduce performance impact
 
     return () => clearInterval(timer);
-  }, [onWeeklyReset]); // Add onWeeklyReset to dependency array
+  }, [onWeeklyReset, userCode]); // Add userCode to dependency array
 
   // Close mobile menu when route changes
   useEffect(() => {
@@ -100,7 +120,7 @@ function Navbar({ onWeeklyReset, onExport, onImport, fileInputRef }) {
       const result = await handleDeleteAccount();
       if (result.success) {
         setShowDeleteConfirm(false);
-        navigate('/login', { replace: true });
+        // Navigation is now handled by the authentication hook
       } else {
         setDeleteError(result.error);
       }
@@ -129,6 +149,12 @@ function Navbar({ onWeeklyReset, onExport, onImport, fileInputRef }) {
     navigate(path);
     setIsMobileMenuOpen(false);
   };
+
+  // Return null if not logged in to prevent navbar rendering during logout
+  // (This is after all hooks have been called, so it doesn't violate Rules of Hooks)
+  if (!isLoggedIn || !userCode) {
+    return null;
+  }
 
   return (
     <>

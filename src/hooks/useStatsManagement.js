@@ -83,14 +83,41 @@ export function useStatsManagement(userCode, refreshPitchedItems) {
 
   // Fetch cloud stats when viewing stats
   useEffect(() => {
+    // Enhanced guard: Only fetch if stats are shown, we have userCode, and we're not in logout
     if (!showStats || !userCode) return;
 
     const fetchCloudStats = async () => {
+      // Additional check to ensure we're not in a logout transition
+      try {
+        const { STORAGE_KEYS } = await import('../constants');
+        const currentStoredCode = localStorage.getItem(STORAGE_KEYS.USER_CODE);
+        
+        if (!currentStoredCode || currentStoredCode !== userCode) {
+          logger.debug('useStatsManagement: Skipping cloud stats fetch - logout in progress', {
+            userCode,
+            storedCode: currentStoredCode
+          });
+          return;
+        }
+      } catch (error) {
+        console.error('useStatsManagement: Error checking auth state for stats fetch', { error });
+        return;
+      }
+      
       try {
         setIsLoadingCloudStats(true);
         // Convert selectedYear to number to ensure type consistency
         const yearAsNumber = parseInt(selectedYear, 10);
         const result = await getYearlyPitchedStats(userCode, yearAsNumber);
+        
+        // Final check before processing result
+        const { STORAGE_KEYS: STORAGE_KEYS_FINAL } = await import('../constants');
+        const finalStoredCode = localStorage.getItem(STORAGE_KEYS_FINAL.USER_CODE);
+        if (!finalStoredCode || finalStoredCode !== userCode) {
+          logger.debug('useStatsManagement: Skipping result processing - logout occurred during fetch');
+          return;
+        }
+        
         if (result.success) {
           setCloudPitchedStats(prev => ({
             ...prev,
@@ -100,7 +127,12 @@ export function useStatsManagement(userCode, refreshPitchedItems) {
       } catch (error) {
         console.error('Error fetching cloud pitched stats:', error);
       } finally {
-        setIsLoadingCloudStats(false);
+        // Only update loading state if we're still in valid auth state
+        const { STORAGE_KEYS: STORAGE_KEYS_FINALLY } = await import('../constants');
+        const finalStoredCode = localStorage.getItem(STORAGE_KEYS_FINALLY.USER_CODE);
+        if (finalStoredCode && finalStoredCode === userCode) {
+          setIsLoadingCloudStats(false);
+        }
       }
     };
     

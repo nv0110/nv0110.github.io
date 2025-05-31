@@ -19,6 +19,7 @@ export const STORAGE_KEYS = {
   USER_CODE: 'ms-user-code',
   ACTIVE_PAGE: 'ms-active-page',
   WEEKLY_HIDE_COMPLETED: 'ms-weekly-hide-completed',
+  WEEKLY_ONBOARDING_SEEN: 'ms-weekly-onboarding-seen',
 };
 
 export const PAGES = {

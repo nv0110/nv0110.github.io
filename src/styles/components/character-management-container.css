@@ -43,6 +43,8 @@
   border-bottom: 1px solid rgba(162, 89, 247, 0.2);
   padding: 1.5rem;
   position: relative;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
 }
 
 .character-controls-header::before {

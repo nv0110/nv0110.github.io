@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { formatMesoBillions } from '../utils/formatUtils';
+import { useScrollIndicator } from '../hooks/useScrollIndicator';
+import ScrollIndicator from './ScrollIndicator';
 
 const CharacterSidebar = React.memo(function CharacterSidebar({
   sidebarVisible,
@@ -17,15 +19,15 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
   setShowCharacterPurgeConfirm,
   setShowCharacterPitchedModal,
   onShowTreasureAnalytics,
-  characterBossSelections
+  characterBossSelections,
+  showOnboardingIndicators
 }) {
-  const [showScrollIndicator, setShowScrollIndicator] = useState(false);
-  const [isScrolling, setIsScrolling] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isVerySmall, setIsVerySmall] = useState(false);
   const [showCharacterProgress, setShowCharacterProgress] = useState(false);
-  const characterListRef = useRef(null);
-  const scrollTimeoutRef = useRef(null);
+  
+  // Scroll indicator hook
+  const { showIndicator, elementRef } = useScrollIndicator([visibleCharSummaries, sidebarVisible]);
 
   // Detect mobile and very small screen sizes
   useEffect(() => {
@@ -39,57 +41,6 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
-
-  // Check if scroll indicator should be shown
-  useEffect(() => {
-    const checkScrollable = () => {
-      const element = characterListRef.current;
-      if (element) {
-        const hasScrollableContent = element.scrollHeight > element.clientHeight;
-        const isAtBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 5;
-        const canScrollDown = hasScrollableContent && !isAtBottom;
-        setShowScrollIndicator(canScrollDown && !isScrolling);
-      }
-    };
-
-    const handleScroll = () => {
-      setIsScrolling(true);
-      setShowScrollIndicator(false);
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-      scrollTimeoutRef.current = setTimeout(() => {
-        setIsScrolling(false);
-        checkScrollable();
-      }, 1000);
-    };
-
-    checkScrollable();
-    const element = characterListRef.current;
-    if (element) {
-      element.addEventListener('scroll', handleScroll);
-      return () => {
-        element.removeEventListener('scroll', handleScroll);
-        if (scrollTimeoutRef.current) {
-          clearTimeout(scrollTimeoutRef.current);
-        }
-      };
-    }
-  }, [visibleCharSummaries, isScrolling]);
-
-  useEffect(() => {
-    if (sidebarVisible) {
-      setTimeout(() => {
-        const element = characterListRef.current;
-        if (element) {
-          const hasScrollableContent = element.scrollHeight > element.clientHeight;
-          const isAtBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 5;
-          const canScrollDown = hasScrollableContent && !isAtBottom;
-          setShowScrollIndicator(canScrollDown && !isScrolling);
-        }
-      }, 100);
-    }
-  }, [sidebarVisible, isScrolling]);
 
   // Close sidebar when clicking outside on mobile
   useEffect(() => {
@@ -178,7 +129,7 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
           {/* Sidebar Header */}
           <div className="sidebar-header">
             <h3 
-              className="sidebar-title"
+              className={`sidebar-title ${showOnboardingIndicators ? 'onboarding-highlight' : ''}`}
               onClick={onShowTreasureAnalytics}
               title="View logged item analytics across all characters"
             >
@@ -188,7 +139,10 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
 
           {/* Progress Bar - only for current week with click toggle */}
           {!isHistoricalWeek && (
-            <div className="sidebar-progress-section premium-progress" onClick={handleProgressToggle}>
+            <div 
+              className={`sidebar-progress-section premium-progress ${showOnboardingIndicators ? 'onboarding-highlight' : ''}`} 
+              onClick={handleProgressToggle}
+            >
               {!showCharacterProgress ? (
                 /* Weekly Progress (default state) */
                 <div className="sidebar-progress-container sidebar-progress-weekly">
@@ -265,7 +219,7 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
 
           {/* Character Cards - Scrollable Container */}
           <div className="sidebar-character-list-container">
-            <div className="sidebar-character-list" ref={characterListRef}>
+            <div className="sidebar-character-list" ref={elementRef}>
               {visibleCharSummaries.length === 0 ? (
                 <div className="sidebar-empty-state">
                   {hideCompleted ? 'No characters with bosses left to clear.' : 'No characters found.'}
@@ -335,23 +289,7 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
                 ))
               )}
             </div>
-            {/* Scroll Indicator Arrow */}
-            {showScrollIndicator && (
-              <div className="sidebar-scroll-indicator">
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M11.0001 3.67157L13.0001 3.67157L13.0001 16.4999L16.2426 13.2574L17.6568 14.6716L12 20.3284L6.34314 14.6716L7.75735 13.2574L11.0001 16.5001L11.0001 3.67157Z"
-                    fill="currentColor"
-                  />
-                </svg>
-              </div>
-            )}
+            <ScrollIndicator show={showIndicator} />
           </div>
         </div>
       </div>

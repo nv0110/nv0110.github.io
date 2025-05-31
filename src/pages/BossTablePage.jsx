@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar';
 import ViewTransitionWrapper from '../components/ViewTransitionWrapper';
 import { HelpModal, DeleteAccountModal, BossTableHelpContent } from '../features/common/PageModals';
 import '../styles/boss-price-table.css';
+import { logger } from '../utils/logger';
 
 function BossTablePage() {
   const { navigate } = useViewTransition();
@@ -22,10 +23,48 @@ function BossTablePage() {
 
   // Load boss data from database
   useEffect(() => {
+    // Enhanced guard: Only load data if user is logged in
+    if (!isLoggedIn) {
+      logger.debug('BossTablePage: Skipping boss data load - user not logged in');
+      setIsLoadingBossData(false);
+      setBossData([]);
+      return;
+    }
+    
+    let isMounted = true;
+    let abortController = new AbortController();
+    
     const loadBossData = async () => {
+      // Additional auth check before starting async operation
+      if (!isLoggedIn || abortController.signal.aborted) {
+        logger.debug('BossTablePage: Aborting boss data load - auth state invalid');
+        return;
+      }
+      
       try {
+        setIsLoadingBossData(true);
+        
+        // Check auth state before importing service
+        if (!isLoggedIn || abortController.signal.aborted) {
+          logger.debug('BossTablePage: Aborting before service import');
+          return;
+        }
+        
         const { getBossDataForFrontend } = await import('../../services/bossRegistryService.js');
+        
+        // Final auth check before API call
+        if (!isLoggedIn || abortController.signal.aborted || !isMounted) {
+          logger.debug('BossTablePage: Aborting before API call');
+          return;
+        }
+        
         const result = await getBossDataForFrontend();
+        
+        // Check auth state before processing result
+        if (!isLoggedIn || abortController.signal.aborted || !isMounted) {
+          logger.debug('BossTablePage: Aborting before processing result');
+          return;
+        }
         
         if (result.success) {
           setBossData(result.data);
@@ -34,20 +73,29 @@ function BossTablePage() {
           setBossData([]);
         }
       } catch (error) {
-        console.error('Error loading boss data:', error);
-        setBossData([]);
+        if (!abortController.signal.aborted && isLoggedIn && isMounted) {
+          console.error('Error loading boss data:', error);
+          setBossData([]);
+        }
       } finally {
-        setIsLoadingBossData(false);
+        if (isMounted && isLoggedIn && !abortController.signal.aborted) {
+          setIsLoadingBossData(false);
+        }
       }
     };
     
     loadBossData();
-  }, []);
+    
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
+  }, [isLoggedIn]); // Add isLoggedIn dependency to react to auth changes
 
-  // Redirect if not logged in
+  // Redirect if not logged in - handled by ProtectedRoute in App.jsx
+  // Don't call navigate directly here to prevent navigation throttling
   if (!isLoggedIn) {
-    navigate('/login', { replace: true });
-    return null;
+    return null; // Let ProtectedRoute component handle the redirect
   }
 
   // Handle delete account
@@ -58,7 +106,7 @@ function BossTablePage() {
       const result = await handleDeleteAccount();
       if (result.success) {
         setShowDeleteConfirm(false);
-        navigate('/login', { replace: true });
+        // Navigation is now handled by the authentication hook
       } else {
         setDeleteError(result.error);
       }

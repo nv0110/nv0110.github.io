@@ -539,8 +539,6 @@
   accent-color: #a259f7; /* Purple accent color for checkbox */
 }
 
-
-
 /* ===== CHARACTER LIST ===== */
 
 /* Character list container wrapper - contains scrollable list and scroll indicator */
@@ -561,48 +559,6 @@
   
   /* Padding for scrollbar space */
   padding-right: 4px; /* Small padding for scrollbar */
-}
-
-/* Scroll indicator arrow - shows when content is scrollable */
-.sidebar-scroll-indicator {
-  position: absolute; /* Position relative to container */
-  bottom: 12px; /* Position slightly above the bottom of scrollable area */
-  left: 50%; /* Center horizontally */
-  transform: translateX(-50%); /* Perfect center alignment */
-  
-  /* Styling */
-  display: flex; /* Center the arrow */
-  align-items: center; /* Vertical center */
-  justify-content: center; /* Horizontal center */
-  
-  /* No background - just the glowing icon */
-  background: none; /* Remove background */
-  border: none; /* Remove border */
-  
-  /* Arrow color with enhanced white glow */
-  color: #ffffff; /* White arrow */
-  
-  /* Breathing pulse animation */
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  
-  /* Transitions for smooth show/hide */
-  transition: opacity 0.3s ease, transform 0.3s ease;
-  
-  /* Z-index to appear above character cards */
-  z-index: 10;
-}
-
-/* SVG icon inside scroll indicator with enhanced glow */
-.sidebar-scroll-indicator svg {
-  /* Enhanced white glow effect on the SVG itself */
-  filter: 
-    drop-shadow(0 0 4px rgba(255, 255, 255, 0.8))   /* Inner glow */
-    drop-shadow(0 0 8px rgba(255, 255, 255, 0.6))   /* Medium glow */
-    drop-shadow(0 0 12px rgba(255, 255, 255, 0.4))  /* Outer glow */
-    drop-shadow(0 0 16px rgba(255, 255, 255, 0.2)); /* Extended glow */
-  
-  /* Ensure the icon inherits the white color */
-  color: inherit;
 }
 
 /* Empty state message - shown when no characters match filters */
@@ -664,8 +620,6 @@
 .sidebar-character-card.selected.historical-week {
   border: 1px solid rgba(159, 122, 234, 0.5); /* Lighter purple for historical */
 }
-
-
 
 /* Character card header - name and completion status */
 .sidebar-character-header {
@@ -918,6 +872,49 @@
   animation: pulse-glow 3s infinite ease-in-out;
 }
 
+/* ===== SCROLL INDICATOR ===== */
+
+/* Minimal scroll indicator - positioned at bottom of scrollable area */
+.scroll-indicator {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: rgba(255, 255, 255, 0.6);
+  pointer-events: none;
+  z-index: 5;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Visible state with subtle pulse */
+.scroll-indicator.visible {
+  opacity: 1;
+  animation: subtle-pulse 2.5s ease-in-out infinite;
+}
+
+/* Hidden state */
+.scroll-indicator.hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(4px);
+}
+
+/* Subtle pulse animation */
+@keyframes subtle-pulse {
+  0%, 100% {
+    opacity: 0.6;
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translateX(-50%) translateY(-2px);
+  }
+}
+
 /* ===== RESPONSIVE BREAKPOINTS ===== */
 
 /* WQHD and 4K displays (2560px+) */
@@ -1000,6 +997,12 @@
     width: 32px;
     height: 32px;
   }
+  
+  .scroll-indicator {
+    width: 33px;
+    height: 33px;
+    bottom: 10px;
+  }
 }
 
 /* Large Desktop (1920px-2559px) */
@@ -1070,6 +1073,12 @@
   .sidebar-character-pitched-btn {
     width: 30px;
     height: 30px;
+  }
+  
+  .scroll-indicator {
+    width: 32px;
+    height: 32px;
+    bottom: 9px;
   }
 }
 
@@ -1157,6 +1166,12 @@
     width: 26px;
     height: 26px;
   }
+  
+  .scroll-indicator {
+    width: 29px;
+    height: 29px;
+    bottom: 8px;
+  }
 }
 
 /* Tablet (769px-1024px) */
@@ -1240,6 +1255,12 @@
   .sidebar-character-pitched-btn {
     width: 24px;
     height: 24px;
+  }
+  
+  .scroll-indicator {
+    width: 27px;
+    height: 27px;
+    bottom: 6px;
   }
 }
 
@@ -1361,6 +1382,12 @@
     min-height: 44px;
     padding: 10px;
   }
+  
+  .scroll-indicator {
+    width: 27px;
+    height: 27px;
+    bottom: 6px;
+  }
 }
 
 /* Small Mobile (up to 480px) */
@@ -1479,5 +1506,11 @@
     min-width: 18px;
     height: 18px;
     font-size: 0.65rem;
+  }
+  
+  .scroll-indicator {
+    width: 27px;
+    height: 27px;
+    bottom: 6px;
   }
 }

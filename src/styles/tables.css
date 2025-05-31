@@ -158,6 +158,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  text-align: left;
 }
 
 .boss-party-size {
@@ -165,6 +166,7 @@
   color: #a259f7;
   font-weight: 500;
   opacity: 0.85;
+  text-align: left;
 }
 
 /* Header button styling */
@@ -238,6 +240,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.92rem;
+  text-align: left;
 }
 
 /* ===================================================================
@@ -250,6 +253,8 @@
   gap: 8px;
   flex-shrink: 0;
   margin-left: auto;
+  flex-wrap: nowrap;
+  min-height: 41px;
 }
 
 .pitched-item-icon {
@@ -267,6 +272,7 @@
   overflow: hidden;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(4px);
+  flex-shrink: 0;
 }
 
 .pitched-item-icon:hover {

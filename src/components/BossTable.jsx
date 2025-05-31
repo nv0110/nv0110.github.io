@@ -30,6 +30,19 @@ function BossTable({
   // Loading state for individual pitched items
   const [loadingPitchedItems, setLoadingPitchedItems] = useState(new Set());
 
+  // Prevent rendering if essential data is not loaded
+  if (!bosses.length || !bossData.length) {
+    return (
+      <div className="boss-table-container">
+        <div className="boss-table-loading">
+          <div style={{ textAlign: 'center', padding: '2rem', color: '#e6e0ff' }}>
+            Loading boss data...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Helper to get boss info from bossData
   const getBossInfo = (bossName) => {
     return bossData.find(boss => boss.name === bossName) || {};
@@ -50,12 +63,20 @@ function BossTable({
   const getBossItems = (bossName, difficulty) => {
     const items = getBossPitchedItems(bossName) || [];
     
-    // Filter items by difficulty if specified
+    // Filter items based on difficulty rules
     return items.filter(item => {
+      // If item has specific difficulty requirement, check if it matches
       if (item.difficulty) {
         return item.difficulty === difficulty;
       }
-      return !difficulty; // If boss has no specific difficulty, only show for no difficulty filter
+      
+      // If item has multiple difficulties array, check if current difficulty is included
+      if (item.difficulties && Array.isArray(item.difficulties)) {
+        return item.difficulties.includes(difficulty);
+      }
+      
+      // If item has no difficulty restrictions, show it for all difficulties
+      return true;
     });
   };
 

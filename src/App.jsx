@@ -1,9 +1,10 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { Suspense, lazy, Component, useRef } from 'react';
+import { Suspense, lazy, Component, useRef, useEffect } from 'react';
 import { useAuthentication } from '../hooks/useAuthentication';
 import { ForceUpdateProvider } from './hooks/ForceUpdateContext';
 import ViewTransitionWrapper from './components/ViewTransitionWrapper';
 import { AppDataProvider, useAppData } from './hooks/AppDataContext.jsx';
+import { STORAGE_KEYS } from './constants';
 import './App.css';
 import React from 'react';
 import Navbar from './components/Navbar';
@@ -92,14 +93,30 @@ class ErrorBoundary extends Component {
 
 // 404 Not Found Component
 function NotFound() {
+  const { isLoggedIn } = useAuthentication();
+  
+  // Enhanced guard: Only navigate if user is logged in and not in transition
+  if (isLoggedIn && localStorage.getItem(STORAGE_KEYS.USER_CODE)) {
+    return (
+      <div className="App dark not-found-container">
+        <h1 className="not-found-title">404</h1>
+        <h2 className="not-found-subtitle">Page Not Found</h2>
+        <p className="not-found-description">
+          The page you're looking for doesn't exist. It might have been moved or deleted.
+        </p>
+        <Navigate to="/" replace />
+      </div>
+    );
+  }
+  
+  // For logged out users or during transitions, just show the 404 without navigation
   return (
     <div className="App dark not-found-container">
       <h1 className="not-found-title">404</h1>
       <h2 className="not-found-subtitle">Page Not Found</h2>
       <p className="not-found-description">
-        The page you're looking for doesn't exist. It might have been moved or deleted.
+        The page you're looking for doesn't exist. Please log in to continue.
       </p>
-      <Navigate to="/" replace />
     </div>
   );
 }
@@ -108,11 +125,25 @@ function NotFound() {
 function ProtectedRoute({ children }) {
   const { isLoggedIn } = useAuthentication();
   const location = useLocation();
-  // console.log('ProtectedRoute: isLoggedIn:', isLoggedIn, 'path:', location.pathname);
+  
+  // Enhanced guard: Check for logout transitions
+  useEffect(() => {
+    // Don't trigger redirects during component mount/unmount cycles
+    const timeoutId = setTimeout(() => {
+      // Allow navigation logic to process after initial render
+    }, 50);
+    return () => clearTimeout(timeoutId);
+  }, []);
 
   if (!isLoggedIn) {
-    // console.log('ProtectedRoute: Redirecting to /login from', location.pathname);
-    return <Navigate to="/login" replace state={{ from: location }} />;
+    // Additional check to prevent navigation during logout transitions
+    const currentStoredCode = localStorage.getItem(STORAGE_KEYS.USER_CODE);
+    if (!currentStoredCode) {
+      // Only navigate if we're actually logged out, not in transition
+      return <Navigate to="/login" replace state={{ from: location }} />;
+    }
+    // During logout transition, return null to prevent navigation throttling
+    return null;
   }
   return children;
 }
@@ -132,16 +163,30 @@ function MainAppContent() {
       return;
     }
     
+    // Enhanced guard: Check if user is still logged in before proceeding
+    const currentStoredCode = localStorage.getItem(STORAGE_KEYS.USER_CODE);
+    if (!userCode || !currentStoredCode || currentStoredCode !== userCode) {
+      console.log('MainAppContent: Skipping weekly reset - logout in progress');
+      return;
+    }
+    
     console.log(`MainAppContent: handleWeeklyReset called for ended week: ${endedWeekKey}`);
     
-    if (!userCode || !endedWeekKey) {
-      console.warn('Cannot perform weekly reset: missing userCode or endedWeekKey');
+    if (!endedWeekKey) {
+      console.warn('Cannot perform weekly reset: missing endedWeekKey');
       return;
     }
     
     resetInProgressRef.current = true;
     
     try {
+      // Final check before any operations
+      const finalStoredCode = localStorage.getItem(STORAGE_KEYS.USER_CODE);
+      if (!finalStoredCode || finalStoredCode !== userCode) {
+        console.log('MainAppContent: Aborting weekly reset - logout occurred during process');
+        return;
+      }
+      
       // 1. Clear UI for boss clears (current week)
       setChecked({});
       console.log('Boss clears UI reset for the new week.');
@@ -181,7 +226,16 @@ function MainAppContent() {
             <Routes>
               <Route 
                 path="/login" 
-                element={isLoggedIn ? <Navigate to="/" replace /> : <LoginPage />} 
+                element={
+                  isLoggedIn ? (
+                    // Enhanced guard: Check if we're in a logout transition
+                    localStorage.getItem(STORAGE_KEYS.USER_CODE) ? 
+                      <Navigate to="/" replace /> : 
+                      <LoginPage />
+                  ) : (
+                    <LoginPage />
+                  )
+                } 
               />
               <Route 
                 path="/" 

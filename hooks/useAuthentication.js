@@ -16,7 +16,7 @@ const AUTH_CHANGE_EVENT = 'authChangeEvent';
 // Unified authentication event dispatcher for global state consistency
 // This allows different parts of the app to subscribe to authentication changes
 function dispatchAuthChange(userCode) {
-  const event = new CustomEvent('authChange', { detail: { userCode } });
+  const event = new CustomEvent(AUTH_CHANGE_EVENT, { detail: { userCode } });
   window.dispatchEvent(event);
 }
 
@@ -79,9 +79,10 @@ export function useAuthentication() {
       if (result.success) {
         setCreateCooldown(0);
         logger.info('✅ Created new account:', result.code);
-        localStorage.setItem(STORAGE_KEYS.USER_CODE, result.code);
-        setUserCode(result.code);
-        dispatchAuthChange(result.code);
+        
+        // DO NOT immediately set the user as logged in
+        // Let the confirmation modal handle the login process
+        
         return { success: true, code: result.code };
       } else {
         logger.error('Account creation failed:', result.error);
@@ -108,6 +109,15 @@ export function useAuthentication() {
         localStorage.setItem(STORAGE_KEYS.USER_CODE, loginInput);
         setUserCode(loginInput);
         dispatchAuthChange(loginInput);
+        
+        // Trigger immediate data refresh after successful login
+        setTimeout(() => {
+          const refreshEvent = new CustomEvent('authDataRefresh', { 
+            detail: { userCode: loginInput, action: 'login' } 
+          });
+          window.dispatchEvent(refreshEvent);
+        }, 100);
+        
         return { success: true };
       } else {
         logger.error('Login failed:', result.error);
@@ -124,30 +134,73 @@ export function useAuthentication() {
 
   const handleLogout = async () => {
     logger.info('Logging out user:', userCode);
+    
+    // Clear localStorage first
     localStorage.removeItem(STORAGE_KEYS.USER_CODE);
+    
+    // Update state in sequence to prevent cascading effects
     setUserCode('');
     dispatchAuthChange('');
-    navigate('/login', { replace: true });
+    
+    // Use shorter delay - 500ms was too long and allowed navbar to stay visible
+    // Most React effects should finish within 100ms
+    setTimeout(() => {
+      // Double-check we're still in logout state before navigating
+      const currentCode = localStorage.getItem(STORAGE_KEYS.USER_CODE);
+      if (!currentCode) {
+        navigate('/login', { replace: true });
+      }
+    }, 100); // Reduced from 500ms to 100ms for faster logout
+    
     return { success: true };
   };
 
   const handleDeleteAccount = async () => {
+    const userCodeToDelete = userCode; // Store reference before clearing state
+    
+    if (!userCodeToDelete) {
+      return { success: false, error: 'No user logged in.' };
+    }
+    
     try {
-      const result = await deleteUserAccount(userCode);
+      // Clear authentication state IMMEDIATELY to prevent other hooks from making requests
+      localStorage.removeItem(STORAGE_KEYS.USER_CODE);
+      setUserCode('');
+      dispatchAuthChange('');
+      
+      // Now delete the account from the database
+      const result = await deleteUserAccount(userCodeToDelete);
       
       if (result.success) {
-        localStorage.removeItem(STORAGE_KEYS.USER_CODE);
-        setUserCode('');
-        dispatchAuthChange('');
-        navigate('/login', { replace: true });
+        // Navigate to login page
+        setTimeout(() => {
+          navigate('/login', { replace: true });
+        }, 100);
         return { success: true };
       } else {
-        logger.error('Delete error:', result.error);
+        // If deletion failed, restore the authentication state
+        logger.error('Delete error - restoring auth state:', result.error);
+        localStorage.setItem(STORAGE_KEYS.USER_CODE, userCodeToDelete);
+        setUserCode(userCodeToDelete);
+        dispatchAuthChange(userCodeToDelete);
         return result;
       }
     } catch (error) {
-      logger.error('Delete error:', error);
-      return { success: false, error: 'Failed to delete account. Try again.' };
+      logger.error('Delete error - network/unexpected error:', error);
+      // For network errors, try to restore auth state
+      try {
+        localStorage.setItem(STORAGE_KEYS.USER_CODE, userCodeToDelete);
+        setUserCode(userCodeToDelete);
+        dispatchAuthChange(userCodeToDelete);
+        return { success: false, error: 'Network error. Please try again.' };
+      } catch (restoreError) {
+        // If we can't restore state, navigate to login
+        logger.error('Failed to restore auth state after delete error:', restoreError);
+        setTimeout(() => {
+          navigate('/login', { replace: true });
+        }, 100);
+        return { success: false, error: 'Failed to delete account. Please try again.' };
+      }
     }
   };
 

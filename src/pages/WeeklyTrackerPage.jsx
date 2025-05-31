@@ -6,6 +6,8 @@ import { useAppData } from '../hooks/AppDataContext.jsx';
 import Navbar from '../components/Navbar';
 import ViewTransitionWrapper from '../components/ViewTransitionWrapper';
 import { HelpModal, DeleteAccountModal, WeeklyTrackerHelpContent } from '../features/common/PageModals';
+import OnboardingGuide from '../components/OnboardingGuide';
+import { STORAGE_KEYS } from '../constants';
 
 function WeeklyTrackerPage() {
   const { navigate } = useViewTransition();
@@ -28,10 +30,33 @@ function WeeklyTrackerPage() {
   const [deleteError, setDeleteError] = useState('');
   const [showDeleteLoading, setShowDeleteLoading] = useState(false);
 
-  // Redirect if not logged in
+  // Onboarding state
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Check if this is the user's first visit to Weekly Tracker
+  useEffect(() => {
+    if (hasDataLoaded && characterBossSelections.length > 0) {
+      const hasSeenGuide = localStorage.getItem(STORAGE_KEYS.WEEKLY_ONBOARDING_SEEN);
+      if (!hasSeenGuide) {
+        // Small delay to ensure page has loaded properly
+        const timer = setTimeout(() => {
+          setShowOnboarding(true);
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [hasDataLoaded, characterBossSelections.length]);
+
+  // Mark onboarding as seen
+  const handleOnboardingComplete = () => {
+    localStorage.setItem(STORAGE_KEYS.WEEKLY_ONBOARDING_SEEN, 'true');
+    setShowOnboarding(false);
+  };
+
+  // Redirect if not logged in - handled by ProtectedRoute in App.jsx
+  // Don't call navigate directly here to prevent navigation throttling
   if (!isLoggedIn) {
-    navigate('/login', { replace: true });
-    return null;
+    return null; // Let ProtectedRoute component handle the redirect
   }
 
   // Handle delete account
@@ -42,7 +67,7 @@ function WeeklyTrackerPage() {
       const result = await handleDeleteAccount();
       if (result.success) {
         setShowDeleteConfirm(false);
-        navigate('/login', { replace: true });
+        // Navigation is now handled by the authentication hook
       } else {
         setDeleteError(result.error);
       }
@@ -96,8 +121,16 @@ function WeeklyTrackerPage() {
           fullUserData={fullUserData}
           appWeekKey={weekKey}
           preservingCheckedStateRef={preservingCheckedStateRef}
+          showOnboardingIndicators={showOnboarding}
         />
       </ViewTransitionWrapper>
+
+      {/* Onboarding Guide Modal */}
+      <OnboardingGuide
+        show={showOnboarding}
+        onComplete={handleOnboardingComplete}
+        onSkip={handleOnboardingComplete}
+      />
 
       {/* Consolidated page modals for better organization */}
       <HelpModal

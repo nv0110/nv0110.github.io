@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthentication } from '../../hooks/useAuthentication';
+import { logger } from '../utils/logger';
+import '../styles/modals.css';
 
 function LoginPage() {
-  const navigate = useNavigate();
   const {
+    userCode,
     isLoggedIn,
     loginInput,
     setLoginInput,
+    loginError,
+    setLoginError,
     isCreating,
     createCooldown,
     showPassword,
@@ -16,11 +20,15 @@ function LoginPage() {
     handleLogin,
   } = useAuthentication();
 
-  const [loginInputFocused, setLoginInputFocused] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [newUserCode, setNewUserCode] = useState('');
-  const [countdown, setCountdown] = useState(8);
+  const [countdown, setCountdown] = useState(6);
+  const [loginInputFocused, setLoginInputFocused] = useState(false);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const performLoginAndNavigate = async () => {
     if (newUserCode && loginInput !== newUserCode) {
@@ -30,7 +38,19 @@ function LoginPage() {
     }
     const loginResult = await handleLogin();
     if (loginResult.success) {
-      navigate('/', { replace: true });
+      // Trigger immediate data refresh after successful login
+      setTimeout(() => {
+        const refreshEvent = new CustomEvent('authDataRefresh', { 
+          detail: { userCode: newUserCode, action: 'create' } 
+        });
+        window.dispatchEvent(refreshEvent);
+      }, 100);
+      
+      // Use controlled navigation with a small delay to ensure auth state has settled
+      setTimeout(() => {
+        navigate('/', { replace: true });
+      }, 200);
+      setShowSuccessModal(false);
     } else {
       // Auto-login failed. Modal will close, user can try manually.
       setShowSuccessModal(false); 
@@ -40,7 +60,7 @@ function LoginPage() {
   
   const handleSuccessModalClose = () => {
     setShowSuccessModal(false);
-    setCountdown(8); // Reset countdown for next time
+    setCountdown(6); // Reset countdown for next time
     // Navigation is handled by performLoginAndNavigate or if user logs in manually
   };
 
@@ -73,29 +93,34 @@ function LoginPage() {
       setNewUserCode(result.code);
       setLoginInput(result.code); // PRE-FILL LOGIN INPUT for useAuthentication's handleLogin
       setShowSuccessModal(true);
-      setCountdown(8); 
+      setCountdown(6); 
     }
   };
 
   const handleLoginWrapper = async () => {
-    const result = await handleLogin(); // Uses loginInput from useAuthentication state
-    if (result.success) {
-      navigate('/', { replace: true });
+    if (isLoggingIn) return; // Prevent double-clicks
+    
+    setIsLoggingIn(true);
+    setLoginError(''); // Clear any previous errors
+    
+    try {
+      const result = await handleLogin(); // Uses loginInput from useAuthentication state
+      if (result.success) {
+        // Use controlled navigation with a small delay to ensure auth state has settled
+        setTimeout(() => {
+          navigate('/', { replace: true });
+        }, 200);
+      }
+    } catch (error) {
+      console.error('Login wrapper error:', error);
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && loginInput.trim()) {
+    if (e.key === 'Enter' && loginInput.trim() && !isLoggingIn) {
       handleLoginWrapper();
-    }
-  };
-
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(newUserCode);
-      setShowCopiedToast(true);
-    } catch (err) {
-      console.error('Failed to copy to clipboard:', err);
     }
   };
 
@@ -242,206 +267,170 @@ function LoginPage() {
 
         <button
           onClick={handleLoginWrapper}
-          disabled={!loginInput.trim()}
+          disabled={!loginInput.trim() || isLoggingIn}
           style={{ 
-            background: !loginInput.trim() ? '#4a4570' : '#6b46c1', 
+            background: (!loginInput.trim() || isLoggingIn) ? '#4a4570' : '#6b46c1', 
             color: '#fff', 
             border: 'none', 
             borderRadius: 6, 
             padding: '0.7rem 1.5rem', 
             fontWeight: 700, 
             fontSize: '1.1rem', 
-            cursor: !loginInput.trim() ? 'not-allowed' : 'pointer', 
+            cursor: (!loginInput.trim() || isLoggingIn) ? 'not-allowed' : 'pointer', 
             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', 
-            boxShadow: !loginInput.trim() ? 'none' : '0 2px 8px rgba(107, 70, 193, 0.3)',
+            boxShadow: (!loginInput.trim() || isLoggingIn) ? 'none' : '0 2px 8px rgba(107, 70, 193, 0.3)',
             transform: 'translateY(0)',
-            width: '100%'
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem'
           }}
           onMouseOver={e => {
-            if (loginInput.trim()) {
-              e.currentTarget.style.background = '#805ad5';
+            if (!(!loginInput.trim() || isLoggingIn)) {
+              e.currentTarget.style.background = '#7c5dc7';
               e.currentTarget.style.transform = 'translateY(-2px)';
               e.currentTarget.style.boxShadow = '0 4px 16px rgba(107, 70, 193, 0.4)';
             }
           }}
           onMouseOut={e => {
-            if (loginInput.trim()) {
+            if (!(!loginInput.trim() || isLoggingIn)) {
               e.currentTarget.style.background = '#6b46c1';
               e.currentTarget.style.transform = 'translateY(0)';
               e.currentTarget.style.boxShadow = '0 2px 8px rgba(107, 70, 193, 0.3)';
             }
           }}
           onMouseDown={e => {
-            if (loginInput.trim()) {
+            if (!(!loginInput.trim() || isLoggingIn)) {
               e.currentTarget.style.transform = 'translateY(1px)';
               e.currentTarget.style.boxShadow = '0 1px 4px rgba(107, 70, 193, 0.2)';
             }
           }}
           onMouseUp={e => {
-            if (loginInput.trim()) {
+            if (!(!loginInput.trim() || isLoggingIn)) {
               e.currentTarget.style.transform = 'translateY(-2px)';
               e.currentTarget.style.boxShadow = '0 4px 16px rgba(107, 70, 193, 0.4)';
             }
           }}
         >
-          Login
+          {isLoggingIn && (
+            <div style={{
+              width: '16px',
+              height: '16px',
+              border: '2px solid #fff',
+              borderTop: '2px solid transparent',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }}></div>
+          )}
+          {isLoggingIn ? 'Logging in...' : 'Login'}
         </button>
         {/* loginError from useAuthentication will be displayed here if present */}
       </div>
 
       {/* Success Modal */}
       {showSuccessModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          backdropFilter: 'blur(5px)'
-        }}>
-          <div style={{
-            background: '#2d2540',
-            padding: '2rem',
-            borderRadius: 12,
-            textAlign: 'center',
-            boxShadow: '0 5px 25px rgba(0,0,0,0.3)',
-            width: '90%',
-            maxWidth: 420,
-            border: '1px solid #4a3b73',
-            animation: 'modalFadeIn 0.3s ease-out, modalSlideIn 0.4s ease-out'
-          }}>
-            <h2 style={{ fontSize: '1.8rem', color: '#a259f7', marginBottom: '1rem', fontWeight: 700 }}>
-              Account Created!
-            </h2>
-            <p style={{ marginBottom: '1rem', fontSize: '1rem', color: '#e6e0ff' }}>
-              Your unique login code is:
-            </p>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px',
-              background: '#3a335a',
-              padding: '0.7rem 1rem',
-              borderRadius: 6,
-              marginBottom: '1.5rem',
-              border: '1px solid #4a3b73'
-            }}>
-              <span style={{ 
-                fontSize: '1.4rem', 
-                fontWeight: 'bold', 
-                color: '#f0e6ff', 
-                letterSpacing: '1.5px',
-                fontFamily: '"Roboto Mono", monospace' 
-              }}>
-                {newUserCode}
-              </span>
-              <button
-                onClick={copyToClipboard}
-                title="Copy Code"
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: '#a259f7',
-                  padding: '0.3rem'
-                }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                </svg>
-              </button>
-            </div>
-            
-            {showCopiedToast && (
-              <div style={{
-                position: 'absolute',
-                bottom: '20px', 
-                left: '50%',
-                transform: 'translateX(-50%)',
-                background: '#a259f7',
-                color: '#fff',
-                padding: '0.5rem 1rem',
-                borderRadius: '20px',
-                fontSize: '0.9rem',
-                boxShadow: '0 2px 10px rgba(162, 89, 247, 0.4)',
-                animation: 'toastFadeInOut 2s ease-in-out forwards'
-              }}>
-                Code Copied!
-              </div>
-            )}
-
-            <p style={{ fontSize: '0.9rem', color: '#b39ddb', marginBottom: '0.5rem' }}>
-              Please save this code. It's the only way to access your data.
-            </p>
-            <p style={{ fontSize: '1rem', color: '#e6e0ff', marginBottom: '1.5rem' }}>
-              Logging you in automatically in: <strong style={{color: '#a259f7'}}>{countdown}</strong>s
-            </p>
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-              <button
-                onClick={performLoginAndNavigate} // "Continue" button
-                style={{
-                  background: '#a259f7',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 6,
-                  padding: '0.6rem 1.2rem',
-                  fontWeight: 600,
-                  fontSize: '1rem',
-                  cursor: 'pointer',
-                  transition: 'background 0.2s',
-                  flex: 1
-                }}
-                onMouseOver={e => e.currentTarget.style.background = '#b470ff'}
-                onMouseOut={e => e.currentTarget.style.background = '#a259f7'}
-              >
-                Login Now
-              </button>
-              <button
-                onClick={handleSuccessModalClose} // Close button
-                style={{
-                  background: '#4a3b73',
-                  color: '#e6e0ff',
-                  border: 'none',
-                  borderRadius: 6,
-                  padding: '0.6rem 1.2rem',
-                  fontWeight: 600,
-                  fontSize: '1rem',
-                  cursor: 'pointer',
-                  transition: 'background 0.2s',
-                  flex: 1
-                }}
-                onMouseOver={e => e.currentTarget.style.background = '#5a4b83'}
-                onMouseOut={e => e.currentTarget.style.background = '#4a3b73'}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <AccountCreatedModal
+          show={showSuccessModal}
+          userCode={newUserCode}
+          countdown={countdown}
+          onLoginNow={performLoginAndNavigate}
+          onClose={handleSuccessModalClose}
+        />
       )}
-      <style>{`
-        @keyframes modalFadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes modalSlideIn {
-          from { transform: translateY(20px) scale(0.95); opacity: 0.6; }
-          to { transform: translateY(0) scale(1); opacity: 1; }
-        }
-        @keyframes toastFadeInOut {
-          0% { opacity: 0; transform: translateY(10px) translateX(-50%); }
-          10% { opacity: 1; transform: translateY(0) translateX(-50%); }
-          90% { opacity: 1; transform: translateY(0) translateX(-50%); }
-          100% { opacity: 0; transform: translateY(10px) translateX(-50%); }
-        }
-      `}</style>
+    </div>
+  );
+}
+
+// Account Created Confirmation Modal Component
+function AccountCreatedModal({ 
+  show, 
+  userCode, 
+  countdown, 
+  onLoginNow, 
+  onClose
+}) {
+  const [showCopiedToast, setShowCopiedToast] = useState(false);
+
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(userCode);
+      setShowCopiedToast(true);
+      setTimeout(() => setShowCopiedToast(false), 2000);
+    } catch (err) {
+      logger.error('Failed to copy to clipboard:', err);
+    }
+  };
+
+  if (!show) return null;
+
+  return (
+    <div className="modal-backdrop">
+      <div className="modal-content account-created-modal">
+        <div className="account-created-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        
+        <h2 className="account-created-title">
+          Account Created Successfully!
+        </h2>
+        
+        <p className="account-created-subtitle">
+          Your unique login code is:
+        </p>
+        
+        <div className="account-created-code-container">
+          <span className="account-created-code">
+            {userCode}
+          </span>
+          <button
+            onClick={handleCopyCode}
+            className="account-created-copy-btn"
+            title="Copy Code"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
+        </div>
+
+        <div className="account-created-warning">
+          <p>
+            <strong>⚠️ Important:</strong> Please save this code immediately. It's the only way to access your account. 
+            If you lose it, your data cannot be recovered.
+          </p>
+        </div>
+
+        <div className="account-created-countdown">
+          <p>
+            Logging you in automatically in: <strong>{countdown}</strong>s
+          </p>
+        </div>
+
+        <div className="modal-button-container">
+          <button
+            onClick={onLoginNow}
+            className="modal-btn modal-btn-primary"
+          >
+            Login Now
+          </button>
+          <button
+            onClick={onClose}
+            className="modal-btn-cancel"
+          >
+            Close
+          </button>
+        </div>
+
+        {showCopiedToast && (
+          <div className="account-created-toast">
+            Code Copied!
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, createContext, useContext } from 'react';
 import { useAuthentication } from '../../hooks/useAuthentication';
 import { useBossCalculations } from './useBossCalculations';
-import { LIMITS, COOLDOWNS, ANIMATION_DURATIONS } from '../constants';
+import { LIMITS, COOLDOWNS, ANIMATION_DURATIONS, STORAGE_KEYS } from '../constants';
 import { getCurrentWeekKey as getRealCurrentWeekKeyUtil } from '../utils/weekUtils';
 import { logger } from '../utils/logger';
 import { useForceUpdate } from './ForceUpdateContext';
@@ -89,61 +89,106 @@ export function useAppData() {
 
   // COMBINED data loading effect - prevent cascading loops and double loads
   useEffect(() => {
+    // Enhanced guard: Don't run effect during logout transition
     if (!userCode || !isLoggedIn) {
-      setCharacterBossSelections([]);
-      setChecked({});
-      setError('');
-      setDataLoadingState({ isLoading: false, hasLoaded: true, error: null });
+      // Only clear state if we actually have data to clear (prevent unnecessary re-renders)
+      setCharacterBossSelections(prev => prev.length > 0 ? [] : prev);
+      setChecked(prev => Object.keys(prev).length > 0 ? {} : prev);
+      setError(prev => prev ? '' : prev);
+      setDataLoadingState(prev => 
+        prev.isLoading || !prev.hasLoaded || prev.error ? 
+        { isLoading: false, hasLoaded: true, error: null } : prev
+      );
       return;
     }
 
     let isMounted = true;
     let isLoadingData = false; // Prevent multiple simultaneous loads
+    let abortController = new AbortController(); // Add abort controller for async operations
     
     const loadAllData = async () => {
-      if (isLoadingData) return;
+      // Multiple guards to prevent loading during logout
+      if (!userCode || !isLoggedIn || isLoadingData) {
+        logger.debug('useAppData: Aborting data load - auth state invalid');
+        return;
+      }
+      
+      // Check abort signal before starting
+      if (abortController.signal.aborted) {
+        logger.debug('useAppData: Aborting data load - operation cancelled');
+        return;
+      }
+      
       isLoadingData = true;
       
       try {
+        // Final check before setting loading state
+        if (!userCode || !isLoggedIn || !isMounted) {
+          logger.debug('useAppData: Aborting data load before state update');
+          return;
+        }
+        
         setDataLoadingState({ isLoading: true, hasLoaded: false, error: null });
         setError('');
+        
+        // Double-check auth state before making any API calls
+        if (!userCode || !isLoggedIn || abortController.signal.aborted) {
+          logger.info('useAppData: Auth state changed during load, aborting');
+          return;
+        }
         
         // Load boss data and user data in parallel
         const [bossDataResult, weekDataResult] = await Promise.all([
           (async () => {
             try {
-              const { getBossDataForFrontend, forceRefreshBossRegistry } = await import('../../services/bossRegistryService.js');
-              await forceRefreshBossRegistry();
-              return await getBossDataForFrontend(true);
+              // Check abort signal before each async operation
+              if (abortController.signal.aborted || !userCode || !isLoggedIn) return { success: false, error: 'Aborted' };
+              
+              const { getBossDataForFrontend } = await import('../../services/bossRegistryService.js');
+              // Only force refresh boss registry if we have a user and are starting fresh
+              // Don't force refresh during logout/cleanup operations
+              const shouldForceRefresh = userCode && isLoggedIn;
+              return await getBossDataForFrontend(shouldForceRefresh);
             } catch (error) {
+              if (abortController.signal.aborted) return { success: false, error: 'Aborted' };
               logger.error('useAppData: Error loading boss data', { error });
               return { success: false, error: error.message };
             }
           })(),
           (async () => {
             try {
+              // Check abort signal before each async operation
+              if (abortController.signal.aborted || !userCode || !isLoggedIn) return { success: false, error: 'Aborted' };
+              
               const { fetchCurrentWeekData } = await import('../../services/userWeeklyDataService.js');
               return await fetchCurrentWeekData(userCode);
             } catch (error) {
+              if (abortController.signal.aborted) return { success: false, error: 'Aborted' };
               logger.error('useAppData: Error loading weekly data', { error });
               return { success: false, error: error.message };
             }
           })()
         ]);
         
+        // Final auth check before processing results
+        if (!isMounted || !userCode || !isLoggedIn || abortController.signal.aborted) {
+          logger.info('useAppData: Component unmounted or auth changed, skipping data processing');
+          return;
+        }
+        
         // Process boss data
-        if (bossDataResult.success) {
+        if (bossDataResult.success && !abortController.signal.aborted) {
           setBossData(bossDataResult.data);
           logger.info('useAppData: Loaded fresh boss data from database', {
             dataLength: bossDataResult.data.length
           });
-        } else {
+        } else if (!abortController.signal.aborted) {
           logger.error('useAppData: Failed to load boss data', { error: bossDataResult.error });
           setBossData([]);
         }
         
-        // Process user weekly data
-        if (weekDataResult.success && weekDataResult.data) {
+        // Process user weekly data (with abort checks throughout)
+        if (weekDataResult.success && weekDataResult.data && !abortController.signal.aborted) {
           const weeklyData = weekDataResult.data;
           
           // Convert user_boss_data format to characterBossSelections format
@@ -154,7 +199,12 @@ export function useAppData() {
           // Import boss code mapping utility
           const { parseBossConfigStringToFrontend } = await import('../utils/bossCodeMapping.js');
           
+          // Check abort before processing characters
+          if (abortController.signal.aborted || !userCode || !isLoggedIn) return;
+          
           Object.entries(charMap).forEach(([index, name]) => {
+            if (abortController.signal.aborted) return; // Check in loop
+            
             const character = {
               name,
               index: parseInt(index),
@@ -191,12 +241,15 @@ export function useAppData() {
             weeklyClearSample: Object.fromEntries(Object.entries(weeklyClearData).slice(0, 2))
           });
           
+          // Check abort before fetching boss registry
+          if (abortController.signal.aborted || !userCode || !isLoggedIn) return;
+          
           // Fetch boss registry once for all conversions
           let bossRegistryData = [];
           try {
             const { fetchBossRegistry } = await import('../../services/bossRegistryService.js');
             const registryResult = await fetchBossRegistry();
-            if (registryResult.success) {
+            if (registryResult.success && !abortController.signal.aborted) {
               bossRegistryData = registryResult.data;
               logger.debug('useAppData: Boss registry loaded', { 
                 entriesCount: bossRegistryData.length,
@@ -210,11 +263,18 @@ export function useAppData() {
               });
             }
           } catch (error) {
-            logger.error('useAppData: Error fetching boss registry for checked state conversion', error);
+            if (!abortController.signal.aborted) {
+              logger.error('useAppData: Error fetching boss registry for checked state conversion', error);
+            }
           }
+          
+          // Check abort before processing weekly clears
+          if (abortController.signal.aborted || !userCode || !isLoggedIn) return;
           
           // Convert boss registry IDs back to UI format
           for (const [charIndex, clearsString] of Object.entries(weeklyClearData)) {
+            if (abortController.signal.aborted) break; // Check in loop
+            
             const characterName = charMap[charIndex];
             if (characterName && clearsString) {
               const charKey = `${characterName}-${charIndex}`;
@@ -234,6 +294,8 @@ export function useAppData() {
                 
                 // Convert each boss registry ID to UI format
                 for (const bossId of clearedBossIds) {
+                  if (abortController.signal.aborted) break; // Check in inner loop
+                  
                   let bossEntry = null;
                   
                   // Try to parse as numeric ID first (new format)
@@ -305,8 +367,8 @@ export function useAppData() {
             }
           }
           
-          // Update all state at once to prevent bounce
-          if (isMounted) {
+          // Final check before updating state
+          if (isMounted && !abortController.signal.aborted && userCode && isLoggedIn) {
             setCharacterBossSelections(characters);
             debugSetChecked(reconstructedChecked);
             
@@ -321,27 +383,27 @@ export function useAppData() {
               finalReconstructedChecked: reconstructedChecked
             });
           }
-        } else if (weekDataResult.success && weekDataResult.data === null) {
+        } else if (weekDataResult.success && weekDataResult.data === null && !abortController.signal.aborted) {
           // Explicitly handle the case where no user_boss_data row exists yet
           logger.info('useAppData: No user_boss_data found for current week - starting with empty state');
-          if (isMounted) {
+          if (isMounted && userCode && isLoggedIn) {
             setCharacterBossSelections([]);
             debugSetChecked({});
           }
-        } else {
+        } else if (!abortController.signal.aborted) {
           // Handle actual errors
           logger.error('useAppData: Error fetching weekly data', weekDataResult.error);
-          if (isMounted) {
+          if (isMounted && userCode && isLoggedIn) {
             setCharacterBossSelections([]);
             debugSetChecked({});
           }
         }
         
-        if (isMounted) {
+        if (isMounted && !abortController.signal.aborted && userCode && isLoggedIn) {
           setDataLoadingState({ isLoading: false, hasLoaded: true, error: null });
         }
       } catch (err) {
-        if (isMounted) {
+        if (!abortController.signal.aborted && isMounted && userCode && isLoggedIn) {
           logger.error('useAppData: Failed to load user data', { error: err });
           setError('Failed to load data. Please try again.');
           setCharacterBossSelections([]);
@@ -357,12 +419,216 @@ export function useAppData() {
     return () => { 
       isMounted = false; 
       isLoadingData = false;
+      abortController.abort(); // Abort any ongoing async operations
     };
   }, [userCode, isLoggedIn]); // FIXED: Removed lastWeeklyResetTimestamp to prevent infinite loop
 
+  // Listen for authentication data refresh events for optimistic updates
+  useEffect(() => {
+    const handleAuthDataRefresh = async (event) => {
+      const { userCode: newUserCode, action } = event.detail;
+      
+      // Enhanced guards to prevent processing during logout
+      if (!newUserCode || (action !== 'login' && action !== 'create')) {
+        logger.debug('useAppData: Ignoring auth refresh event', { newUserCode, action });
+        return;
+      }
+      
+      // Don't process if we're currently in a logout state
+      if (!isLoggedIn && action === 'login') {
+        logger.debug('useAppData: Ignoring login refresh event when not logged in');
+        return;
+      }
+      
+      // Additional guard: don't process if userCode doesn't match
+      if (userCode && userCode !== newUserCode) {
+        logger.debug('useAppData: Ignoring auth refresh event - userCode mismatch', { 
+          currentUserCode: userCode, 
+          newUserCode 
+        });
+        return;
+      }
+      
+      logger.info('useAppData: Received auth data refresh event', { newUserCode, action });
+      
+      // Force immediate data refresh for better UX
+      try {
+        // Guard against processing if user is no longer logged in
+        if (!isLoggedIn || !newUserCode) {
+          logger.debug('useAppData: Aborting auth refresh - user not logged in');
+          return;
+        }
+        
+        setDataLoadingState({ isLoading: true, hasLoaded: false, error: null });
+        setError('');
+        
+        // Load fresh data immediately
+        const [bossDataResult, weekDataResult] = await Promise.all([
+          (async () => {
+            try {
+              // Check auth state before import
+              if (!isLoggedIn || !newUserCode) return { success: false, error: 'Auth state invalid' };
+              
+              const { getBossDataForFrontend } = await import('../../services/bossRegistryService.js');
+              return await getBossDataForFrontend(true); // Force refresh for new user
+            } catch (error) {
+              logger.error('useAppData: Error loading boss data on auth refresh', { error });
+              return { success: false, error: error.message };
+            }
+          })(),
+          (async () => {
+            try {
+              // Check auth state before import
+              if (!isLoggedIn || !newUserCode) return { success: false, error: 'Auth state invalid' };
+              
+              const { fetchCurrentWeekData } = await import('../../services/userWeeklyDataService.js');
+              return await fetchCurrentWeekData(newUserCode);
+            } catch (error) {
+              logger.error('useAppData: Error loading weekly data on auth refresh', { error });
+              return { success: false, error: error.message };
+            }
+          })()
+        ]);
+        
+        // Guard against processing results if auth state changed
+        if (!isLoggedIn || !newUserCode) {
+          logger.debug('useAppData: Aborting auth refresh data processing - auth state changed');
+          return;
+        }
+        
+        // Process boss data
+        if (bossDataResult.success) {
+          setBossData(bossDataResult.data);
+          logger.info('useAppData: Loaded fresh boss data on auth refresh');
+        }
+        
+        // For new accounts, initialize empty state, for existing users, load their data
+        if (action === 'create') {
+          // New account - start with empty state
+          setCharacterBossSelections([]);
+          debugSetChecked({});
+          logger.info('useAppData: Initialized empty state for new account');
+        } else if (weekDataResult.success && weekDataResult.data) {
+          // Existing account - load their data (same logic as main effect)
+          const weeklyData = weekDataResult.data;
+          const characters = [];
+          const charMap = weeklyData.char_map || {};
+          const bossConfig = weeklyData.boss_config || {};
+          
+          const { parseBossConfigStringToFrontend } = await import('../utils/bossCodeMapping.js');
+          
+          Object.entries(charMap).forEach(([index, name]) => {
+            const character = {
+              name,
+              index: parseInt(index),
+              bosses: []
+            };
+            
+            const configString = bossConfig[index] || '';
+            if (configString) {
+              try {
+                const bosses = parseBossConfigStringToFrontend(configString);
+                character.bosses = bosses;
+              } catch (error) {
+                logger.error('useAppData: Error parsing boss config on auth refresh', { error });
+                character.bosses = [];
+              }
+            }
+            
+            characters.push(character);
+          });
+          
+          characters.sort((a, b) => a.index - b.index);
+          
+          // Load checked state
+          const reconstructedChecked = {};
+          const weeklyClearData = weeklyData.weekly_clears || {};
+          
+          // Fetch boss registry for conversions
+          try {
+            const { fetchBossRegistry } = await import('../../services/bossRegistryService.js');
+            const registryResult = await fetchBossRegistry();
+            if (registryResult.success) {
+              const bossRegistryData = registryResult.data;
+              
+              // Convert boss registry IDs back to UI format
+              for (const [charIndex, clearsString] of Object.entries(weeklyClearData)) {
+                const characterName = charMap[charIndex];
+                if (characterName && clearsString) {
+                  const charKey = `${characterName}-${charIndex}`;
+                  const clearedBossIds = clearsString.split(',').map(id => id.trim()).filter(id => id);
+                  
+                  if (clearedBossIds.length > 0) {
+                    reconstructedChecked[charKey] = {};
+                    
+                    for (const bossId of clearedBossIds) {
+                      const numericId = parseInt(bossId);
+                      if (!isNaN(numericId)) {
+                        const bossEntry = bossRegistryData.find(entry => entry.id === numericId);
+                        if (bossEntry) {
+                          const uiKey = `${bossEntry.boss_name}-${bossEntry.difficulty}`;
+                          reconstructedChecked[charKey][uiKey] = true;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            logger.error('useAppData: Error processing checked state on auth refresh', error);
+          }
+          
+          // Final guard before updating state
+          if (isLoggedIn && newUserCode) {
+            setCharacterBossSelections(characters);
+            debugSetChecked(reconstructedChecked);
+            
+            logger.info('useAppData: Loaded existing account data on auth refresh', {
+              charactersCount: characters.length,
+              checkedKeys: Object.keys(reconstructedChecked).length
+            });
+          }
+        } else {
+          // No data found for existing account - start with empty state
+          if (isLoggedIn && newUserCode) {
+            setCharacterBossSelections([]);
+            debugSetChecked({});
+            logger.info('useAppData: No data found for existing account, initialized empty state');
+          }
+        }
+        
+        if (isLoggedIn && newUserCode) {
+          setDataLoadingState({ isLoading: false, hasLoaded: true, error: null });
+        }
+        
+      } catch (error) {
+        logger.error('useAppData: Error during auth data refresh', { error });
+        if (isLoggedIn && newUserCode) {
+          setError('Failed to load data after login. Please refresh the page.');
+          setDataLoadingState({ isLoading: false, hasLoaded: true, error: error.message });
+        }
+      }
+    };
+    
+    window.addEventListener('authDataRefresh', handleAuthDataRefresh);
+    
+    return () => {
+      window.removeEventListener('authDataRefresh', handleAuthDataRefresh);
+    };
+  }, [isLoggedIn, userCode]); // Add userCode dependency for better guard coordination
+
   // Separate effect for timestamp initialization to prevent loops
   useEffect(() => {
+    // Enhanced guard: Only initialize timestamp for valid logged-in users
     if (lastWeeklyResetTimestamp === 0 && userCode && isLoggedIn) {
+      // Additional check to ensure we're not in a logout transition
+      const currentStoredCode = localStorage.getItem(STORAGE_KEYS.USER_CODE);
+      if (!currentStoredCode || currentStoredCode !== userCode) {
+        logger.debug('useAppData: Skipping timestamp init - logout in progress');
+        return;
+      }
+      
       const now = new Date();
       const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
       let dayOfWeek = today.getUTCDay(); // 0 (Sun) to 6 (Sat)
@@ -371,8 +637,15 @@ export function useAppData() {
       today.setUTCHours(0,0,0,0);
       const timestamp = today.getTime();
       
-      logger.debug('useAppData: Initializing timestamp for new user', { timestamp });
-      setLastWeeklyResetTimestamp(timestamp);
+      logger.debug('useAppData: Initializing timestamp for user', { timestamp, userCode });
+      
+      // Use setTimeout to prevent immediate state update and potential loops
+      setTimeout(() => {
+        // Final check before setting timestamp
+        if (userCode && isLoggedIn && localStorage.getItem(STORAGE_KEYS.USER_CODE) === userCode) {
+          setLastWeeklyResetTimestamp(timestamp);
+        }
+      }, 50);
     }
   }, [lastWeeklyResetTimestamp, userCode, isLoggedIn]); // Separate effect for timestamp
 
