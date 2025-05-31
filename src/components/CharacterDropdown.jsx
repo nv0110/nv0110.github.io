@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { logger } from '../utils/logger';
-import '../styles/components/character-dropdown.css';
+import './CharacterDropdown.css';
 
 function CharacterDropdown({
   characterBossSelections,
@@ -142,17 +142,9 @@ function CharacterDropdown({
                   type="button"
                   className="character-dropdown-delete-btn delete"
                   onClick={(e) => handleDeleteClick(e, idx)}
-                  title={`Delete ${char.name}`}
+                  title="Delete character"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                    <path 
-                      d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" 
-                      stroke="currentColor" 
-                      strokeWidth="2" 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+                  🗑️
                 </button>
               )}
             </div>

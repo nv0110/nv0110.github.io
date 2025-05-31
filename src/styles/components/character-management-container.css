@@ -1,0 +1,435 @@
+/* =====================================================================================
+   CHARACTER MANAGEMENT CONTAINER
+   =====================================================================================
+   
+   Container component that integrates CharacterDropdown, CharacterCreator, 
+   CrystalTracker, and BossConfigTable in a cohesive layout for InputPage.
+   
+   ===================================================================================== */
+
+/* ===== MAIN CONTAINER ===== */
+
+.character-management-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 1800px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* ===== INTEGRATED BOSS CONFIG CONTAINER ===== */
+
+.integrated-boss-config-container {
+  font-family: var(--font-family);
+  color: var(--text-primary);
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(58, 51, 90, 0.6);
+  background: #201c32;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(162, 89, 247, 0.1);
+  backdrop-filter: blur(10px);
+  margin: 2rem auto;
+  width: 80%;
+  max-width: 1600px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== CHARACTER CONTROLS HEADER ===== */
+
+.character-controls-header {
+  background: linear-gradient(135deg, rgba(162, 89, 247, 0.15) 0%, rgba(128, 90, 213, 0.1) 100%);
+  border-bottom: 1px solid rgba(162, 89, 247, 0.2);
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.character-controls-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, 
+    transparent 30%,
+    rgba(162, 89, 247, 0.05) 50%,
+    transparent 70%);
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  pointer-events: none;
+}
+
+.character-controls-header:hover::before {
+  opacity: 1;
+}
+
+.character-controls-section {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.character-selector-group {
+  display: flex;
+  align-items: flex-start;
+  flex: 1;
+  min-width: 0;
+}
+
+.character-dropdown-wrapper,
+.character-creator-wrapper {
+  flex: 1;
+  min-width: 250px;
+  max-width: 400px;
+}
+
+.crystal-tracker-wrapper {
+  flex-shrink: 0;
+  min-width: 200px;
+}
+
+/* ===== ERROR MESSAGES ===== */
+
+.character-management-error {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  border-radius: 8px;
+  color: var(--error-color);
+  font-size: 0.9rem;
+  font-weight: 500;
+  backdrop-filter: blur(8px);
+}
+
+/* ===== EMPTY STATES ===== */
+
+.no-characters-message,
+.select-character-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.02);
+  margin: 0;
+}
+
+.no-characters-icon,
+.select-character-icon {
+  margin-bottom: 1.5rem;
+  color: var(--purple-primary);
+  opacity: 0.7;
+}
+
+.no-characters-message h3,
+.select-character-message h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+}
+
+.no-characters-message p,
+.select-character-message p {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1.6;
+  max-width: 500px;
+  margin: 0;
+}
+
+/* ===== CRYSTAL CAP ERROR OVERLAY ===== */
+
+.crystal-cap-error-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  pointer-events: none;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.crystal-cap-error-message {
+  background: rgba(40, 32, 74, 0.97);
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 600;
+  border-radius: 16px;
+  box-shadow: 0 4px 32px rgba(128, 90, 213, 0.18);
+  padding: 1.5rem 2.5rem;
+  border: 1.5px solid #a259f7;
+  text-align: center;
+  animation: modalFadeIn 0.3s cubic-bezier(.4, 2, .6, 1);
+  letter-spacing: 0.5px;
+  max-width: 90vw;
+  width: auto;
+  min-width: 300px;
+  backdrop-filter: blur(20px);
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+
+/* WQHD (2560x1440) and larger displays */
+@media (min-width: 2560px) {
+  .character-management-container {
+    gap: 2rem;
+    padding: 0 2rem;
+  }
+  
+  .integrated-boss-config-container {
+    width: 75%;
+  }
+  
+  .character-controls-header {
+    padding: 2rem;
+  }
+  
+  .character-controls-section {
+    gap: 2.5rem;
+  }
+  
+  .character-selector-group {
+    gap: 2rem;
+  }
+  
+  .character-dropdown-wrapper,
+  .character-creator-wrapper {
+    min-width: 300px;
+    max-width: 500px;
+  }
+  
+  .crystal-tracker-wrapper {
+    min-width: 250px;
+  }
+  
+  .no-characters-message,
+  .select-character-message {
+    padding: 5rem 3rem;
+  }
+  
+  .no-characters-message h3,
+  .select-character-message h3 {
+    font-size: 1.75rem;
+  }
+  
+  .no-characters-message p,
+  .select-character-message p {
+    font-size: 1.1rem;
+  }
+  
+  .crystal-cap-error-message {
+    font-size: 1.5rem;
+    padding: 2rem 3rem;
+    min-width: 400px;
+  }
+}
+
+/* Large Desktop (1920x1080) */
+@media (min-width: 1920px) and (max-width: 2559px) {
+  .character-management-container {
+    gap: 1.75rem;
+  }
+  
+  .character-controls-header {
+    padding: 1.75rem;
+  }
+  
+  .crystal-cap-error-message {
+    font-size: 1.35rem;
+    padding: 1.75rem 2.75rem;
+    min-width: 350px;
+  }
+}
+
+/* Standard Desktop (1366x768 - 1919x1080) */
+@media (min-width: 1366px) and (max-width: 1919px) {
+  .integrated-boss-config-container {
+    width: 85%;
+  }
+}
+
+/* Tablet Portrait and smaller desktops */
+@media (max-width: 1365px) and (min-width: 769px) {
+  .character-management-container {
+    gap: 1.25rem;
+    padding: 0 0.75rem;
+  }
+  
+  .integrated-boss-config-container {
+    width: 90%;
+  }
+  
+  .character-controls-header {
+    padding: 1.25rem;
+  }
+  
+  .character-controls-section {
+    gap: 1.5rem;
+  }
+  
+  .character-selector-group {
+    gap: 1.25rem;
+  }
+  
+  .character-dropdown-wrapper,
+  .character-creator-wrapper {
+    min-width: 200px;
+    max-width: 350px;
+  }
+  
+  .crystal-tracker-wrapper {
+    min-width: 180px;
+  }
+  
+  .no-characters-message,
+  .select-character-message {
+    padding: 3rem 1.5rem;
+  }
+  
+  .crystal-cap-error-message {
+    font-size: 1.1rem;
+    padding: 1.25rem 2rem;
+    min-width: 280px;
+  }
+}
+
+/* Mobile and Small Tablets */
+@media (max-width: 768px) {
+  .character-management-container {
+    gap: 1rem;
+    padding: 0 0.5rem;
+  }
+  
+  .integrated-boss-config-container {
+    width: 95%;
+    margin: 0 auto;
+  }
+  
+  .character-controls-header {
+    padding: 1rem;
+  }
+  
+  .character-controls-section {
+    flex-direction: column;
+    gap: 1.25rem;
+    align-items: stretch;
+  }
+  
+  .character-selector-group {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .character-dropdown-wrapper,
+  .character-creator-wrapper,
+  .crystal-tracker-wrapper {
+    min-width: auto;
+    max-width: none;
+    flex: none;
+  }
+  
+  .no-characters-message,
+  .select-character-message {
+    padding: 2.5rem 1rem;
+  }
+  
+  .no-characters-message h3,
+  .select-character-message h3 {
+    font-size: 1.3rem;
+  }
+  
+  .no-characters-message p,
+  .select-character-message p {
+    font-size: 0.9rem;
+  }
+  
+  .no-characters-icon svg,
+  .select-character-icon svg {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .crystal-cap-error-message {
+    font-size: 1rem;
+    padding: 1rem 1.5rem;
+    min-width: 260px;
+    max-width: 95vw;
+  }
+}
+
+/* Very Small Mobile */
+@media (max-width: 480px) {
+  .character-management-container {
+    gap: 0.75rem;
+    padding: 0 0.25rem;
+  }
+  
+  .integrated-boss-config-container {
+    width: 98%;
+  }
+  
+  .character-controls-header {
+    padding: 0.75rem;
+  }
+  
+  .character-controls-section {
+    gap: 1rem;
+  }
+  
+  .character-selector-group {
+    gap: 0.75rem;
+  }
+  
+  .no-characters-message,
+  .select-character-message {
+    padding: 2rem 0.75rem;
+  }
+  
+  .no-characters-message h3,
+  .select-character-message h3 {
+    font-size: 1.2rem;
+  }
+  
+  .no-characters-message p,
+  .select-character-message p {
+    font-size: 0.85rem;
+  }
+  
+  .no-characters-icon svg,
+  .select-character-icon svg {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .crystal-cap-error-message {
+    font-size: 0.9rem;
+    padding: 0.75rem 1.25rem;
+    min-width: 240px;
+    max-width: 98vw;
+  }
+} 

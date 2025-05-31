@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { Suspense, lazy, Component } from 'react';
+import { Suspense, lazy, Component, useRef } from 'react';
 import { useAuthentication } from '../hooks/useAuthentication';
 import { ForceUpdateProvider } from './hooks/ForceUpdateContext';
 import ViewTransitionWrapper from './components/ViewTransitionWrapper';
@@ -121,35 +121,47 @@ function ProtectedRoute({ children }) {
 function MainAppContent() {
   const { isLoggedIn, userCode } = useAuthentication();
   const { setChecked, handleExternalWeeklyReset, characterBossSelections } = useAppData();
+  const resetInProgressRef = useRef(false); // Add ref to track reset status
 
   // console.log('MainAppContent: isLoggedIn:', isLoggedIn, 'userCode:', userCode);
 
   const handleWeeklyReset = async (endedWeekKey) => {
-    // console.log(`MainAppContent: handleWeeklyReset called for ended week: ${endedWeekKey}`);
-    if (userCode && endedWeekKey) {
-      try {
-        // 1. Clear UI for boss clears (current week)
-        setChecked({});
-        // console.log('Boss clears UI reset for the new week.');
+    // Prevent multiple simultaneous resets
+    if (resetInProgressRef.current) {
+      console.log('Weekly reset already in progress, skipping duplicate call');
+      return;
+    }
+    
+    console.log(`MainAppContent: handleWeeklyReset called for ended week: ${endedWeekKey}`);
+    
+    if (!userCode || !endedWeekKey) {
+      console.warn('Cannot perform weekly reset: missing userCode or endedWeekKey');
+      return;
+    }
+    
+    resetInProgressRef.current = true;
+    
+    try {
+      // 1. Clear UI for boss clears (current week)
+      setChecked({});
+      console.log('Boss clears UI reset for the new week.');
 
-        // 2. Clear pitched items in DB for the week that just ENDED
-        const clearResult = await clearPitchedItemsForWeek(userCode, endedWeekKey);
-        if (clearResult.success) {
-          // console.log(`Successfully cleared ${clearResult.itemsCleared} pitched items from DB for week: ${endedWeekKey}`);
-        } else {
-          console.error(`Failed to clear pitched items from DB for week ${endedWeekKey}:`, clearResult.error);
-        }
+      // 2. REMOVED: Do NOT clear pitched items - they should remain as historical data
+      // Pitched items automatically become "historical" when the current week changes
+      
+      // 3. Use the new service-based weekly reset system
+      await handleExternalWeeklyReset(endedWeekKey);
 
-        // 3. Use the new service-based weekly reset system
-        await handleExternalWeeklyReset(endedWeekKey);
+      console.log(`✅ Weekly reset completed successfully for ended week: ${endedWeekKey}`);
 
-        // Optional: force a reload or navigate to a specific page if desired
-        // navigate('/weeklytracker', { replace: true }); // Example
-
-      } catch (error) {
-        console.error('Error during weekly reset process:', error);
-        // Handle error (e.g., show a notification to the user)
-      }
+    } catch (error) {
+      console.error('❌ Error during weekly reset process:', error);
+      // Don't rethrow the error to prevent it from bubbling up and potentially causing UI issues
+    } finally {
+      // Clear the progress flag after a delay to prevent rapid successive resets
+      setTimeout(() => {
+        resetInProgressRef.current = false;
+      }, 5000);
     }
   };
 

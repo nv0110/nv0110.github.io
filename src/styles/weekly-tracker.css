@@ -13,13 +13,6 @@
 
 /* ===== BASE WEEKLY TRACKER STYLES ===== */
 
-/* Hide scrollbar globally for weekly tracker */
-::-webkit-scrollbar {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
-}
-
 .weekly-tracker {
   color: var(--text-primary);
 }
@@ -59,16 +52,26 @@
 /* Main content area */
 .weekly-tracker-main {
   width: 100%;
-  height: 100%;
-  overflow-y: auto;
+  min-height: 100vh; /* Use min-height instead of fixed height */
+  overflow: hidden; /* Allow content to overflow properly */
+  position: relative;
+}
+
+/* Override fade-in animation for weekly tracker to prevent offset issues */
+.weekly-tracker-main.fade-in {
+  animation: fadeInNoSlide 0.4s ease;
 }
 
 .weekly-tracker-content {
-  max-width: 900px;
-  margin: 0 auto;
+  max-width: 100%;
+  height: 100%;
+  margin: 0;
   padding: var(--spacing-xl);
   width: 100%;
   flex: 1;
+  min-height: 0; /* Allow content to shrink if needed */
+  box-sizing: border-box;
+  position: relative;
 }
 
 /* ===== HEADER & NAVIGATION ===== */
@@ -81,8 +84,8 @@
 .weekly-tracker-title {
   font-weight: 700;
   font-size: 2rem;
-  margin-top: 3em;
-  margin-bottom: var(--spacing-sm);
+  margin-top: 2em;
+  margin-bottom: 3rem;
   color: var(--text-primary);
 }
 
@@ -92,9 +95,10 @@
   justify-content: center;
   align-items: center;
   margin-bottom: var(--spacing-md);
-  height: 40vh; /* Strict fixed height - never changes */
-  overflow: hidden; /* Prevent content from causing resize */
+  min-height: 150px; /* Normal height for integrated button design */
+  overflow: visible; /* Allow content to be visible */
   box-sizing: border-box; /* Include padding in height calculation */
+  position: relative; /* Allow absolute positioning of child elements */
 }
 
 /* ===== ACTIONS & CONTROLS ===== */
@@ -218,23 +222,24 @@
     padding: var(--spacing-md);
   }
   
+  .weekly-tracker-title {
+    margin-bottom: 3rem;
+  }
+  
   .weekly-tracker-navigator-wrapper {
-    height: 300px; /* Slightly smaller on mobile */
+    min-height: 180px; /* Adjusted for new wrapper structure */
   }
   
   .weekly-tracker-tick-all-container {
     flex-direction: column;
     gap: var(--spacing-sm);
-  }
-  
-  .weekly-tracker-navigator-wrapper {
-    height: 280px;
   }
 }
 
 @media (max-width: 480px) {
   .weekly-tracker-title {
     font-size: 1.6rem;
+    margin-bottom: 3rem;
   }
   
   .weekly-tracker-tick-all-container {
@@ -243,6 +248,6 @@
   }
   
   .weekly-tracker-navigator-wrapper {
-    height: 280px;
+    min-height: 160px; /* Further reduced for very small screens with wrapper */
   }
 } 

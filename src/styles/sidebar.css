@@ -7,6 +7,7 @@
    - Character cards and scroll indicator
    - Toggle button animations
    - Glass-morphism effects
+   - Comprehensive responsive design
    
    ===================================================================================== */
 
@@ -22,6 +23,118 @@
   }
 }
 
+/* ===== MOBILE OVERLAY ===== */
+
+/* Mobile backdrop overlay */
+.sidebar-mobile-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 98;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.sidebar-scroll.mobile.visible ~ .sidebar-mobile-overlay,
+.sidebar-mobile-overlay {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ===== MOBILE FAB (Floating Action Button) ===== */
+
+/* Mobile FAB for very small screens - bottom left floating button */
+.sidebar-mobile-fab {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #a259f7 0%, #805ad5 100%);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  box-shadow: 
+    0 8px 32px rgba(162, 89, 247, 0.3),
+    0 4px 16px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.sidebar-mobile-fab:hover {
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 
+    0 12px 40px rgba(162, 89, 247, 0.4),
+    0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.sidebar-mobile-fab:active {
+  transform: scale(0.95);
+}
+
+/* Character count badge on FAB */
+.sidebar-mobile-fab-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background: #ff6b6b;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* ===== MOBILE CLOSE BUTTON ===== */
+
+/* Mobile close button - top right of sidebar */
+.sidebar-mobile-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(8px);
+}
+
+.sidebar-mobile-close:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.sidebar-mobile-close:active {
+  transform: scale(0.95);
+}
+
 /* ===== MAIN SIDEBAR CONTAINER ===== */
 
 /* Main sidebar container - fixed positioned character navigation panel */
@@ -30,9 +143,9 @@
   
   /* Layout positioning - fixed to left side of viewport */
   position: fixed; /* Fixed positioning to start from top */
-  top: 71px; /* Start right after the navbar (navbar height = 80px) */
+  top: 77px; /* Increased by 1px to ensure perfect connection with navbar */
   left: 0; /* Align to left edge of viewport */
-  height: calc(100vh - 80px); /* Full viewport height minus navbar */
+  height: calc(100vh - 77px); /* Full viewport height minus navbar */
   flex-shrink: 0; /* Prevent sidebar from shrinking in flexbox */
   
   /* Overflow handling - clip content when collapsed */
@@ -49,8 +162,12 @@
   box-shadow: 2px 0 24px rgba(162, 89, 247, 0.08), 2px 0 8px rgba(0, 0, 0, 0.1); /* Depth shadow */
   
   /* Animation and performance optimization */
-  transition: width 0.3s ease, min-width 0.3s ease, padding 0.3s ease; /* Smooth transitions for show/hide */
-  will-change: width, min-width, padding; /* Optimize for animations */
+  transition: width 0.3s ease, min-width 0.3s ease, padding 0.3s ease, transform 0.3s ease; /* Smooth transitions for show/hide */
+  will-change: width, min-width, padding, transform; /* Optimize for animations */
+  
+  /* Ensure perfect connection with navbar - remove any margin/padding that could cause gaps */
+  margin: 0;
+  border-top: none; /* Ensure no top border causing gaps */
 }
 
 /* Scrollbars handled by global invisible system */
@@ -77,6 +194,23 @@
   /* Keep background, border, and shadow for smooth transition */
 }
 
+/* Mobile sidebar behavior */
+.sidebar-scroll.mobile {
+  z-index: 99; /* Higher z-index for mobile overlay */
+}
+
+.sidebar-scroll.mobile.visible {
+  transform: translateX(0); /* Slide in from left */
+}
+
+.sidebar-scroll.mobile.hidden {
+  transform: translateX(-100%); /* Slide out to left */
+  width: 280px; /* Maintain width for smooth slide animation */
+  min-width: 280px;
+  padding: 1rem;
+  padding-right: 0.5rem;
+}
+
 /* ===== SIDEBAR CONTENT ===== */
 
 /* Sidebar content wrapper - contains all sidebar elements with proper spacing */
@@ -100,6 +234,11 @@
 .sidebar-scroll.hidden .sidebar-content {
   transform: scale(0.8); /* Scale down */
   opacity: 0; /* Fade out */
+}
+
+/* Mobile content adjustments */
+.sidebar-scroll.mobile .sidebar-content {
+  transform-origin: center; /* Better scaling for mobile */
 }
 
 /* Sidebar header section - title centered with clickable analytics */
@@ -219,7 +358,7 @@
 
 /* ===== PROGRESS SECTION ===== */
 
-/* Weekly progress section - current week progress display */
+/* Weekly progress section - premium click-to-toggle design */
 .sidebar-progress-section {
   /* Glass-morphism container styling */
   background: rgba(255, 255, 255, 0.05); /* Semi-transparent white background */
@@ -228,42 +367,125 @@
   padding: 1rem; /* Internal spacing */
   border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border */
   margin-bottom: 1rem; /* Space below section */
+  position: relative; /* For absolute positioned elements */
+  cursor: pointer; /* Indicate interactive element */
 }
 
-/* Progress section title */
+/* Premium progress styling with enhanced effects */
+.sidebar-progress-section.premium-progress {
+  background: linear-gradient(135deg, 
+    rgba(162, 89, 247, 0.12) 0%,
+    rgba(128, 90, 213, 0.08) 25%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(162, 89, 247, 0.08) 75%,
+    rgba(128, 90, 213, 0.12) 100%
+  );
+  border: 1px solid rgba(162, 89, 247, 0.3);
+  box-shadow: 
+    0 8px 32px rgba(162, 89, 247, 0.1),
+    0 4px 16px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+/* Premium hover enhancement */
+.sidebar-progress-section.premium-progress:hover {
+  transform: translateY(-1px);
+  box-shadow: 
+    0 12px 40px rgba(162, 89, 247, 0.15),
+    0 6px 20px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  border-color: rgba(162, 89, 247, 0.4);
+}
+
+/* Premium active state */
+.sidebar-progress-section.premium-progress:active {
+  transform: translateY(0);
+  box-shadow: 
+    0 4px 16px rgba(162, 89, 247, 0.2),
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Subtle background animation */
+.sidebar-progress-section.premium-progress::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, 
+    transparent 30%,
+    rgba(162, 89, 247, 0.05) 50%,
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  animation: premiumShimmer 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.sidebar-progress-section.premium-progress:hover::before {
+  opacity: 1;
+}
+
+@keyframes premiumShimmer {
+  0%, 100% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
+  }
+}
+
+/* Progress container styling - no more hover transitions */
+.sidebar-progress-container {
+  position: relative;
+  z-index: 2;
+}
+
+/* Enhanced progress title with gradient */
 .sidebar-progress-title {
-  font-size: 0.9rem; /* Smaller title text */
-  font-weight: 600; /* Semi-bold weight */
-  margin-bottom: 0.5rem; /* Space below title */
-  color: #d6b4ff; /* Light purple accent color */
-  text-align: center; /* Center-aligned text */
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, #d6b4ff 0%, #c084fc 50%, #a259f7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: #d6b4ff; /* Fallback for browsers that don't support background-clip */
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(162, 89, 247, 0.1);
 }
 
 /* Progress bar track - background container for progress bar */
 .sidebar-progress-track {
-  background: rgba(255, 255, 255, 0.1); /* Semi-transparent background */
-  height: 6px; /* Thin progress bar */
-  border-radius: 3px; /* Rounded ends */
-  overflow: hidden; /* Hide overflow for clean edges */
-  position: relative; /* For absolute positioned fill */
+  background: rgba(255, 255, 255, 0.1);
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 0.25rem;
 }
 
 /* Progress bar fill - animated progress indicator */
 .sidebar-progress-fill {
-  background: linear-gradient(90deg, #a259f7, #b47aff); /* Purple gradient fill */
-  height: 100%; /* Full height of track */
-  border-radius: 3px; /* Rounded ends */
-  transition: width 0.3s ease; /* Smooth width animation */
+  background: linear-gradient(90deg, #a259f7, #b47aff);
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
 }
 
 /* Progress numbers container - current/max meso display */
 .sidebar-progress-numbers {
-  display: flex; /* Horizontal layout */
-  justify-content: space-between; /* Space between current and max */
-  align-items: center; /* Vertical center alignment */
-  margin-top: 0.4rem; /* Space above numbers */
-  color: #c4b5d4; /* Muted purple text color */
-  font-size: 0.8rem; /* Small text size */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.4rem;
+  color: #c4b5d4;
+  font-size: 0.8rem;
 }
 
 /* ===== HISTORICAL SECTION ===== */
@@ -694,4 +916,568 @@
 .sidebar-character-card.selected .pitched-btn-glow {
   opacity: 0.3;
   animation: pulse-glow 3s infinite ease-in-out;
+}
+
+/* ===== RESPONSIVE BREAKPOINTS ===== */
+
+/* WQHD and 4K displays (2560px+) */
+@media (min-width: 2560px) {
+  .sidebar-scroll {
+    top: 81px; /* Fixed: navbar padding (16px * 2) + content height + border (1px) = 80px + 1px connection */
+    height: calc(100vh - 81px);
+  }
+  
+  .sidebar-scroll.visible {
+    width: 320px;
+    min-width: 320px;
+    padding: 0 1.25rem 1.25rem 1.25rem;
+  }
+  
+  .sidebar-scroll .sidebar-content {
+    width: 320px;
+  }
+  
+  .sidebar-header {
+    margin-bottom: 3rem;
+    padding-bottom: 1.25rem;
+    margin-top: 40px;
+  }
+  
+  .sidebar-title {
+    font-size: 1.5rem;
+    margin-bottom: 1.75rem;
+  }
+  
+  .sidebar-progress-section,
+  .sidebar-historical-section {
+    padding: 1.25rem;
+    border-radius: 14px;
+  }
+  
+  .sidebar-progress-title,
+  .sidebar-historical-title {
+    font-size: 1rem;
+  }
+  
+  .sidebar-progress-numbers {
+    font-size: 0.9rem;
+  }
+  
+  .sidebar-character-list {
+    gap: 20px;
+    max-height: calc(100vh - 380px);
+  }
+  
+  .sidebar-character-card {
+    padding: 1.1rem;
+    border-radius: 14px;
+  }
+  
+  .sidebar-character-name {
+    font-size: 1.1rem;
+  }
+  
+  .sidebar-character-completion,
+  .sidebar-character-no-bosses {
+    font-size: 0.95rem;
+  }
+  
+  .sidebar-character-meso {
+    font-size: 1rem;
+  }
+  
+  .sidebar-toggle {
+    width: 52px;
+    height: 52px;
+    top: calc(81px + 40px); /* Updated to match new sidebar top */
+  }
+  
+  .sidebar-toggle.visible {
+    left: calc(320px - 26px);
+  }
+  
+  .sidebar-character-pitched-btn {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+/* Large Desktop (1920px-2559px) */
+@media (min-width: 1920px) and (max-width: 2559px) {
+  .sidebar-scroll {
+    top: 77px; /* Fixed: consistent with default navbar height + 1px connection */
+    height: calc(100vh - 77px);
+  }
+  
+  .sidebar-scroll.visible {
+    width: 300px;
+    min-width: 300px;
+    padding: 1.25rem;
+    padding-right: 0.6rem;
+  }
+  
+  .sidebar-scroll .sidebar-content {
+    width: 300px;
+  }
+  
+  .sidebar-header {
+    margin-bottom: 2.75rem;
+    margin-top: 38px;
+  }
+  
+  .sidebar-title {
+    font-size: 1.4rem;
+    margin-bottom: 1.6rem;
+  }
+  
+  .sidebar-progress-section,
+  .sidebar-historical-section {
+    padding: 1.125rem;
+  }
+  
+  .sidebar-character-list {
+    gap: 19px;
+    max-height: calc(100vh - 350px);
+  }
+  
+  .sidebar-character-card {
+    padding: 1rem;
+  }
+  
+  .sidebar-character-name {
+    font-size: 1.05rem;
+  }
+  
+  .sidebar-character-completion,
+  .sidebar-character-no-bosses {
+    font-size: 0.9rem;
+  }
+  
+  .sidebar-character-meso {
+    font-size: 0.95rem;
+  }
+  
+  .sidebar-toggle {
+    width: 48px;
+    height: 48px;
+    top: calc(77px + 38px); /* Updated to match new sidebar top */
+  }
+  
+  .sidebar-toggle.visible {
+    left: calc(300px - 24px);
+  }
+  
+  .sidebar-character-pitched-btn {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+/* Standard Desktop (1366px-1919px) - Default styles apply */
+
+/* Large Tablet (1025px-1365px) */
+@media (max-width: 1365px) and (min-width: 1025px) {
+  .sidebar-scroll {
+    top: 71px; /* Match navbar height + 1px for perfect connection */
+    height: calc(100vh - 71px);
+  }
+  
+  .sidebar-scroll.visible {
+    width: 260px;
+    min-width: 260px;
+    padding: 0.9rem;
+    padding-right: 0.45rem;
+  }
+  
+  .sidebar-scroll .sidebar-content {
+    width: 260px;
+  }
+  
+  .sidebar-header {
+    margin-bottom: 2rem;
+    padding-bottom: 0.85rem;
+    margin-top: 32px;
+  }
+  
+  .sidebar-title {
+    font-size: 1.15rem;
+    margin-bottom: 1.25rem;
+  }
+  
+  .sidebar-progress-section,
+  .sidebar-historical-section {
+    padding: 0.85rem;
+    margin-bottom: 0.85rem;
+    border-radius: 10px;
+  }
+  
+  .sidebar-progress-title,
+  .sidebar-historical-title {
+    font-size: 0.85rem;
+  }
+  
+  .sidebar-progress-numbers {
+    font-size: 0.75rem;
+  }
+  
+  .sidebar-character-list {
+    gap: 15px;
+    max-height: calc(100vh - 290px);
+  }
+  
+  .sidebar-character-card {
+    padding: 0.75rem;
+    border-radius: 10px;
+  }
+  
+  .sidebar-character-name {
+    font-size: 0.9rem;
+  }
+  
+  .sidebar-character-completion,
+  .sidebar-character-no-bosses {
+    font-size: 0.8rem;
+  }
+  
+  .sidebar-character-meso {
+    font-size: 0.85rem;
+  }
+  
+  .sidebar-toggle {
+    width: 40px;
+    height: 40px;
+    top: calc(81px + 32px);
+  }
+  
+  .sidebar-toggle.visible {
+    left: calc(260px - 20px);
+  }
+  
+  .sidebar-character-pitched-btn {
+    width: 26px;
+    height: 26px;
+  }
+}
+
+/* Tablet (769px-1024px) */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .sidebar-scroll {
+    top: 71px; /* Match navbar height + 1px for perfect connection */
+    height: calc(100vh - 71px);
+  }
+  
+  .sidebar-scroll.visible {
+    width: 240px;
+    min-width: 240px;
+    padding: 0.8rem;
+    padding-right: 0.4rem;
+  }
+  
+  .sidebar-scroll .sidebar-content {
+    width: 240px;
+  }
+  
+  .sidebar-header {
+    margin-bottom: 1.75rem;
+    padding-bottom: 0.75rem;
+    margin-top: 28px;
+  }
+  
+  .sidebar-title {
+    font-size: 1.1rem;
+    margin-bottom: 1.1rem;
+  }
+  
+  .sidebar-progress-section,
+  .sidebar-historical-section {
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    border-radius: 10px;
+  }
+  
+  .sidebar-progress-title,
+  .sidebar-historical-title {
+    font-size: 0.8rem;
+  }
+  
+  .sidebar-progress-numbers {
+    font-size: 0.7rem;
+  }
+  
+  .sidebar-character-list {
+    gap: 14px;
+    max-height: calc(100vh - 270px);
+  }
+  
+  .sidebar-character-card {
+    padding: 0.7rem;
+    border-radius: 10px;
+  }
+  
+  .sidebar-character-name {
+    font-size: 0.85rem;
+  }
+  
+  .sidebar-character-completion,
+  .sidebar-character-no-bosses {
+    font-size: 0.75rem;
+  }
+  
+  .sidebar-character-meso {
+    font-size: 0.8rem;
+  }
+  
+  .sidebar-toggle {
+    width: 38px;
+    height: 38px;
+    top: calc(81px + 28px);
+  }
+  
+  .sidebar-toggle.visible {
+    left: calc(240px - 19px);
+  }
+  
+  .sidebar-character-pitched-btn {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* Mobile (up to 768px) */
+@media (max-width: 768px) {
+  .sidebar-scroll {
+    top: 69px; /* Adjusted for mobile navbar height + 1px for perfect connection */
+    height: calc(100vh - 69px);
+    z-index: 150; /* Higher z-index for mobile overlay */
+  }
+  
+  .sidebar-scroll.mobile.visible {
+    width: 280px;
+    min-width: 280px;
+    padding: 1rem;
+    padding-right: 0.5rem;
+    transform: translateX(0);
+    box-shadow: 4px 0 32px rgba(162, 89, 247, 0.15), 4px 0 16px rgba(0, 0, 0, 0.2);
+  }
+  
+  .sidebar-scroll.mobile.hidden {
+    width: 280px;
+    min-width: 280px;
+    padding: 1rem;
+    padding-right: 0.5rem;
+    transform: translateX(-100%);
+  }
+  
+  .sidebar-scroll .sidebar-content {
+    width: 280px;
+  }
+  
+  .sidebar-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    margin-top: 24px;
+  }
+  
+  .sidebar-title {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .sidebar-progress-section,
+  .sidebar-historical-section {
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    border-radius: 10px;
+  }
+  
+  .sidebar-progress-title,
+  .sidebar-historical-title {
+    font-size: 0.8rem;
+  }
+  
+  .sidebar-progress-numbers {
+    font-size: 0.7rem;
+  }
+  
+  .sidebar-character-list {
+    gap: 12px;
+    max-height: calc(100vh - 240px);
+    padding-right: 2px;
+  }
+  
+  .sidebar-character-card {
+    padding: 0.75rem;
+    border-radius: 10px;
+  }
+  
+  .sidebar-character-header {
+    margin-bottom: 0.35rem;
+  }
+  
+  .sidebar-character-name {
+    font-size: 0.9rem;
+  }
+  
+  .sidebar-character-completion,
+  .sidebar-character-no-bosses {
+    font-size: 0.75rem;
+  }
+  
+  .sidebar-character-meso {
+    font-size: 0.8rem;
+  }
+  
+  .sidebar-toggle {
+    width: 36px;
+    height: 36px;
+    top: calc(69px + 24px);
+  }
+  
+  .sidebar-toggle.mobile.visible {
+    left: calc(280px - 18px);
+  }
+  
+  .sidebar-toggle.mobile.hidden {
+    left: 8px;
+  }
+  
+  .sidebar-character-pitched-btn {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .sidebar-character-checkmark {
+    width: 14px;
+    height: 14px;
+  }
+  
+  /* Mobile touch improvements */
+  .sidebar-character-card {
+    min-height: 44px; /* Touch-friendly minimum height */
+  }
+  
+  .sidebar-character-pitched-btn {
+    min-width: 44px; /* Touch-friendly button size */
+    min-height: 44px;
+    padding: 10px;
+  }
+}
+
+/* Small Mobile (up to 480px) */
+@media (max-width: 480px) {
+  .sidebar-scroll.mobile.visible {
+    width: 240px; /* Reduced from 260px for better content space */
+    min-width: 240px;
+    padding: 0.6rem; /* Reduced padding */
+    padding-right: 0.3rem;
+  }
+  
+  .sidebar-scroll.mobile.hidden {
+    width: 240px;
+    min-width: 240px;
+    padding: 0.6rem;
+    padding-right: 0.3rem;
+  }
+  
+  .sidebar-scroll .sidebar-content {
+    width: 240px;
+  }
+  
+  .sidebar-header {
+    margin-bottom: 1rem; /* Reduced from 1.25rem */
+    margin-top: 40px; /* Increased to account for close button */
+  }
+  
+  .sidebar-title {
+    font-size: 0.9rem; /* Reduced from 0.95rem */
+    margin-bottom: 0.8rem;
+  }
+  
+  .sidebar-progress-section,
+  .sidebar-historical-section {
+    padding: 0.5rem; /* Reduced from 0.6rem */
+    margin-bottom: 0.5rem;
+    border-radius: 8px;
+  }
+  
+  .sidebar-progress-title,
+  .sidebar-historical-title {
+    font-size: 0.7rem; /* Reduced from 0.75rem */
+  }
+  
+  .sidebar-progress-numbers {
+    font-size: 0.6rem; /* Reduced from 0.65rem */
+  }
+  
+  .sidebar-character-list {
+    gap: 8px; /* Reduced from 10px */
+    max-height: calc(100vh - 200px); /* Reduced from 220px */
+  }
+  
+  .sidebar-character-card {
+    padding: 0.5rem; /* Reduced from 0.6rem */
+    border-radius: 8px;
+  }
+  
+  .sidebar-character-name {
+    font-size: 0.8rem; /* Reduced from 0.85rem */
+  }
+  
+  .sidebar-character-completion,
+  .sidebar-character-no-bosses {
+    font-size: 0.65rem; /* Reduced from 0.7rem */
+  }
+  
+  .sidebar-character-meso {
+    font-size: 0.7rem; /* Reduced from 0.75rem */
+  }
+  
+  .sidebar-toggle {
+    width: 32px;
+    height: 32px;
+    top: calc(69px + 20px);
+  }
+  
+  .sidebar-toggle.mobile.visible {
+    left: calc(240px - 16px); /* Updated for new sidebar width */
+  }
+  
+  .sidebar-toggle.mobile.hidden {
+    left: 6px;
+  }
+  
+  .sidebar-character-pitched-btn {
+    width: 20px; /* Reduced from 22px */
+    height: 20px;
+    min-width: 36px; /* Reduced from 40px */
+    min-height: 36px;
+    padding: 8px;
+  }
+  
+  .sidebar-character-checkmark {
+    width: 12px;
+    height: 12px;
+  }
+  
+  /* Mobile close button spacing */
+  .sidebar-mobile-close {
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+  }
+  
+  /* Mobile FAB adjustments for very small screens */
+  .sidebar-mobile-fab {
+    bottom: 16px;
+    left: 16px;
+    width: 48px;
+    height: 48px;
+  }
+  
+  .sidebar-mobile-fab-badge {
+    min-width: 18px;
+    height: 18px;
+    font-size: 0.65rem;
+  }
 }

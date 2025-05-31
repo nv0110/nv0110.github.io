@@ -1,0 +1,110 @@
+/* Quick Select Button Component */
+.quick-select-btn {
+  background: var(--gradient-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  padding: clamp(0.3rem, 0.8vw, 0.4rem) clamp(0.7rem, 1.5vw, 0.875rem);
+  font-size: clamp(0.75rem, 1.3vw, 0.8rem);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-normal);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  white-space: nowrap;
+  min-width: clamp(8rem, 15vw, 10rem);
+  justify-content: center;
+  box-shadow: var(--shadow-subtle);
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: var(--backdrop-blur-light);
+}
+
+.quick-select-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.6s ease;
+  z-index: 1;
+}
+
+.quick-select-btn:hover::before {
+  left: 100%;
+}
+
+.quick-select-btn:hover {
+  background: var(--gradient-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-primary-hover);
+  border-color: var(--border-accent);
+}
+
+.quick-select-btn:active {
+  background: var(--gradient-primary-active);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-primary-active);
+}
+
+.quick-select-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(162, 89, 247, 0.25), var(--shadow-primary);
+}
+
+.quick-select-icon {
+  transition: transform var(--timing-normal) var(--ease-out);
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+.quick-select-btn:hover .quick-select-icon {
+  transform: rotate(360deg);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .quick-select-btn {
+    padding: clamp(0.25rem, 0.6vw, 0.35rem) clamp(0.6rem, 1.2vw, 0.75rem);
+    font-size: clamp(0.7rem, 1.2vw, 0.75rem);
+    min-width: clamp(7rem, 12vw, 8.5rem);
+    gap: clamp(0.25rem, 0.5vw, 0.4rem);
+  }
+  
+  .quick-select-icon {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .quick-select-btn {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.7rem;
+    min-width: 6.5rem;
+    gap: 0.3rem;
+  }
+  
+  .quick-select-icon {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .quick-select-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    min-width: 12rem;
+    gap: 0.7rem;
+  }
+  
+  .quick-select-icon {
+    width: 20px;
+    height: 20px;
+  }
+} 

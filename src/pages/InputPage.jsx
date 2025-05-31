@@ -6,12 +6,12 @@ import { useQuickSelect } from '../hooks/useQuickSelect';
 import { LIMITS } from '../constants';
 import Navbar from '../components/Navbar';
 import ActionButtons from '../components/ActionButtons';
-import CharacterManagement from '../components/CharacterManagement';
-import BossSelectionTable from '../components/BossSelectionTable';
 import QuickSelectModal from '../components/QuickSelectModal';
 import ViewTransitionWrapper from '../components/ViewTransitionWrapper';
 import PageLoader from '../components/PageLoader';
+import { logger } from '../utils/logger';
 import '../styles/components/page-loader.css';
+import CharacterManagementContainer from '../components/CharacterManagementContainer';
 
 // Lazy load DataBackup component
 const DataBackup = lazy(() => import('../components/DataBackup'));
@@ -88,7 +88,7 @@ function InputPage() {
         throw new Error(result.error);
       }
     } catch (error) {
-      console.error('Export error:', error);
+      logger.error('Export error:', error);
       setImportError('Failed to export data. Please try again.');
       setTimeout(() => setImportError(''), 5000);
     }
@@ -115,7 +115,7 @@ function InputPage() {
           window.location.reload();
         }, 2000);
       } catch (error) {
-        console.error('Import error:', error);
+        logger.error('Import error:', error);
         setImportError(error.message || 'Invalid data file. Please check the format and try again.');
         setTimeout(() => setImportError(''), 5000);
       }
@@ -133,7 +133,7 @@ function InputPage() {
 
     const charToClone = characterBossSelections[idx];
     if (!charToClone) {
-      console.error('🔄 CLONE: Character to clone not found at index:', idx);
+      logger.error('🔄 CLONE: Character to clone not found at index:', idx);
       return;
     }
 
@@ -178,11 +178,11 @@ function InputPage() {
           );
 
           if (!configResult.success) {
-            console.warn('Failed to clone boss configuration:', configResult.error);
+            logger.warn('Failed to clone boss configuration:', configResult.error);
             // Don't fail the whole operation, just log warning
           }
         } catch (error) {
-          console.error('Error converting boss configuration for clone:', error);
+          logger.error('Error converting boss configuration for clone:', error);
           // Don't fail the whole operation, just log error
         }
       }
@@ -198,10 +198,10 @@ function InputPage() {
       const newCharacterBossSelections = [...characterBossSelections, clonedChar];
       setCharacterBossSelections(newCharacterBossSelections);
       
-      console.log('✅ CLONE: Character successfully cloned using new service');
+      logger.info('✅ CLONE: Character successfully cloned using new service');
       
     } catch (error) {
-      console.error('❌ CLONE: Error cloning character:', error);
+      logger.error('❌ CLONE: Error cloning character:', error);
       setCloneError('Failed to clone character');
       setTimeout(() => setCloneError(''), 3000);
     }
@@ -221,7 +221,7 @@ function InputPage() {
       }
     } catch (error) {
       setDeleteError('Failed to delete account. Try again.');
-      console.error('Delete error:', error);
+      logger.error('Delete error:', error);
     } finally {
       setShowDeleteLoading(false);
     }
@@ -270,6 +270,11 @@ function InputPage() {
         <h1 className="page-title-main">
           Character and Boss Configuration
         </h1>
+        {selectedCharIdx !== '' && characterBossSelections[selectedCharIdx] && (
+          <div className="boss-config-description">
+            <p>Configure bosses, difficulties, and party sizes for <strong>{characterBossSelections[selectedCharIdx].name}</strong></p>
+          </div>
+        )}
       </div>
 
       {/* Success/Error Messages */}
@@ -287,46 +292,42 @@ function InputPage() {
 
       {/* Main Content */}
       <ViewTransitionWrapper>
-        <div className="premium-content-container fade-in">
           {isLoading ? (
             <PageLoader />
           ) : (
-            <>
-              {/* Character Management */}
-              <CharacterManagement
+          <CharacterManagementContainer
+            // Character data
                 characterBossSelections={characterBossSelections}
+            selectedCharIdx={selectedCharIdx}
                 newCharName={newCharName}
+            
+            // Character operations
+            handleCharacterChange={handleCharacterChange}
+            addCharacter={addCharacter}
+            removeCharacter={removeCharacter}
                 setNewCharName={setNewCharName}
-                selectedCharIdx={selectedCharIdx}
-                cloneError={cloneError}
-                onCharacterChange={handleCharacterChange}
-                onAddCharacter={addCharacter}
-                onUpdateCharacterName={updateCharacterName}
-                onCloneCharacter={cloneCharacter}
-                onRemoveCharacter={removeCharacter}
-                showCrystalCapError={showCrystalCapError}
-              />
-
-              {characterBossSelections.length === 0 ? (
-                <div className="empty-state-message">
-                  <span role="img" aria-label="sparkles">✨</span> Welcome! Add your first character to get started.
-                </div>
-              ) : (
-                /* Boss Selection Table */
-                <BossSelectionTable
-                  selectedCharIdx={selectedCharIdx}
-                  characterBossSelections={characterBossSelections}
+            
+            // Boss data and operations
                   sortedBossData={sortedBossData}
+            toggleBoss={toggleBoss}
+            updatePartySize={updatePartySize}
+            
+            // Quick select
+            onQuickSelectClick={() => setShowQuickSelectModal(true)}
+            
+            // Utilities
                   getBossDifficulties={getBossDifficulties}
                   getAvailablePartySizes={getAvailablePartySizes}
-                  onToggleBoss={toggleBoss}
-                  onUpdatePartySize={updatePartySize}
-                  onShowQuickSelect={() => setShowQuickSelectModal(true)}
+            formatPrice={formatPrice}
+            
+            // Crystal tracking
+            totalBossCount={characterBossSelections.reduce((sum, char) => sum + (char.bosses?.length || 0), 0)}
+            
+            // Validation and errors
+            cloneError={cloneError}
+            showCrystalCapError={showCrystalCapError}
                 />
               )}
-            </>
-          )}
-        </div>
       </ViewTransitionWrapper>
 
       {/* Undo Snackbar */}
@@ -499,7 +500,10 @@ function InputPage() {
           justify-content: center;
           z-index: 3000;
           pointer-events: none;
+          padding: 1rem;
+          box-sizing: border-box;
         }
+        
         .crystal-cap-error-message {
           background: rgba(40, 32, 74, 0.97);
           color: #fff;
@@ -512,6 +516,66 @@ function InputPage() {
           text-align: center;
           animation: modalFadeIn 0.3s cubic-bezier(.4,2,.6,1);
           letter-spacing: 0.5px;
+          max-width: 90vw;
+          width: auto;
+          min-width: 300px;
+        }
+
+        /* Responsive design for crystal cap error */
+        @media (min-width: 2560px) {
+          .crystal-cap-error-message {
+            font-size: 1.5rem;
+            padding: 2rem 3rem;
+            border-radius: 20px;
+            min-width: 400px;
+          }
+        }
+
+        @media (min-width: 1920px) and (max-width: 2559px) {
+          .crystal-cap-error-message {
+            font-size: 1.35rem;
+            padding: 1.75rem 2.75rem;
+            border-radius: 18px;
+            min-width: 350px;
+          }
+        }
+
+        @media (max-width: 1365px) and (min-width: 769px) {
+          .crystal-cap-error-message {
+            font-size: 1.1rem;
+            padding: 1.25rem 2rem;
+            min-width: 280px;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .crystal-cap-error-overlay {
+            padding: 0.5rem;
+          }
+          
+          .crystal-cap-error-message {
+            font-size: 1rem;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            min-width: 260px;
+            max-width: 95vw;
+            line-height: 1.4;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .crystal-cap-error-overlay {
+            padding: 0.25rem;
+          }
+          
+          .crystal-cap-error-message {
+            font-size: 0.9rem;
+            padding: 0.75rem 1.25rem;
+            border-radius: 10px;
+            min-width: 240px;
+            max-width: 98vw;
+            line-height: 1.3;
+          }
         }
       `}</style>
     </div>

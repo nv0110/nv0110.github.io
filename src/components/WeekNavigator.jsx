@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useState, useEffect } from 'react';
 import { 
   getWeekKeyOffset, 
   getWeekLabel, 
@@ -7,7 +7,6 @@ import {
   getWeekDateRange
 } from '../utils/weekUtils';
 import '../styles/week-navigator.css';
-import { formatMesoBillions } from '../utils/formatUtils';
 
 function WeekNavigator({
   appWeekKey,
@@ -19,11 +18,21 @@ function WeekNavigator({
     userType: 'new',
     adaptiveWeekLimit: 8,
     historicalWeeks: []
-  },
-  characterBossSelections = [],
-  checked = {},
-  selectedCharIdx = 0,
+  }
 }) {
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   const navigationLimits = useMemo(() => {
     const currentOffsetBasedOnAppWeek = 0;
     const adaptiveLimit = historicalAnalysis?.adaptiveWeekLimit || 8;
@@ -92,38 +101,8 @@ function WeekNavigator({
     };
   }, [selectedWeekKey, appWeekKey, isSelectedWeekTheCurrentAppWeek, selectedOffset]);
 
-  const currentChar = characterBossSelections[selectedCharIdx];
-  const currentCharBosses = currentChar?.bosses || [];
-  const charCheckedKey = `${currentChar?.name || 'char'}-${currentChar?.index !== undefined ? currentChar.index : selectedCharIdx}`;
-
-  let obtainableMesoForCurrentChar = 0;
-  if (currentChar) {
-    obtainableMesoForCurrentChar = currentCharBosses.reduce((sum, b) => {
-      const price = b.price || 0;
-      const partySize = b.partySize || 1;
-      return sum + Math.ceil(price / partySize);
-    }, 0);
-  }
-  
-  let checkedMeso = 0;
-  if (currentChar && checked[charCheckedKey]) {
-    checkedMeso = currentCharBosses.reduce((sum, b) => {
-      const bossKey = `${b.name}-${b.difficulty}`;
-      if (checked[charCheckedKey]?.[bossKey]) {
-        const price = b.price || 0;
-        const partySize = b.partySize || 1;
-        return sum + Math.ceil(price / partySize);
-      }
-      return sum;
-    }, 0);
-  }
-
-  const formatMeso = (value) => {
-    if (!value) return '0';
-    return value.toLocaleString();
-  };
-
   return (
+    <div className="week-navigator-wrapper">
     <div key={selectedWeekKey} className="week-navigator-container">
       <div className="week-navigator-header">
         <div className={`week-navigator-title ${isSelectedWeekTheCurrentAppWeek ? 'current-week' : 'historical-week'}`}>
@@ -137,16 +116,18 @@ function WeekNavigator({
       </div>
 
       <div className="week-navigator-navigation">
-        <div className="week-navigator-arrow-container">
+          <div 
+            className={`week-navigator-arrow-container ${canGoPrevious ? 'enabled arrow-left' : 'disabled'}`}
+            onClick={canGoPrevious ? goToPreviousWeek : undefined}
+            title={canGoPrevious ? 'Previous Week' : `Already at oldest allowed week (${navigationLimits.adaptiveLimit} weeks back from current)`}
+          >
           <svg
             width="32"
             height="32"
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
-            onClick={canGoPrevious ? goToPreviousWeek : undefined}
             className={`week-navigator-arrow arrow-left ${canGoPrevious ? 'enabled' : 'disabled'}`}
-            title={canGoPrevious ? 'Previous Week' : `Already at oldest allowed week (${navigationLimits.adaptiveLimit} weeks back from current)`}
           >
             <path
               d="M20.3284 11.0001V13.0001L7.50011 13.0001L10.7426 16.2426L9.32842 17.6568L3.67157 12L9.32842 6.34314L10.7426 7.75735L7.49988 11.0001L20.3284 11.0001Z"
@@ -155,21 +136,55 @@ function WeekNavigator({
           </svg>
         </div>
 
+          <div className="week-navigator-center-content">
         {weekInfo.dateRange && (
           <div className="week-navigator-date-range">
             {weekInfo.dateRange.start.toLocaleDateString()} - {weekInfo.dateRange.end.toLocaleDateString()}
           </div>
         )}
 
-        <div className="week-navigator-arrow-container">
-          <svg
-            width="32"
-            height="32"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            onClick={isSelectedWeekTheCurrentAppWeek ? (canGoToOldest ? goToOldestOrFallback : undefined) : (canGoNext ? goToNextWeek : undefined)}
-            className={`week-navigator-arrow arrow-right ${isSelectedWeekTheCurrentAppWeek ? (canGoToOldest ? 'enabled' : 'disabled') : (canGoNext ? 'enabled' : 'disabled')}`}
+            {/* Integrated action buttons */}
+            <div className="week-navigator-integrated-buttons">
+              <button
+                onClick={goToCurrentAppWeek}
+                className={`week-navigator-integrated-btn current-week-btn ${isSelectedWeekTheCurrentAppWeek ? 'hidden' : 'visible'}`}
+                title="Jump to current application week"
+                disabled={isSelectedWeekTheCurrentAppWeek}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"/>
+                </svg>
+                Current
+              </button>
+
+              <button
+                onClick={goToOldestOrFallback}
+                className={`week-navigator-integrated-btn oldest-data-btn ${
+                  (historicalAnalysis?.hasHistoricalData && historicalAnalysis?.oldestHistoricalWeek && selectedWeekKey !== historicalAnalysis.oldestHistoricalWeek && !isSelectedWeekTheCurrentAppWeek) 
+                    ? 'visible' 
+                    : 'hidden'
+                }`}
+                title={`Jump to oldest recorded data (${historicalAnalysis?.oldestHistoricalWeek ? getWeekLabel(historicalAnalysis.oldestHistoricalWeek, appWeekKey) : 'oldest data'})`}
+                disabled={!(historicalAnalysis?.hasHistoricalData && historicalAnalysis?.oldestHistoricalWeek && selectedWeekKey !== historicalAnalysis.oldestHistoricalWeek && !isSelectedWeekTheCurrentAppWeek)}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M3 12H21M3 6H21M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+                Oldest
+              </button>
+            </div>
+          </div>
+
+          <div 
+            className={`week-navigator-arrow-container ${
+              isSelectedWeekTheCurrentAppWeek 
+                ? (canGoToOldest ? 'enabled arrow-right' : 'disabled') 
+                : (canGoNext ? 'enabled arrow-right' : 'disabled')
+            }`}
+            onClick={isSelectedWeekTheCurrentAppWeek 
+              ? (canGoToOldest ? goToOldestOrFallback : undefined) 
+              : (canGoNext ? goToNextWeek : undefined)
+            }
             title={isSelectedWeekTheCurrentAppWeek 
               ? (canGoToOldest 
                   ? (historicalAnalysis?.hasHistoricalData && historicalAnalysis?.oldestHistoricalWeek 
@@ -179,6 +194,18 @@ function WeekNavigator({
               : (canGoNext ? 'Next Week' : 'Already at current application week')
             }
           >
+            <svg
+              width="32"
+              height="32"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className={`week-navigator-arrow arrow-right ${
+                isSelectedWeekTheCurrentAppWeek 
+                  ? (canGoToOldest ? 'enabled' : 'disabled') 
+                  : (canGoNext ? 'enabled' : 'disabled')
+              }`}
+          >
             <path
               d="M15.0378 6.34317L13.6269 7.76069L16.8972 11.0157L3.29211 11.0293L3.29413 13.0293L16.8619 13.0157L13.6467 16.2459L15.0643 17.6568L20.7079 11.9868L15.0378 6.34317Z"
               fill="currentColor"
@@ -187,54 +214,33 @@ function WeekNavigator({
         </div>
       </div>
 
-      <div className="week-navigator-content">
-        {isSelectedWeekTheCurrentAppWeek && currentChar && (
-          <div className="week-navigator-progress">
-            <div className="week-navigator-progress-meso">
-              <div className="sidebar-progress-track week-navigator-progress-bar-container">
-                <div 
-                  className="sidebar-progress-fill week-navigator-progress-bar"
-                  style={{ 
-                    width: `${obtainableMesoForCurrentChar > 0 ? Math.min((checkedMeso / obtainableMesoForCurrentChar) * 100, 100) : 0}%`
-                  }} 
-                >
-                  {obtainableMesoForCurrentChar > 0 && checkedMeso > 0 && (
-                    <div className="week-navigator-progress-shimmer" />
-                  )}
-                </div>
-              </div>
-              <div className="sidebar-progress-numbers">
-                <span>{formatMesoBillions(checkedMeso)}</span>
-                <span>{formatMesoBillions(obtainableMesoForCurrentChar)}</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="week-navigator-buttons">
-        {!isSelectedWeekTheCurrentAppWeek ? (
-          <>
+        {/* Floating action buttons for smaller screens */}
+        {!isSelectedWeekTheCurrentAppWeek && (
+          <div className="week-navigator-floating-actions week-navigator-floating-left">
             <button
               onClick={goToCurrentAppWeek}
-              className="week-navigator-button current-week-btn"
-              title="Jump to current application week"
+              className="week-navigator-floating-btn"
+              title="Jump to current week"
             >
-              Current Week
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"/>
+              </svg>
             </button>
+          </div>
+        )}
 
             {historicalAnalysis?.hasHistoricalData && historicalAnalysis?.oldestHistoricalWeek && selectedWeekKey !== historicalAnalysis.oldestHistoricalWeek && (
+          <div className="week-navigator-floating-actions week-navigator-floating-right">
               <button
                 onClick={goToOldestOrFallback}
-                className="week-navigator-button oldest-data-btn"
-                title={`Jump to oldest recorded data (${getWeekLabel(historicalAnalysis.oldestHistoricalWeek, appWeekKey)})`}
+              className="week-navigator-floating-btn"
+              title={`Jump to oldest data (${getWeekLabel(historicalAnalysis.oldestHistoricalWeek, appWeekKey)})`}
               >
-                Oldest Data
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M3 12H21M3 6H21M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
               </button>
-            )}
-          </>
-        ) : (
-          <div className="week-navigator-spacer" />
+          </div>
         )}
       </div>
     </div>

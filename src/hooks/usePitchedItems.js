@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   getPitchedItems,
   addPitchedItem,
@@ -9,6 +9,7 @@ import {
   purgeAllPitchedItems
 } from '../../services/pitchedItemsService.js';
 import { convertDateToWeekKey } from '../utils/weekUtils.js';
+import { logger } from '../utils/logger';
 
 /**
  * Hook for managing pitched items in the new simplified schema
@@ -24,10 +25,10 @@ export function usePitchedItems(userId) {
   /**
    * Load pitched items from the database
    */
-  const refreshPitchedItems = async () => {
+  const refreshPitchedItems = useCallback(async () => {
+    if (!userId) return;
+    
     try {
-      if (!userId) return;
-
       setIsRefreshingPitchedItems(true);
 
       // Always load ALL pitched items to maintain proper state
@@ -46,22 +47,21 @@ export function usePitchedItems(userId) {
         });
         setPitchedChecked(newPitchedChecked);
       } else {
-        console.error('Failed to refresh pitched items:', result.error);
+        logger.error('usePitchedItems: Failed to refresh pitched items', result.error);
       }
     } catch (error) {
-      console.error('Error refreshing pitched items:', error);
+      logger.error('usePitchedItems: Error refreshing pitched items', error);
     } finally {
       setIsRefreshingPitchedItems(false);
     }
-  };
+  }, [userId]);
 
   /**
    * Add a new pitched item
    */
-  const addNewPitchedItem = async (charId, bossName, item, date = null) => {
-    try {
+  const addNewPitchedItem = useCallback(async (charId, bossName, item, date = null) => {
       if (!userId) {
-        console.warn('addNewPitchedItem: No user ID available, user may not be authenticated yet');
+      logger.warn('usePitchedItems: No user ID available, user may not be authenticated yet');
         return { success: false, error: 'User not authenticated' };
       }
 
@@ -71,7 +71,7 @@ export function usePitchedItems(userId) {
 
       // Check if item already exists to prevent duplicates
       if (pitchedChecked[key]) {
-        console.log('Item already exists, skipping add');
+      logger.info('usePitchedItems: Item already exists, skipping add');
         return { success: true, message: 'Item already exists' };
       }
 
@@ -99,19 +99,14 @@ export function usePitchedItems(userId) {
       } else {
         throw new Error(result.error);
       }
-    } catch (error) {
-      console.error('Error adding pitched item:', error);
-      return { success: false, error: error.message };
-    }
-  };
+  }, [userId, pitchedChecked]);
 
   /**
    * Remove a pitched item
    */
-  const removePitchedItemByDetails = async (charId, bossName, item, date = null) => {
-    try {
+  const removePitchedItemByDetails = useCallback(async (charId, bossName, item, date = null) => {
       if (!userId) {
-        console.warn('removePitchedItemByDetails: No user ID available, user may not be authenticated yet');
+      logger.warn('usePitchedItems: No user ID available, user may not be authenticated yet');
         return { success: false, error: 'User not authenticated' };
       }
 
@@ -127,7 +122,7 @@ export function usePitchedItems(userId) {
           matchingItems.sort((a, b) => new Date(b.date) - new Date(a.date));
           targetDate = matchingItems[0].date;
         } else {
-          console.log('No matching items found to remove');
+        logger.info('usePitchedItems: No matching items found to remove');
           return { success: true, message: 'No items to remove' };
         }
       }
@@ -153,17 +148,12 @@ export function usePitchedItems(userId) {
       } else {
         throw new Error(result.error);
       }
-    } catch (error) {
-      console.error('Error removing pitched item:', error);
-      return { success: false, error: error.message };
-    }
-  };
+  }, [userId, cloudPitchedItems]);
 
   /**
    * Remove multiple pitched items
    */
-  const removeManyPitchedItemsByDetails = async (itemsToRemove) => {
-    try {
+  const removeManyPitchedItemsByDetails = useCallback(async (itemsToRemove) => {
       if (!userId) {
         throw new Error('No user ID provided');
       }
@@ -215,17 +205,12 @@ export function usePitchedItems(userId) {
       } else {
         throw new Error(result.error);
       }
-    } catch (error) {
-      console.error('Error removing multiple pitched items:', error);
-      return { success: false, error: error.message };
-    }
-  };
+  }, [userId]);
 
   /**
    * Clear all pitched items for a specific week
    */
-  const clearWeekPitchedItems = async (weekKey) => {
-    try {
+  const clearWeekPitchedItems = useCallback(async (weekKey) => {
       if (!userId) {
         throw new Error('No user ID provided');
       }
@@ -254,17 +239,12 @@ export function usePitchedItems(userId) {
       } else {
         throw new Error(result.error);
       }
-    } catch (error) {
-      console.error('Error clearing week pitched items:', error);
-      return { success: false, error: error.message };
-    }
-  };
+  }, [userId]);
 
   /**
    * Get yearly statistics
    */
-  const getYearlyStats = async (year = null) => {
-    try {
+  const getYearlyStats = useCallback(async (year = null) => {
       if (!userId) {
         throw new Error('No user ID provided');
       }
@@ -276,17 +256,12 @@ export function usePitchedItems(userId) {
       } else {
         throw new Error(result.error);
       }
-    } catch (error) {
-      console.error('Error getting yearly stats:', error);
-      return { success: false, error: error.message };
-    }
-  };
+  }, [userId]);
 
   /**
    * Purge all pitched items
    */
-  const purgeAllItems = async () => {
-    try {
+  const purgeAllItems = useCallback(async () => {
       if (!userId) {
         throw new Error('No user ID provided');
       }
@@ -302,18 +277,14 @@ export function usePitchedItems(userId) {
       } else {
         throw new Error(result.error);
       }
-    } catch (error) {
-      console.error('Error purging all pitched items:', error);
-      return { success: false, error: error.message };
-    }
-  };
+  }, [userId]);
 
   // Load pitched items when userId changes
   useEffect(() => {
     if (userId) {
       refreshPitchedItems();
     }
-  }, [userId]);
+  }, [refreshPitchedItems]);
 
   return {
     pitchedChecked,

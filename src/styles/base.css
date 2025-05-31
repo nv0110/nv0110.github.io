@@ -51,7 +51,6 @@ body {
   background: linear-gradient(135deg, #181622 0%, #23203a 100%);
   color: #f4f6fb;
   min-height: 100vh;
-  width: 100%;
 }
 
 /* Error page layout - centered error display */

@@ -3,6 +3,7 @@ import { formatMesoBillions } from '../utils/formatUtils';
 
 const CharacterSidebar = React.memo(function CharacterSidebar({
   sidebarVisible,
+  setSidebarVisible,
   isHistoricalWeek,
   totalMeso,
   obtainableMeso,
@@ -15,12 +16,29 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
   setPurgeTargetCharacter,
   setShowCharacterPurgeConfirm,
   setShowCharacterPitchedModal,
-  onShowTreasureAnalytics
+  onShowTreasureAnalytics,
+  characterBossSelections
 }) {
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isVerySmall, setIsVerySmall] = useState(false);
+  const [showCharacterProgress, setShowCharacterProgress] = useState(false);
   const characterListRef = useRef(null);
   const scrollTimeoutRef = useRef(null);
+
+  // Detect mobile and very small screen sizes
+  useEffect(() => {
+    const checkScreenSize = () => {
+      const width = window.innerWidth;
+      setIsMobile(width <= 768);
+      setIsVerySmall(width <= 480);
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
 
   // Check if scroll indicator should be shown
   useEffect(() => {
@@ -73,21 +91,90 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
     }
   }, [sidebarVisible, isScrolling]);
 
+  // Close sidebar when clicking outside on mobile
+  useEffect(() => {
+    if (!isMobile) return;
+
+    const handleClickOutside = (event) => {
+      if (sidebarVisible && !event.target.closest('.sidebar-scroll') && 
+          !event.target.closest('.sidebar-toggle') && 
+          !event.target.closest('.sidebar-mobile-fab')) {
+        setSidebarVisible && setSidebarVisible(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [isMobile, sidebarVisible, setSidebarVisible]);
+
   const handlePitchedClick = useCallback((e, character) => {
     e.stopPropagation();
-    // Switch to the character and open the modal
     setSelectedCharIdx(character.idx);
     if (setShowCharacterPitchedModal) {
       setShowCharacterPitchedModal(true);
     }
   }, [setSelectedCharIdx, setShowCharacterPitchedModal]);
 
+  const handleCharacterSelect = useCallback((idx) => {
+    setSelectedCharIdx(idx);
+    // Auto-close sidebar on very small screens after selection
+    if (isVerySmall && sidebarVisible && setSidebarVisible) {
+      setTimeout(() => setSidebarVisible(false), 300);
+    }
+  }, [setSelectedCharIdx, isVerySmall, sidebarVisible, setSidebarVisible]);
+
+  const handleContextMenu = useCallback((e, character) => {
+    e.preventDefault();
+    setPurgeTargetCharacter({ name: character.name, idx: character.idx });
+    setShowCharacterPurgeConfirm(true);
+  }, [setPurgeTargetCharacter, setShowCharacterPurgeConfirm]);
+
+  // Toggle between weekly and character progress
+  const handleProgressToggle = useCallback(() => {
+    setShowCharacterProgress(prev => !prev);
+  }, []);
+
   return (
     <>
+      {/* Mobile overlay backdrop */}
+      {isMobile && sidebarVisible && (
+        <div 
+          className="sidebar-mobile-overlay" 
+          onClick={() => setSidebarVisible && setSidebarVisible(false)}
+        />
+      )}
+
+      {/* Mobile FAB (Floating Action Button) for very small screens */}
+      {isVerySmall && !sidebarVisible && (
+        <button
+          className="sidebar-mobile-fab"
+          onClick={() => setSidebarVisible && setSidebarVisible(true)}
+          title="Open character sidebar"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7.75735 13.2574L2 9.27L8.91 8.26L12 2Z" fill="currentColor"/>
+          </svg>
+          <span className="sidebar-mobile-fab-badge">{visibleCharSummaries.length}</span>
+        </button>
+      )}
+      
       <div
-        className={`sidebar-scroll fade-in-no-slide ${sidebarVisible ? 'visible' : 'hidden'}`}
+        className={`sidebar-scroll fade-in-no-slide ${sidebarVisible ? 'visible' : 'hidden'} ${isMobile ? 'mobile' : 'desktop'} ${isVerySmall ? 'very-small' : ''}`}
       >
         <div className="sidebar-content">
+          {/* Mobile close button */}
+          {isMobile && (
+            <button 
+              className="sidebar-mobile-close"
+              onClick={() => setSidebarVisible && setSidebarVisible(false)}
+              title="Close sidebar"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M6 18L18 6M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </button>
+          )}
+
           {/* Sidebar Header */}
           <div className="sidebar-header">
             <h3 
@@ -99,9 +186,12 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
             </h3>
           </div>
 
-          {/* Progress Bar - only for current week */}
+          {/* Progress Bar - only for current week with click toggle */}
           {!isHistoricalWeek && (
-            <div className="sidebar-progress-section">
+            <div className="sidebar-progress-section premium-progress" onClick={handleProgressToggle}>
+              {!showCharacterProgress ? (
+                /* Weekly Progress (default state) */
+                <div className="sidebar-progress-container sidebar-progress-weekly">
               <div className="sidebar-progress-title">Weekly Progress</div>
               <div className="sidebar-progress-track week-navigator-progress-bar-container">
                 <div
@@ -119,6 +209,47 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
                 <span>{formatMesoBillions(totalMeso)}</span>
                 <span>{formatMesoBillions(obtainableMeso)}</span>
               </div>
+                </div>
+              ) : (
+                /* Character Progress (toggled state) */
+                visibleCharSummaries[selectedCharIdx] && (
+                  <div className="sidebar-progress-container sidebar-progress-character">
+                    <div className="sidebar-progress-title">
+                      {visibleCharSummaries[selectedCharIdx].name}'s Weekly
+                    </div>
+                    <div className="sidebar-progress-track week-navigator-progress-bar-container">
+                      <div
+                        className="sidebar-progress-fill week-navigator-progress-bar"
+                        style={{
+                          width: `${(() => {
+                            const char = visibleCharSummaries[selectedCharIdx];
+                            if (!char) return 0;
+                            const charKey = `${char.name}-${char.idx}`;
+                            const charData = characterBossSelections[char.idx];
+                            if (!charData) return 0;
+                            const totalCharMeso = charData.bosses.reduce((s, b) => s + Math.ceil((b.price || 0) / (b.partySize || 1)), 0);
+                            return totalCharMeso > 0 ? Math.min((char.totalMeso / totalCharMeso) * 100, 100) : 0;
+                          })()}%`
+                        }}
+                      >
+                        {visibleCharSummaries[selectedCharIdx].totalMeso > 0 && (
+                          <div className="week-navigator-progress-shimmer" />
+                        )}
+                      </div>
+                    </div>
+                    <div className="sidebar-progress-numbers">
+                      <span>{formatMesoBillions(visibleCharSummaries[selectedCharIdx].totalMeso)}</span>
+                      <span>{formatMesoBillions((() => {
+                        const char = visibleCharSummaries[selectedCharIdx];
+                        if (!char) return 0;
+                        const charData = characterBossSelections[char.idx];
+                        if (!charData) return 0;
+                        return charData.bosses.reduce((s, b) => s + Math.ceil((b.price || 0) / (b.partySize || 1)), 0);
+                      })())}</span>
+                    </div>
+                  </div>
+                )
+              )}
             </div>
           )}
 
@@ -143,12 +274,8 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
                 visibleCharSummaries.map(cs => (
                   <div
                     key={cs.name + '-' + cs.idx}
-                    onClick={() => setSelectedCharIdx(cs.idx)}
-                    onContextMenu={e => {
-                      e.preventDefault();
-                      setPurgeTargetCharacter({ name: cs.name, idx: cs.idx });
-                      setShowCharacterPurgeConfirm(true);
-                    }}
+                    onClick={() => handleCharacterSelect(cs.idx)}
+                    onContextMenu={e => handleContextMenu(e, cs)}
                     className={`sidebar-character-card ${
                       selectedCharIdx === cs.idx
                         ? `selected ${isHistoricalWeek ? 'historical-week' : 'current-week'}`

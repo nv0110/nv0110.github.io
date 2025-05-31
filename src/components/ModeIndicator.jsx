@@ -10,11 +10,11 @@ function ModeIndicator({ selectedWeekKey, showTickAll, onTickAll, allTicked }) {
       <div className="mode-indicator-content">
         <div className="mode-indicator-text">
           <div className="mode-indicator-title">
-            {isCurrentWeek ? 'Active Week Tracking' : 'Historical Week Review'}
+            {isCurrentWeek ? 'Current week' : 'Historical Week Review'}
           </div>
           <div className="mode-indicator-description">
             {isCurrentWeek
-              ? 'Track your boss clears and pitched item  for the current week'
+              ? 'Track your bosses and pitched item  for the current week'
               : 'Track you pitched items you have collected this week'
             }
           </div>

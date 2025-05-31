@@ -1,0 +1,449 @@
+/* =====================================================================================
+   BOSS PRICE TABLE STYLES
+   =====================================================================================
+   
+   Dedicated styles for the Boss Price Table page:
+   - Unique modular classes to avoid conflicts
+   - Same color theme as weekly tracker tables
+   - Fully responsive from mobile to ultrawide
+   - 3-column layout: Boss, Difficulty, Mesos
+   
+   ===================================================================================== */
+
+/* ===== MAIN PAGE LAYOUT ===== */
+
+.boss-price-page {
+  width: 100%;
+  min-height: 100vh;
+  color: #e6e0ff;
+}
+
+.boss-price-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.boss-price-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.boss-price-title {
+  font-weight: 700;
+  font-size: 2rem;
+  margin: 2rem 0 3rem 0;
+  color: #e6e0ff;
+}
+
+/* ===== TABLE CONTAINER ===== */
+
+.boss-price-container {
+  margin: -1rem auto;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(58, 51, 90, 0.6);
+  background: #201c32;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(162, 89, 247, 0.1);
+  max-height: 70vh;
+  overflow-y: auto;
+  width: 85%;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+  position: relative;
+  backdrop-filter: blur(10px);
+}
+
+.boss-price-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 0;
+  width: 100%;
+  min-width: 500px;
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* ===== HEADER ROW ===== */
+
+.boss-price-header-row {
+  display: contents;
+  position: relative;
+}
+
+.boss-price-header-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 52px;
+  background: linear-gradient(135deg, #4a3570 0%, #3a2a5d 25%, #2d2540 75%, #241f38 100%);
+  z-index: 1;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  border-bottom: 2px solid rgba(45, 37, 64, 0.9);
+  grid-column: 1 / -1;
+}
+
+.boss-price-header-cell {
+  background: transparent;
+  color: #f1edff;
+  padding: 12px 18px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  backdrop-filter: blur(8px);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.boss-price-header-cell.boss-col {
+  text-align: left;
+  justify-content: flex-start;
+}
+
+/* ===== DATA ROWS ===== */
+
+.boss-price-row {
+  display: contents;
+}
+
+.boss-price-row.even .boss-price-cell {
+  background: rgba(35, 32, 58, 0.6);
+}
+
+.boss-price-row.odd .boss-price-cell {
+  background: rgba(32, 28, 50, 0.6);
+}
+
+.boss-price-row:hover .boss-price-cell {
+  background: rgba(42, 37, 64, 0.8);
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+
+.boss-price-cell {
+  padding: 12px 18px;
+  border-bottom: 1px solid rgba(45, 37, 64, 0.4);
+  display: flex;
+  align-items: center;
+  color: #e6e0ff;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+
+.boss-price-cell.boss-col {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.boss-price-cell.difficulty-col {
+  justify-content: center;
+  text-align: center;
+}
+
+.boss-price-cell.price-col {
+  justify-content: center;
+  text-align: center;
+}
+
+/* ===== BOSS INFO SECTION ===== */
+
+.boss-price-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.boss-price-image {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.boss-price-name {
+  font-weight: 600;
+  font-size: 0.92rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== DIFFICULTY & PRICE STYLING ===== */
+
+.boss-price-difficulty {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #e6e0ff;
+}
+
+.boss-price-mesos {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #c084fc;
+}
+
+/* ===== LOADING STATE ===== */
+
+.boss-price-loading {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 3rem;
+  color: #a259f7;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+/* ===== SCROLLBAR STYLING ===== */
+
+.boss-price-container::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.boss-price-container::-webkit-scrollbar-track {
+  display: none;
+}
+
+.boss-price-container::-webkit-scrollbar-thumb {
+  display: none;
+}
+
+.boss-price-container::-webkit-scrollbar-thumb:hover {
+  display: none;
+}
+
+.boss-price-container {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+
+/* WQHD (2560x1440) and larger */
+@media (min-width: 2560px) {
+  .boss-price-container {
+    width: 75%;
+    max-width: 1800px;
+  }
+  
+  .boss-price-grid {
+    grid-template-columns: 2.5fr 1fr 1.2fr;
+    min-width: 800px;
+  }
+  
+  .boss-price-header-cell,
+  .boss-price-cell {
+    padding: 16px 24px;
+    font-size: 1rem;
+  }
+  
+  .boss-price-image {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .boss-price-name {
+    font-size: 1rem;
+  }
+  
+  .boss-price-title {
+    font-size: 2.5rem;
+  }
+}
+
+/* Large Desktop (1920x1080) */
+@media (min-width: 1920px) and (max-width: 2559px) {
+  .boss-price-container {
+    width: 80%;
+    max-width: 1600px;
+  }
+  
+  .boss-price-grid {
+    grid-template-columns: 2.3fr 0.9fr 1.1fr;
+    min-width: 700px;
+  }
+  
+  .boss-price-header-cell,
+  .boss-price-cell {
+    padding: 14px 20px;
+  }
+  
+  .boss-price-image {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .boss-price-title {
+    font-size: 2.2rem;
+  }
+}
+
+/* Standard Desktop (1366x768 - 1919x1080) */
+@media (min-width: 1366px) and (max-width: 1919px) {
+  .boss-price-container {
+    width: 85%;
+    max-width: 1400px;
+  }
+}
+
+/* Tablet */
+@media (max-width: 1365px) and (min-width: 769px) {
+  .boss-price-main {
+    padding: 1.5rem;
+  }
+  
+  .boss-price-container {
+    width: 92%;
+    border-radius: 12px;
+  }
+  
+  .boss-price-grid {
+    grid-template-columns: 1.8fr 0.8fr 1fr;
+    min-width: 100%;
+    font-size: 0.85rem;
+  }
+  
+  .boss-price-header-row::before {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+  }
+  
+  .boss-price-header-cell,
+  .boss-price-cell {
+    padding: 10px 14px;
+  }
+  
+  .boss-price-image {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+  }
+  
+  .boss-price-name {
+    font-size: 0.85rem;
+  }
+  
+  .boss-price-difficulty,
+  .boss-price-mesos {
+    font-size: 0.8rem;
+  }
+  
+  .boss-price-title {
+    font-size: 1.8rem;
+  }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .boss-price-main {
+    padding: 1rem;
+    margin-top: 8em;
+  }
+  
+  .boss-price-title {
+    font-size: 1.6rem;
+    margin: 0 0 2rem 0;
+  }
+  
+  .boss-price-container {
+    width: 96%;
+    border-radius: 10px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-top: 0;
+  }
+  
+  .boss-price-grid {
+    grid-template-columns: 1.4fr 0.7fr 0.9fr;
+    min-width: 400px;
+    font-size: 0.8rem;
+  }
+  
+  .boss-price-header-row::before {
+    height: 44px;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+  }
+  
+  .boss-price-header-cell,
+  .boss-price-cell {
+    padding: 8px 10px;
+  }
+  
+  .boss-price-image {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+  }
+  
+  .boss-price-info {
+    gap: 8px;
+  }
+  
+  .boss-price-name {
+    font-size: 0.8rem;
+  }
+  
+  .boss-price-difficulty,
+  .boss-price-mesos {
+    font-size: 0.75rem;
+  }
+  
+  .boss-price-header-cell {
+    font-size: 0.7rem;
+  }
+}
+
+/* Very Small Mobile */
+@media (max-width: 480px) {
+  .boss-price-main {
+    margin-top: 8em;
+  }
+  
+  .boss-price-title {
+    font-size: 1.4rem;
+    margin: 0 0 1.5rem 0;
+  }
+  
+  .boss-price-grid {
+    min-width: 360px;
+  }
+  
+  .boss-price-header-cell,
+  .boss-price-cell {
+    padding: 13px 8px;
+  }
+  
+  .boss-price-image {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .boss-price-name {
+    font-size: 0.75rem;
+  }
+  
+  .boss-price-difficulty,
+  .boss-price-mesos {
+    font-size: 0.7rem;
+  }
+} 

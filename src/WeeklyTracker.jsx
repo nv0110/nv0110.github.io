@@ -4,8 +4,8 @@ import WeekNavigator from './components/WeekNavigator';
 import CrystalAnimation from './components/CrystalAnimation';
 import CharacterSidebar from './components/CharacterSidebar';
 import SidebarToggle from './components/SidebarToggle';
-import ModeIndicator from './components/ModeIndicator';
 import BossTable from './components/BossTable';
+import HistoricalWeekCards from './components/HistoricalWeekCards';
 import { logger } from './utils/logger';
 
 // Consolidated modals
@@ -21,9 +21,7 @@ import { useUserWeeklyData } from '../hooks/useUserWeeklyData.js';
 
 function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked, userCode, appWeekKey }) {
   const { lastWeeklyResetTimestamp } = useAppData();
-  const {
-    refreshWeeklyData
-  } = useUserWeeklyData(userCode);
+  const { refreshWeeklyData } = useUserWeeklyData(userCode);
 
   // Helper function to get boss price
   function getBossPrice(bossName, difficulty) {
@@ -38,7 +36,6 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
   const [crystalAnimation, setCrystalAnimation] = useState(null);
   const [selectedCharIdx, setSelectedCharIdx] = useState(0);
   const [error, setError] = useState(null);
-
   const [showNoCharactersMessage, setShowNoCharactersMessage] = useState(false);
 
   // Hide completed characters toggle
@@ -71,11 +68,7 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
     setPitchedChecked,
     cloudPitchedItems,
     refreshPitchedItems,
-    loadingPitchedItems,
-    setLoadingPitchedItems,
-    userInteractionRef,
-    addNewPitchedItem,
-    removePitchedItemByDetails
+    userInteractionRef
   } = usePitchedItems(userCode || null);
   
   const bossActions = useBossActions({
@@ -89,26 +82,38 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
     onDataChange: () => {
       refreshWeeklyData();
       refreshPitchedItems();
-    }
+    },
+    isHistoricalWeek: weekNavigation.isHistoricalWeek
   });
 
   const statsManagement = useStatsManagement(userCode, refreshPitchedItems);
 
-  // Effect to refresh pitched items when a weekly reset occurs - NOT on week navigation
+  // Effect to refresh pitched items when a weekly reset occurs
   useEffect(() => {
     if (lastWeeklyResetTimestamp > 0 && userCode) {
       logger.info('WeeklyTracker: Detected weekly reset, refreshing pitched items.');
-      // Use a longer timeout to prevent immediate cascading effects
       const timeoutId = setTimeout(() => {
         refreshPitchedItems();
       }, 500);
       return () => clearTimeout(timeoutId);
     }
-  }, [lastWeeklyResetTimestamp]); // Only depend on the reset timestamp, not userCode
+  }, [lastWeeklyResetTimestamp]);
 
-  // Enhanced week change handler - remove parameters causing re-renders
+  // Enhanced week change handler
   const handleWeekChange = (newWeekKey) => {
+    logger.info('WeeklyTracker: Week changed', { 
+      from: weekNavigation.selectedWeekKey, 
+      to: newWeekKey,
+      isHistorical: weekNavigation.isHistoricalWeek 
+    });
+    
     weekNavigation.handleWeekChange(newWeekKey);
+    // Refresh historical analysis when week changes
+    if (weekNavigation.refreshHistoricalAnalysis) {
+      weekNavigation.refreshHistoricalAnalysis();
+    }
+    // Refresh pitched items for the new week
+    refreshPitchedItems();
   };
 
   // Reset selectedCharIdx if out of bounds
@@ -118,17 +123,19 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
     }
   }, [characterBossSelections.length, selectedCharIdx]);
 
-  // Calculate totals
+  // Calculate totals and character data
   const char = characterBossSelections[selectedCharIdx];
   const charKey = `${char?.name || ''}-${selectedCharIdx}`;
   const charBosses = char?.bosses || [];
 
+  // Sort bosses by price (highest to lowest)
   const sortedBosses = [...charBosses].sort((a, b) => {
     try {
       const priceA = getBossPrice(a.name, a.difficulty) / (a.partySize || 1);
       const priceB = getBossPrice(b.name, b.difficulty) / (b.partySize || 1);
       return priceB - priceA;
     } catch (error) {
+      logger.error('WeeklyTracker: Error sorting bosses', error);
       setError(`Error sorting bosses: ${error.message}`);
       return 0;
     }
@@ -167,6 +174,121 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
   const visibleCharSummaries = hideCompleted ? charSummaries.filter(cs => !cs.allCleared) : charSummaries;
   const showCharacterDetails = charBosses.length > 0;
 
+  // Enhanced pitched item click handler
+  const handlePitchedItemClick = async (pitchedData) => {
+    if (!userCode) {
+      logger.error('WeeklyTracker: No userCode available for pitched item interaction');
+      return;
+    }
+
+    logger.info('WeeklyTracker: Pitched item clicked', pitchedData);
+
+    try {
+      const { bossName, itemName, characterName, weekKey, isChecked, isHistorical, itemImage } = pitchedData;
+      
+      if (isHistorical && !isChecked) {
+        logger.info('WeeklyTracker: Opening historical modal for item', { bossName, itemName, characterName, weekKey });
+        
+        // For historical weeks, open the historical pitched modal instead of direct action
+        const getBossPitchedItems = (await import('../services/bossRegistryService.js')).getBossPitchedItems;
+        const bossItems = getBossPitchedItems(bossName) || [];
+        const item = bossItems.find(i => i.name === itemName);
+        
+        if (item) {
+          const historicalData = {
+            bossName: bossName,
+            itemName: itemName,
+            itemImage: itemImage || item.image,
+            weekKey: weekKey,
+            character: characterName
+          };
+          
+          // Set the historical data and show modal via stats management
+          statsManagement.setHistoricalPitchedData(historicalData);
+          statsManagement.setShowHistoricalPitchedModal(true);
+        }
+        return;
+      }
+      
+      if (isChecked) {
+        logger.info('WeeklyTracker: Removing pitched item', { userCode, characterName, bossName, itemName });
+        // Remove the pitched item
+        const { removePitchedItem } = await import('../services/pitchedItemsService.js');
+        const result = await removePitchedItem(userCode, characterName, bossName, itemName);
+        logger.info('WeeklyTracker: Remove result', result);
+        if (result.success) {
+          logger.info('WeeklyTracker: Successfully removed pitched item');
+          refreshPitchedItems();
+        } else {
+          logger.error('WeeklyTracker: Failed to remove pitched item', result.error);
+          setError(`Failed to remove pitched item: ${result.error}`);
+        }
+      } else {
+        if (isHistorical) {
+          // For historical items that aren't checked, always open the modal
+          const getBossPitchedItems = (await import('../services/bossRegistryService.js')).getBossPitchedItems;
+          const bossItems = getBossPitchedItems(bossName) || [];
+          const item = bossItems.find(i => i.name === itemName);
+          
+          if (item) {
+            const historicalData = {
+              bossName: bossName,
+              itemName: itemName,
+              itemImage: itemImage || item.image,
+              weekKey: weekKey,
+              character: characterName
+            };
+            
+            statsManagement.setHistoricalPitchedData(historicalData);
+            statsManagement.setShowHistoricalPitchedModal(true);
+          }
+        } else {
+          // For current week: Add the pitched item AND mark boss as cleared
+          logger.info('WeeklyTracker: Adding pitched item and marking boss as cleared', { userCode, characterName, bossName, itemName });
+          
+          // Step 1: Add the pitched item
+          const { addPitchedItem } = await import('../services/pitchedItemsService.js');
+          const pitchedItemData = {
+            charId: characterName,
+            bossName: bossName,
+            item: itemName,
+            date: new Date().toISOString().split('T')[0]
+          };
+          
+          const pitchedResult = await addPitchedItem(userCode, pitchedItemData);
+          
+          if (pitchedResult.success) {
+            logger.info('WeeklyTracker: Successfully added pitched item');
+            
+            // Step 2: Mark the boss as cleared
+            // Find the boss configuration to get difficulty and other details
+            const char = characterBossSelections[selectedCharIdx];
+            if (char) {
+              const bossConfig = char.bosses.find(b => b.name === bossName);
+              if (bossConfig) {
+                logger.info('WeeklyTracker: Also marking boss as cleared', { bossName, difficulty: bossConfig.difficulty });
+                
+                // Use the existing boss check handler to mark as cleared
+                await bossActions.handleCheck(bossConfig, true, null);
+              } else {
+                logger.warn('WeeklyTracker: Boss configuration not found, cannot auto-mark as cleared', { bossName, characterName });
+              }
+            }
+            
+            // Refresh data
+            refreshPitchedItems();
+          } else {
+            logger.error('WeeklyTracker: Failed to add pitched item', pitchedResult.error);
+            setError(`Failed to add pitched item: ${pitchedResult.error}`);
+          }
+        }
+      }
+    } catch (error) {
+      logger.error('WeeklyTracker: Error handling pitched item click', error);
+      setError(`Error: ${error.message}`);
+    }
+  };
+
   if (error) {
     return (
       <div className="weekly-tracker-error">
@@ -197,9 +319,10 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
       )}
 
       <div className="weekly-tracker-container">
-        {/* Sidebar */}
+        {/* Sidebar - DO NOT MODIFY */}
         <CharacterSidebar
           sidebarVisible={sidebarVisible}
+          setSidebarVisible={setSidebarVisible}
           isHistoricalWeek={weekNavigation.isHistoricalWeek}
           totalMeso={totalMeso}
           obtainableMeso={obtainableMeso}
@@ -213,6 +336,7 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
           setShowCharacterPurgeConfirm={statsManagement.setShowCharacterPurgeConfirm}
           setShowCharacterPitchedModal={statsManagement.setShowCharacterPitchedModal}
           onShowTreasureAnalytics={() => statsManagement.setShowStats(true)}
+          characterBossSelections={characterBossSelections}
         />
 
         <SidebarToggle 
@@ -225,10 +349,11 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
           <div className="weekly-tracker-content">
             <div className="weekly-tracker-header">
               <h2 className="weekly-tracker-title">
-                Weekly Boss Tracker
+                {weekNavigation.isHistoricalWeek ? 'Historical Week View' : 'Weekly Boss Tracker'}
               </h2>
             </div>
 
+            {/* WeekNavigator - DO NOT MODIFY */}
             <div className="weekly-tracker-navigator-wrapper">
               <WeekNavigator
                 appWeekKey={appWeekKey}
@@ -236,58 +361,47 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
                 onWeekChange={handleWeekChange}
                 isHistoricalWeek={weekNavigation.isHistoricalWeek}
                 historicalAnalysis={weekNavigation.historicalAnalysis}
-                characterBossSelections={characterBossSelections}
-                checked={checked}
-                selectedCharIdx={selectedCharIdx}
-                totalMeso={totalMeso}
-                obtainableMeso={obtainableMeso}
-                charSummaries={charSummaries}
               />
             </div>
 
-            <ModeIndicator
-              selectedWeekKey={weekNavigation.selectedWeekKey}
-              showTickAll={showCharacterDetails && !weekNavigation.isHistoricalWeek}
-              onTickAll={bossActions.handleTickAll}
-              allTicked={charBosses.every(b => checked[charKey]?.[b.name + '-' + b.difficulty]) && charBosses.length > 0}
-            />
-
+            {/* Conditional rendering: Historical Cards vs Boss Table */}
             {showCharacterDetails && (
-              <div>
-                <BossTable
-                  key={`${weekNavigation.selectedWeekKey}-${selectedCharIdx}`}
-                  isHistoricalWeek={weekNavigation.isHistoricalWeek}
-                  characterBossSelections={characterBossSelections}
-                  selectedCharIdx={selectedCharIdx}
-                  charBosses={charBosses}
-                  sortedBosses={sortedBosses}
-                  bossData={bossData}
-                  checked={checked}
-                  setChecked={setChecked}
-                  charKey={charKey}
-                  getBossPrice={getBossPrice}
-                  handleCheck={bossActions.handleCheck}
-
-                  pitchedChecked={pitchedChecked}
-                  setPitchedChecked={setPitchedChecked}
-                  weekKey={weekNavigation.selectedWeekKey}
-                  refreshCheckedStateFromDatabase={bossActions.refreshCheckedStateFromDatabase}
-                  userInteractionRef={userInteractionRef}
-                  userCode={userCode}
-                  setError={setError}
-                  startStatsTrackingIfNeeded={statsManagement.startStatsTrackingIfNeeded}
-                  setHistoricalPitchedData={statsManagement.setHistoricalPitchedData}
-                  setShowHistoricalPitchedModal={statsManagement.setShowHistoricalPitchedModal}
-                  handleHistoricalPitchedRemove={statsManagement.handleHistoricalPitchedRemove}
-
-                  loadingPitchedItems={loadingPitchedItems}
-                  setLoadingPitchedItems={setLoadingPitchedItems}
-                  refreshPitchedItems={refreshPitchedItems}
-                  refreshHistoricalAnalysis={weekNavigation.refreshHistoricalAnalysis}
-                  addNewPitchedItem={addNewPitchedItem}
-                  removePitchedItemByDetails={removePitchedItemByDetails}
-                />
-              </div>
+              <>
+                {weekNavigation.isHistoricalWeek ? (
+                  <HistoricalWeekCards
+                    bosses={sortedBosses}
+                    bossData={bossData}
+                    characterKey={charKey}
+                    selectedWeekKey={weekNavigation.selectedWeekKey}
+                    selectedCharIdx={selectedCharIdx}
+                    pitchedChecked={pitchedChecked}
+                    onPitchedItemClick={handlePitchedItemClick}
+                    userCode={userCode}
+                    cloudPitchedItems={cloudPitchedItems}
+                  />
+                ) : (
+              <BossTable
+                bosses={sortedBosses}
+                bossData={bossData}
+                checked={checked}
+                characterKey={charKey}
+                onBossCheck={bossActions.handleCheck}
+                getBossPrice={getBossPrice}
+                    showTickAll={true}
+                onTickAll={bossActions.handleTickAll}
+                allTicked={charBosses.every(b => checked[charKey]?.[b.name + '-' + b.difficulty]) && charBosses.length > 0}
+                    // Pitched items props
+                    pitchedChecked={pitchedChecked}
+                    onPitchedItemClick={handlePitchedItemClick}
+                    isHistoricalWeek={false}
+                    userCode={userCode}
+                    selectedWeekKey={weekNavigation.selectedWeekKey}
+                    selectedCharIdx={selectedCharIdx}
+                    userInteractionRef={userInteractionRef}
+                    cloudPitchedItems={cloudPitchedItems}
+                  />
+                )}
+              </>
             )}
           </div>
         </div>

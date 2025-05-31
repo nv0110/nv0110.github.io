@@ -1,1607 +1,725 @@
-/* =====================================================================================
-   TABLE COMPONENTS
-   =====================================================================================
-   
-   Boss tables, data tables, and table-related styling including:
-   - Boss price tables
-   - Table headers and cells
-   - Table hover effects
-   - Responsive table behavior
-   - BossTable component styles
-   
-   ===================================================================================== */
+/* Simple Boss Table Styles for Weekly Tracker */
 
-/* ===== TABLE CONTAINERS ===== */
-
-/* Table scroll wrapper - enables horizontal scrolling for large tables */
-.table-scroll {
-  display: block;
-  width: 100%;
-  overflow-x: auto;
+.boss-table-container {
+  margin: -1rem auto;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(58, 51, 90, 0.6);
+  background: #201c32;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(162, 89, 247, 0.1);
+  max-height: 55vh;
+  overflow-y: auto;
+  width: 85%;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+  position: relative;
+  backdrop-filter: blur(10px);
 }
 
-/* Table container with hover effects */
-.table-container {
+.boss-table-grid {
+  display: grid;
+  grid-template-columns: 2fr 0.8fr 1fr 140px;
+  gap: 0;
   width: 100%;
-  transition: box-shadow 0.3s, border 0.3s, max-width 0.3s;
+  min-width: 650px;
+  box-sizing: border-box;
+  position: relative;
 }
 
+/* Header Styles */
+.boss-table-header {
+  display: contents;
+  position: relative;
+}
 
-
-.table-container::before {
+/* Create a smooth gradient background for the entire header */
+.boss-table-grid::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, 
-    rgba(162, 89, 247, 0.02) 0%,
-    rgba(255, 255, 255, 0.01) 50%,
-    rgba(162, 89, 247, 0.02) 100%
-  );
-  pointer-events: none;
-  border-radius: inherit;
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  height: 52px; /* Adjust based on header height */
+  background: linear-gradient(135deg, #4a3570 0%, #3a2a5d 25%, #2d2540 75%, #241f38 100%);
+  z-index: 1;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  border-bottom: 2px solid rgba(45, 37, 64, 0.9);
 }
 
-.table-container:hover::before {
-  opacity: 0.25;
-}
-
-/* ===== BOSS TABLE COMPONENT ===== */
-
-/* BossTable wrapper for fixed header + scrollable body */
-
-
-/* Fixed header container */
-.boss-table-header-container {
-  flex-shrink: 0;
-  overflow: hidden;
-  background: #3a2a5d;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-}
-
-/* Scrollable body container */
-.boss-table-body-container {
-  overflow-y: auto;
-  overflow-x: hidden;
-  flex-grow: 1;
-}
-
-/* Header row styling */
-.boss-table-header-row {
-  background: #3a2a5d;
-  color: #e6e0ff;
-}
-
-/* BossTable main table */
-.boss-table {
-  border-collapse: collapse;
-  min-width: 700px;
-  max-width: 800px;
-  width: 100%;
-  table-layout: fixed; /* Fixed layout for consistent column widths */
-}
-
-/* Header table specific styling */
-.boss-table.boss-table-header {
-  border: none;
-  border-radius: 0;
-  margin-bottom: 0;
-}
-
-/* Body table specific styling */
-.boss-table.boss-table-body {
-  border: none;
-  border-radius: 0;
-  margin-top: 0;
-}
-
-/* Ensure consistent column widths across header and body */
-.boss-table-header-cell,
-.boss-table-cell-boss {
-  width: 45% !important;
-}
-
-.boss-table-header-cell-difficulty,
-.boss-table-cell-difficulty {
-  width: 20% !important;
-}
-
-.boss-table-header-cell-mesos,
-.boss-table-cell-mesos {
-  width: 20% !important;
-}
-
-.boss-table-header-cell-cleared,
-.boss-table-cell-cleared {
-  width: 15% !important;
-}
-
-/* Historical week table - optimized 2-column layout */
-.boss-table.historical-week {
-  min-width: 600px;
-  max-width: 700px;
-}
-
-/* BossTable header row */
-.boss-table-header-row {
-  background: #3a2a5d;
-  color: #e6e0ff;
-}
-
-/* Boss name column (first column) */
-.boss-table-header-cell {
-  width: 45%;
-  text-align: left;
+.boss-table-header > div {
+  background: transparent;
+  color: #f1edff;
   padding: 12px 18px;
-  color: #fff;
   font-weight: 700;
-  box-sizing: border-box;
-  font-size: 0.9em;
-  min-width: 180px;
-}
-
-.boss-table-header-cell-difficulty {
-  width: 20%;
-  padding: 12px 8px;
+  font-size: 0.95rem;
   text-align: center;
-  font-weight: 600;
-  font-size: 0.9em;
-  min-width: 110px;
-}
-
-.boss-table-header-cell-mesos {
-  width: 20%;
-  padding: 12px 8px;
-  text-align: center;
-  font-weight: 600;
-  font-size: 0.9em;
-  min-width: 110px;
-}
-
-.boss-table-header-cell-cleared {
-  width: 15%;
-  padding: 12px 8px;
-  text-align: center;
-  font-weight: 600;
-  font-size: 0.9em;
-  min-width: 90px;
-}
-
-.boss-table-header-cell-pitched {
-  padding: 6px 14px;
-  text-align: center;
-  font-weight: 600;
-  font-size: 0.9em;
-  min-width: 200px;
-}
-
-/* Historical week specific header styling */
-.boss-table.historical-week .boss-table-header-cell {
-  padding: 8px 16px;
-  min-width: 250px; /* Wider boss column for historical view */
-}
-
-.boss-table.historical-week .boss-table-header-cell-pitched {
-  padding: 8px 16px;
-  min-width: 350px; /* Wider pitched items column for historical view */
-}
-
-/* BossTable data rows */
-.boss-table-row {
-  border: 1px solid #3a335a;
-  color: #e6e0ff;
-  transition: background-color 0.2s ease, transform 0.2s ease;
-  cursor: pointer; /* Add pointer cursor for clickable rows */
-}
-
-.boss-table-row.even {
-  background: #23203a;
-}
-
-.boss-table-row.odd {
-  background: #201c32;
-}
-
-.boss-table-row.historical {
-  opacity: 0.9;
-}
-
-.boss-table-row.read-only {
-  opacity: 0.8;
-  cursor: default; /* Keep default cursor for read-only rows */
-}
-
-.boss-table-row:not(.read-only):hover {
-  background: #2a2540;
-}
-
-/* BossTable data cells */
-.boss-table-cell-boss {
-  width: 45%;
-  padding: 8px 18px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.boss-table-cell-difficulty {
-  width: 20%;
-  padding: 8px;
-  text-align: center;
-  vertical-align: middle;
-}
-
-.boss-table-cell-mesos {
-  width: 20%;
-  padding: 8px;
-  text-align: center;
-  font-weight: 600;
-  vertical-align: middle;
-}
-
-.boss-table-cell-cleared {
-  width: 15%;
-  padding: 8px;
-  text-align: center;
-  vertical-align: middle;
-}
-
-.boss-table-cell-cleared > span {
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  height: 100%;
-}
-
-.boss-table-cell-pitched {
-  padding: 8px;
-  text-align: center;
-}
-
-/* Historical week specific cell styling */
-.boss-table.historical-week .boss-table-cell-boss {
-  padding: 12px 16px;
-  gap: 12px;
-}
-
-.boss-table.historical-week .boss-table-cell-pitched {
-  padding: 12px 16px;
-}
-
-/* Boss images in BossTable */
-.boss-table-boss-image {
-  width: 40px;
-  height: 40px;
-  object-fit: contain;
-  border-radius: 6px;
-  background: #fff2;
-  margin-right: 8px;
-  transition: transform 0.2s ease;
-}
-
-.boss-table-boss-image:hover {
-  transform: scale(1.1);
-}
-
-/* Boss name text */
-.boss-table-boss-name {
-  font-weight: 600;
-}
-
-/* ===== PITCHED ITEMS IN BOSS TABLE ===== */
-
-/* Pitched items container */
-.boss-table-pitched-container {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  flex-wrap: nowrap; /* Keep items in single row */
-}
-
-.boss-table-pitched-container.inline {
-  display: inline-flex; /* Keep inline for boss cell */
-  gap: 6px;
-  margin-left: 8px;
-  flex-wrap: nowrap; /* Prevent stacking */
-  align-items: center;
-}
-
-/* Pitched item icons - FIXED CENTERING */
-.pitched-item-icon {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  backdrop-filter: blur(8px);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-size: 0.85rem;
   position: relative;
-  display: inline-flex; /* Changed from inline-block to inline-flex */
-  align-items: center; /* Center vertically */
-  justify-content: center; /* Center horizontally */
-  border-radius: 6px;
-  border: 2px solid #3a335a;
-  background: #23203a;
-  transition: box-shadow 0.2s, border 0.2s, background 0.2s, transform 0.2s;
-  transform-origin: center; /* Ensure all transforms happen from center */
+}
+
+.header-boss {
+  text-align: left;
+}
+
+.header-difficulty {
+  text-align: center;
+}
+
+.header-mesos {
+  text-align: center;
+}
+
+.header-cleared {
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px; /* Reduced padding for button space */
+}
+
+/* Row Styles */
+.boss-table-row {
+  display: contents;
   cursor: pointer;
 }
 
-/* Pitched item icon sizes */
-.pitched-item-icon.historical {
-  width: 36px;
-  height: 36px;
+.boss-table-row.even > div {
+  background: rgba(35, 32, 58, 0.6);
 }
 
-.pitched-item-icon.inline {
-  width: 32px;
-  height: 32px;
-  margin-left: 2px;
+.boss-table-row.odd > div {
+  background: rgba(32, 28, 50, 0.6);
 }
 
-/* Pitched item icon states */
-.pitched-item-icon.obtained {
-  border: 2px solid #a259f7;
-  background: #3a335a;
-  box-shadow: 0 0 8px #a259f7;
+.boss-table-row:hover > div {
+  background: rgba(42, 37, 64, 0.8);
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
 }
 
-.pitched-item-icon.read-only {
-  cursor: default;
-  opacity: 0.6;
+/* Cell Styles */
+.boss-table-row > div {
+  padding: 12px 18px;
+  border-bottom: 1px solid rgba(45, 37, 64, 0.4);
+  display: flex;
+  align-items: center;
+  color: #e6e0ff;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
 }
 
-.pitched-item-icon:not(.read-only):hover {
-  transform: scale(1.1);
-  transform-origin: center; /* Ensure scaling happens from center to prevent shifting */
+.cell-boss {
+  gap: 14px;
+  justify-content: space-between;
+  text-align: left;
+  align-items: center;
 }
 
-.pitched-item-icon.obtained:not(.read-only):hover {
-  box-shadow: 0 0 12px #a259f7;
+.cell-difficulty {
+  justify-content: center;
+  font-weight: 600;
+  text-align: center;
+  font-size: 0.9rem;
 }
 
-.pitched-item-icon:not(.obtained):not(.read-only):hover {
-  box-shadow: 0 0 8px rgba(162, 89, 247, 0.5);
+.cell-mesos {
+  justify-content: center;
+  font-weight: 700;
+  color: #c084fc;
+  text-align: center;
+  font-size: 0.9rem;
 }
 
-/* Pitched item images - FIXED CENTERING */
-.pitched-item-image {
-  object-fit: contain;
-  border-radius: 4px;
-  transition: opacity 0.2s, filter 0.2s;
-  display: block; /* Ensures proper block behavior within flex container */
+.cell-cleared {
+  justify-content: center;
+  text-align: center;
 }
 
-/* Pitched item image sizes */
-.pitched-item-image.historical {
-  width: 32px;
-  height: 32px;
+/* Boss Info Section */
+.boss-info-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
 }
 
-.pitched-item-image.inline {
-  width: 28px;
+.boss-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.boss-party-size {
+  font-size: 0.72rem;
+  color: #a259f7;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+/* Header button styling */
+.header-tick-all-button {
+  padding: 0.4rem 0.8rem;
+  border-radius: 8px;
+  background: rgba(74, 53, 112, 0.6);
+  color: #f1edff;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid rgba(162, 89, 247, 0.4);
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  width: 110px; /* Increased width for better text fit */
   height: 28px;
-}
-
-/* Pitched item image states */
-.pitched-item-image.obtained {
-  opacity: 1;
-  filter: drop-shadow(0 0 6px #a259f7);
-}
-
-.pitched-item-image.not-obtained {
-  opacity: 0.4;
-}
-
-.pitched-item-image.inline.not-obtained {
-  opacity: 0.7;
-}
-
-/* Pitched item checkmarks */
-.pitched-item-checkmark {
-  position: absolute;
-  background: #a259f7;
-  color: #fff;
-  border-radius: 50%;
+  font-size: 0.73rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.3px;
+  position: relative;
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
-  box-shadow: 0 1px 4px #0004;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.pitched-item-checkmark.historical {
+.header-tick-all-button:hover {
+  background: rgba(128, 90, 213, 0.5);
+  color: #fff;
+  border-color: rgba(162, 89, 247, 0.5);
+  box-shadow: 0 4px 12px rgba(128, 90, 213, 0.3);
+  transform: translateY(-1px);
+}
+
+.header-tick-all-button:active {
+  background: rgba(58, 42, 93, 0.6);
+  transform: translateY(0px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.header-tick-all-button:focus {
+  outline: 2px solid rgba(162, 89, 247, 0.4);
+  outline-offset: 2px;
+}
+
+.header-tick-all-button:disabled {
+  background: rgba(74, 53, 112, 0.2);
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
+}
+
+/* Boss Image */
+.boss-image {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Boss Name */
+.boss-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.92rem;
+}
+
+/* ===================================================================
+   PITCHED ITEMS SECTION
+   ================================================================= */
+
+.boss-pitched-items {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.pitched-item-icon {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1.5px solid rgba(162, 89, 247, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(4px);
+}
+
+.pitched-item-icon:hover {
+  transform: scale(1.12) translateY(-2px);
+  border-color: rgba(162, 89, 247, 0.5);
+  background: rgba(162, 89, 247, 0.12);
+  box-shadow: 0 6px 18px rgba(162, 89, 247, 0.3);
+}
+
+.pitched-item-icon.historical {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.pitched-item-icon.historical:hover {
+  transform: scale(1.05);
+  border-color: rgba(162, 89, 247, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.pitched-item-image {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  transition: all 0.3s ease;
+  border-radius: 5px;
+}
+
+.pitched-item-icon.checked {
+  background: rgba(162, 89, 247, 0.25);
+  border-color: rgba(162, 89, 247, 0.6);
+  box-shadow: 0 0 14px rgba(162, 89, 247, 0.4);
+}
+
+.pitched-item-icon.checked .pitched-item-image {
+  filter: grayscale(0.15) brightness(0.9);
+  opacity: 0.8;
+}
+
+.pitched-item-icon.unchecked {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(162, 89, 247, 0.25);
+}
+
+.pitched-item-icon.unchecked .pitched-item-image {
+  /* Natural appearance - no filters */
+  filter: none;
+  opacity: 1;
+}
+
+.pitched-item-checkmark {
+  position: absolute;
   top: -2px;
   right: -2px;
   width: 16px;
   height: 16px;
-  font-size: 10px;
-}
-
-.pitched-item-checkmark.inline {
-  top: 2px;
-  right: 2px;
-  width: 14px;
-  height: 14px;
-  font-size: 12px;
-}
-
-/* Pitched item loading states */
-.pitched-item-loading {
+  background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
+  color: white;
+  font-size: 10px;
+  border: 2px solid #201c32;
+  z-index: 1;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-.pitched-item-loading.historical {
-  width: 32px;
-  height: 32px;
+.pitched-item-checkmark svg {
+  width: 9px;
+  height: 9px;
 }
 
-.pitched-item-loading.inline {
-  width: 28px;
-  height: 28px;
+/* Pitched item animations */
+.pitched-item-icon.checked {
+  animation: pitchedItemObtained 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.pitched-item-spinner {
-  border-radius: 50%;
-  border: 3px solid rgba(162, 89, 247, 0.2);
-  border-top-color: #a259f7;
-  animation: pitched-spinner 1s linear infinite;
-  position: absolute;
-}
-
-.pitched-item-spinner.historical {
-  width: 22px;
-  height: 22px;
-}
-
-.pitched-item-spinner.inline {
-  width: 22px;
-  height: 22px;
-}
-
-/* Pitched item spinner animation */
-@keyframes pitched-spinner {
-  to {
-    transform: rotate(360deg);
+@keyframes pitchedItemObtained {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(162, 89, 247, 0.3);
+  }
+  50% {
+    transform: scale(1.2);
+    box-shadow: 0 0 20px rgba(162, 89, 247, 0.6);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 14px rgba(162, 89, 247, 0.4);
   }
 }
 
-/* ===== BOSS PRICE TABLES ===== */
-
-/* ===== BOSS PRICE TABLE SCROLLABLE LAYOUT ===== */
-
-/* Main wrapper for the fixed header + scrollable body layout */
-
-
-/* Fixed header container */
-.boss-table-header-container {
-  flex-shrink: 0; /* Header should not shrink */
-  overflow-x: hidden; /* In case content is wider than table */
-}
-
-/* Scrollable body container - max height triggers scrolling after ~12 rows */
-.boss-table-body-container {
-  flex-grow: 1; /* Body takes remaining space */
-  overflow-y: auto;
-  overflow-x: hidden; /* If table itself is managed to not overflow horizontally */
-  min-height: 0; /* Fix for flexbox overflow issues */
-}
-
-/* Boss price table - main data table on BossTablePage */
-.boss-price-table {
-  table-layout: fixed;
-  width: 100%;
-  border-collapse: collapse; /* Standard good practice */
-}
-
-/* Header table specific styling */
-.boss-price-table.boss-table-header {
-  border: none;
-  border-radius: 0;
-}
-
-/* Body table specific styling */
-.boss-price-table.boss-table-body {
-  border: none;
-  border-radius: 0;
-}
-
-/* Boss table header row styling */
-.boss-table-header {
-  background: #3a2a5d;
-  color: #fff;
-}
-
-/* Standard table header cells - BossTablePage specific */
-.boss-price-table-header-cell {
-  padding: clamp(0.4rem, 1vw, 0.8rem); /* Responsive padding */
-  text-align: left;
-  font-weight: 700;
-  font-size: clamp(0.8rem, 1.8vw, 1rem); /* Responsive font size for headers */
-  width: 33.333%;
-  vertical-align: middle;
-  box-sizing: border-box;
-}
-
-/* Difficulty column header - smaller padding - BossTablePage specific */
-.boss-price-table-header-cell-difficulty {
-  padding: clamp(0.4rem, 1vw, 0.8rem); /* Responsive padding */
-  text-align: center;
-  font-weight: 700;
-  font-size: clamp(0.8rem, 1.8vw, 1rem); /* Responsive font size for headers */
-  width: 33.333%;
-  box-sizing: border-box;
-}
-
-/* Price column header - right aligned for numbers - BossTablePage specific */
-.boss-price-table-header-cell-price {
-  padding: clamp(0.4rem, 1vw, 0.8rem); /* Responsive padding */
-  text-align: right;
-  font-weight: 700;
-  font-size: clamp(0.8rem, 1.8vw, 1rem); /* Responsive font size for headers */
-  width: 33.333%;
-  box-sizing: border-box;
-}
-
-/* ===== TABLE ROWS ===== */
-
-/* Alternating row colors for better readability */
-.boss-table-row-even {
-  background-color: var(--table-row-even-bg, rgba(30, 26, 48, 0.7));
-  /* border: 1px solid var(--table-border-color, #3a305a); */
-}
-
-.boss-table-row-odd {
-  background-color: var(--table-row-odd-bg, rgba(36, 32, 58, 0.7));
-  /* border: 1px solid var(--table-border-color, #3a305a); */
-}
-
-/* ===== TABLE CELLS ===== */
-
-/* Boss name cell - contains image and text - BossTablePage specific */
-.boss-price-table-name-cell {
-  padding: 10px 18px;
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  width: 33.333%;
-  box-sizing: border-box;
-  border-bottom: 1px solid var(--table-border-color-faint, #2a2446);
-}
-
-/* Boss name text styling - BossTablePage specific */
-.boss-price-table-name-text {
-  font-weight: 600;
-  font-size: clamp(0.75rem, 1.6vw, 0.95rem); /* Responsive font size for cell text */
-}
-
-/* Boss images in tables - BossTablePage specific */
-.boss-price-table-image {
-  width: clamp(28px, 3.5vw, 36px); /* Responsive image size */
-  height: auto;
-  margin-right: clamp(0.5rem, 1vw, 0.75rem);
-  vertical-align: middle;
-}
-
-/* Difficulty column cells - BossTablePage specific */
-.boss-price-table-difficulty-cell {
-  padding: 10px 5px;
-  text-align: center;
-  width: 33.333%;
-  box-sizing: border-box;
-}
-
-.boss-price-table-difficulty-text {
+/* Tooltip for pitched items */
+.pitched-item-icon::before {
+  content: attr(title);
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(26, 16, 43, 0.95);
+  color: #e6e0ff;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.72rem;
   font-weight: 500;
-  font-size: clamp(0.75rem, 1.6vw, 0.95rem); /* Responsive font size for cell text */
-}
-
-/* Price column cells - right aligned for currency values - BossTablePage specific */
-.boss-price-table-price-cell {
-  box-sizing: border-box;
-}
-
-
-
-/* ===== GENERIC TABLE STYLING ===== */
-
-/* Generic table styling */
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 0.5em 0;
-}
-
-.table th,
-.table td {
-  padding: 0.5em;
-  font-size: 0.85rem;
-  text-align: left;
-  border: 1px solid #ddd;
-}
-
-.table th {
-  background-color: #f5f5f5;
-  font-weight: 600;
-}
-
-/* ===== BOSS TABLE SPECIFIC COLUMNS ===== */
-
-/* Boss table specific column widths */
-.boss-table-price {
-  width: 130px;
-  min-width: 130px;
-  max-width: 130px;
-  text-align: right;
-}
-
-.boss-table-controls {
-  width: 220px;
-  min-width: 220px;
-  max-width: 220px;
-  text-align: center;
-}
-
-.boss-table-difficulty {
-  width: 90px;
-  min-width: 90px;
-  max-width: 90px;
-  font-size: 0.80rem;
-}
-
-.boss-table-party-size {
-  width: 70px;
-  min-width: 70px;
-  max-width: 70px;
-}
-
-/* Force consistent boss image sizing */
-.table td img {
-  width: 40px !important;
-  height: 40px !important;
-  object-fit: contain;
-  border-radius: 6px;
-  background: #fff2;
-  margin-right: 8px;
-}
-
-/* ===== HISTORICAL WEEK CARD LAYOUT ===== */
-
-/* Card-based layout container for historical weeks */
-.historical-week-cards-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1rem;
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 0.5rem;
-}
-
-/* Individual boss card */
-.historical-boss-card {
-  background: linear-gradient(135deg, #2a2540 0%, #23203a 100%);
-  border: 2px solid #3a335a;
-  border-radius: 12px;
-  padding: 1rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
   transition: all 0.3s ease;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
+  z-index: 100;
+  border: 1px solid rgba(162, 89, 247, 0.3);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(6px);
 }
 
-.historical-boss-card::before {
+.pitched-item-icon:hover::before {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-3px);
+}
+
+/* Arrow for tooltip */
+.pitched-item-icon::after {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, 
-    rgba(162, 89, 247, 0.05) 0%,
-    rgba(255, 255, 255, 0.02) 50%,
-    rgba(162, 89, 247, 0.05) 100%
-  );
+  bottom: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid rgba(26, 16, 43, 0.95);
   opacity: 0;
-  transition: opacity 0.3s ease;
   pointer-events: none;
+  transition: all 0.3s ease;
+  z-index: 100;
 }
 
-.historical-boss-card:hover::before {
+.pitched-item-icon:hover::after {
   opacity: 1;
+  transform: translateX(-50%) translateY(-3px);
 }
 
-.historical-boss-card:hover {
-  transform: translateY(-4px);
-  border-color: #a259f7;
-  box-shadow: 0 8px 32px rgba(162, 89, 247, 0.3);
+/* Empty State */
+.boss-table-empty {
+  padding: 2.5rem;
+  text-align: center;
+  color: #a0a0a0;
+  background: #201c32;
+  border-radius: 16px;
+  border: 1px solid rgba(58, 51, 90, 0.6);
+  margin: 2rem auto;
+  width: 85%;
+  max-width: 600px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
-/* Boss card header with image and name */
-.historical-boss-header {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  margin-bottom: 1rem;
-}
-
-.historical-boss-image {
-  width: 48px;
-  height: 48px;
-  object-fit: contain;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #3a335a, #2a2540);
-  padding: 6px;
-  border: 2px solid #4a4370;
-}
-
-.historical-boss-info {
-  flex: 1;
-}
-
-.historical-boss-name {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #e6e0ff;
-  margin-bottom: 0.2rem;
-}
-
-.historical-boss-difficulty {
-  font-size: 0.8rem;
-  color: #b39ddb;
+.boss-table-empty p {
+  margin: 0;
+  font-size: 1rem;
   font-weight: 500;
 }
 
-/* Pitched items section */
-.historical-pitched-section {
-  margin-top: 0.8rem;
-}
-
-.historical-pitched-label {
-  font-size: 0.75rem;
-  color: #9f7aea;
-  font-weight: 600;
-  margin-bottom: 0.6rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.historical-pitched-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  justify-content: flex-start;
-}
-
-/* Enhanced pitched item styling for cards */
-.historical-pitched-item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
-  border: 2px solid #3a335a;
-  background: linear-gradient(135deg, #23203a, #1a1728);
-  transition: all 0.3s ease;
-  cursor: pointer;
-  transform-origin: center;
-}
-
-.historical-pitched-item.obtained {
-  border: 2px solid #a259f7;
-  background: linear-gradient(135deg, #3a335a, #2a2540);
-  box-shadow: 0 0 16px rgba(162, 89, 247, 0.4);
-}
-
-.historical-pitched-item:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 20px rgba(162, 89, 247, 0.3);
-}
-
-.historical-pitched-item.obtained:hover {
-  box-shadow: 0 4px 24px rgba(162, 89, 247, 0.6);
-}
-
-.historical-pitched-item-image {
-  width: 36px;
-  height: 36px;
-  object-fit: contain;
-  border-radius: 6px;
-  transition: all 0.3s ease;
-}
-
-.historical-pitched-item-image.obtained {
-  filter: drop-shadow(0 0 6px #a259f7);
-}
-
-.historical-pitched-item-image.not-obtained {
-  opacity: 0.4;
-  filter: grayscale(0.6);
-}
-
-/* Checkmark for obtained items */
-.historical-pitched-checkmark {
-  position: absolute;
-  top: -3px;
-  right: -3px;
-  width: 16px;
-  height: 16px;
-  background: linear-gradient(135deg, #a259f7, #805ad5);
-  color: #fff;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
-  box-shadow: 0 2px 6px rgba(162, 89, 247, 0.5);
-  border: 2px solid #2a2540;
-}
-
-/* Empty state for no pitched items */
-.historical-no-pitched {
-  text-align: center;
-  color: #6b7280;
-  font-style: italic;
-  padding: 1rem;
-  border: 2px dashed #3a335a;
-  border-radius: 8px;
-  background: rgba(58, 51, 90, 0.3);
-}
-
-/* ===== BOSS TABLE RESPONSIVE DESIGN ===== */
-
-/* Tablet and smaller screens */
-@media (max-width: 768px) {
-  .boss-price-table {
-    min-width: 750px; /* Increased by 25% from 600px */
-    font-size: 1.06rem; /* Increased by 25% from 0.85rem */
+/* WQHD (2560x1440) and larger displays */
+@media (min-width: 2560px) {
+  .boss-table-container {
+    margin: -1rem auto;
+    width: 75%;
+    max-width: 1800px;
+    max-height: 55vh;
   }
   
-  .boss-table-body-container {
-    max-height: 625px; /* Increased by 25% from 500px */
+  .boss-table-grid {
+    grid-template-columns: 2.4fr 1fr 1.2fr 160px;
+    min-width: 800px;
   }
   
-  .boss-price-table-image {
-    width: 50px; /* Increased by 25% from 40px */
-    height: 50px;
+  .boss-table-grid::before {
+    height: 60px; /* Larger header for WQHD */
   }
   
-  .boss-price-table-header-cell,
-  .boss-price-table-name-cell {
-    padding: 12px 10px; /* Maintain header height proportion */
-  }
-  
-  .boss-price-table-header-cell-difficulty,
-  .boss-price-table-difficulty-cell {
-    padding: 12px 3px; /* Maintain header height proportion */
-  }
-  
-
-  
-  .boss-price-table-header-cell,
-  .boss-price-table-header-cell-difficulty,
-  .boss-price-table-header-cell-price {
-    font-size: 1.2em; /* Slightly smaller but still prominent */
-  }
-}
-
-/* Mobile screens */
-@media (max-width: 480px) {
-  .boss-price-table {
-    min-width: 600px; /* Increased by 25% from 480px */
-    font-size: 0.94rem; /* Increased by 25% from 0.75rem */
-  }
-  
-
-  
-  .boss-price-table-image {
-    width: 44px; /* Increased by 25% from 35px */
-    height: 44px;
-  }
-  
-  .boss-price-table-header-cell,
-  .boss-price-table-name-cell {
-    padding: 10px 8px; /* Maintain header height proportion */
-  }
-  
-  .boss-price-table-header-cell-difficulty,
-  .boss-price-table-difficulty-cell {
-    padding: 10px 3px; /* Maintain header height proportion */
-  }
-  
-  
-  
-  .boss-price-table-header-cell,
-  .boss-price-table-header-cell-difficulty,
-  .boss-price-table-header-cell-price {
-    font-size: 1.1em; /* Smaller but still prominent for mobile */
-  }
-  
-  .boss-price-table-name-text {
-    font-size: 1.13em; /* Increased by 25% from 0.9em */
-  }
-  
-  .boss-price-table-difficulty-text,
-  .boss-price-table-price-text {
-    font-size: 1.06em; /* Increased by 25% for mobile */
-  }
-}
-
-/* Responsive adjustments for cards */
-@media (max-width: 768px) {
-  .historical-week-cards-container {
-    grid-template-columns: 1fr;
-    gap: 0.8rem;
-    padding: 0.5rem;
-  }
-  
-  .historical-boss-card {
-    padding: 0.8rem;
-  }
-  
-  .historical-boss-image {
-    width: 40px;
-    height: 40px;
-  }
-  
-  .historical-boss-name {
+  .boss-table-header > div,
+  .boss-table-row > div {
+    padding: 16px 24px;
     font-size: 1rem;
   }
   
-  .historical-pitched-grid {
-    gap: 0.5rem;
+  .boss-image {
+    width: 48px;
+    height: 48px;
   }
   
-  .historical-pitched-item {
-    width: 40px;
-    height: 40px;
+  .boss-name {
+    font-size: 1rem;
   }
   
-  .historical-pitched-item-image {
+  .pitched-item-icon {
+    width: 42px;
+    height: 42px;
+  }
+  
+  .pitched-item-image {
     width: 30px;
     height: 30px;
   }
-}
-
-/* =====================================================================================
-   BOSS PRICE TABLE (BossTablePage.jsx)
-   ===================================================================================== */
-
-
-
-.boss-table-header-container {
-  flex-shrink: 0; /* Header should not shrink */
-  overflow-x: hidden; /* In case content is wider than table */
-}
-
-
-
-.boss-price-table {
-  table-layout: fixed;
-  width: 100%;
-  border-collapse: collapse; /* Standard good practice */
-}
-
-.boss-price-table th,
-.boss-price-table td {
-  padding: clamp(0.4rem, 1vw, 0.8rem); /* Responsive padding */
-  text-align: left;
-  vertical-align: middle; /* Better alignment for cell content */
-  border-bottom: 1px solid var(--table-border-color, #3a305a); /* Consistent border */
-  white-space: nowrap; /* Prevent text wrapping initially, can be overridden */
-}
-
-.boss-price-table th {
-  font-weight: 600;
-  font-size: clamp(0.8rem, 1.8vw, 1rem); /* Responsive font size for headers */
-  color: var(--text-color-emphasis, #e6e0ff);
-  background-color: var(--table-header-bg, #2a2440);
-  position: sticky; /* For sticky header if .boss-table-header-container itself scrolls */
-  top: 0;
-  z-index: 1;
-}
-
-/* Specific column widths - adjust percentages as needed */
-
-
-
-
-
-.boss-price-table-image {
-  width: clamp(28px, 3.5vw, 36px); /* Responsive image size */
-  height: auto;
-  margin-right: clamp(0.5rem, 1vw, 0.75rem);
-  vertical-align: middle;
-}
-
-.boss-price-table-name-text,
-.boss-price-table-difficulty-text,
-.boss-price-table-price-text {
-  display: inline-block; /* Allow vertical-align to work well */
-  vertical-align: middle;
-}
-
-/* Row striping */
-.boss-table-row-even {
-  background-color: var(--table-row-even-bg, rgba(30, 26, 48, 0.7));
-}
-
-.boss-table-row-odd {
-  background-color: var(--table-row-odd-bg, rgba(36, 32, 58, 0.7));
-}
-
-/* Hover effect for rows */
-.boss-price-table tbody tr:hover {
-  background-color: var(--table-row-hover-bg, #38305c);
-}
-
-
-/* Styles for the main boss selection table on InputPage */
-/* ... existing styles for .boss-selection-table ... */
-
-/* Making the .boss-selection-table more responsive */
-.boss-selection-table {
-  /* ... any existing styles ... */
-  display: block; /* Allow horizontal scrolling if needed on smaller screens */
-  overflow-x: auto; /* Add scroll if content overflows */
-  width: 100%;
-}
-
-.boss-selection-table table { /* The actual table element inside */
-  width: 100%; /* Make table take full width of its scrollable container */
-  min-width: 600px; /* Set a min-width if you want to force scroll below a certain size rather than squashing columns too much */
-  table-layout: fixed; /* Helps with column sizing */
-}
-
-.boss-selection-table th,
-.boss-selection-table td {
-  padding: clamp(0.3rem, 0.8vw, 0.6rem);
-  font-size: clamp(0.7rem, 1.5vw, 0.9rem);
-}
-
-/* Further refine column widths for .boss-selection-table if needed using classes on th/td */
-
-/* ... existing code ... */
-
-/* =====================================================================================
-   BOSS SELECTION TABLE (InputPage.jsx - imported from components/BossSelectionTable.jsx)
-   ===================================================================================== */
-
-/* Container for the boss selection table on the Input Page */
-.boss-selection-container {
-  width: 100%;
-  margin-top: 1.5rem;
-  overflow-x: auto; /* Enables horizontal scrolling on smaller screens */
-  border-radius: var(--border-radius-large, 12px);
-  border: 1px solid var(--container-border-color, #3a305a);
-  background-color: var(--background-color-translucent, rgba(24, 22, 34, 0.85));
-}
-
-/* The actual table for selecting bosses */
-.boss-selection-table {
-  min-width: 700px; /* Minimum width before horizontal scroll kicks in */
-  table-layout: fixed; /* Ensures columns adhere to specified widths */
-}
-
-.boss-selection-table th,
-.boss-selection-table td {
-  padding: clamp(0.4rem, 1vw, 0.8rem); /* Fine-tuned responsive padding */
-  font-size: clamp(0.75rem, 1.5vw, 0.9rem); /* Fine-tuned responsive font size */
-  vertical-align: middle;
-}
-
-/* Header cells for the boss selection table */
-.boss-selection-table thead th {
-  color: var(--text-color-subtle, #b0a8cc);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-size: clamp(0.7rem, 1.2vw, 0.8rem);
-  background-color: var(--table-header-bg-alt, #221e30);
-  border-bottom: 2px solid var(--primary-color-dimmed, #503c88);
-}
-
-/* Specific column widths for Boss Selection Table */
-.boss-selection-table .col-boss-name { width: 45%; }
-.boss-selection-table .col-difficulty { width: 30%; }
-.boss-selection-table .col-party-size { width: 25%; text-align: center; }
-
-/* Styling for boss images within the selection table */
-.boss-selection-table .boss-image {
-  width: clamp(28px, 3.5vw, 36px);
-  height: auto;
-  border-radius: 4px;
-  margin-right: clamp(0.5rem, 1vw, 0.75rem);
-  vertical-align: middle;
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-/* Alternating row colors for readability in boss selection table */
-.boss-selection-table tbody tr:nth-child(even) {
-  background-color: var(--table-row-even-bg, rgba(30, 26, 48, 0.6));
-}
-.boss-selection-table tbody tr:nth-child(odd) {
-  background-color: var(--table-row-odd-bg, rgba(36, 32, 58, 0.6));
-}
-.boss-selection-table tbody tr:hover {
-  background-color: var(--table-row-hover-bg, #38305c);
-  cursor: pointer;
-}
-
-/* Checkbox styling within the table */
-.boss-selection-table .checkbox-cell {
-  text-align: center;
-}
-
-.boss-selection-table .checkbox-cell input[type="checkbox"] {
-  transform: scale(1.2); /* Make checkboxes slightly larger */
-  accent-color: var(--primary-color, #805ad5);
-}
-
-/* =====================================================================================
-   BOSS PRICE TABLE (BossTablePage.jsx)
-   ===================================================================================== */
-
-/* Main wrapper for the fixed header + scrollable body layout */
-.boss-table-wrapper {
   
-  width: 100%;
-  max-width: 800px;
-  margin: -0.5rem auto 0 auto;
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1; /* Allow it to take available space in its parent */
-  overflow: hidden; /* Manage fixed header and scrollable body */
-  border: 1px solid var(--container-border-color, #2d2540);
-  border-radius: var(--border-radius-large, 12px);
-  background-color: var(--background-color-secondary, #201c32);
-}
-
-/* Fixed header container */
-.boss-table-header-container {
-  flex-shrink: 0; /* Header should not shrink */
-  overflow-x: hidden; /* In case content is wider than table */
-  background-color: var(--table-header-bg-sticky, #2f284d); /* Background for the sticky header area */
-  border-bottom: 1px solid var(--container-border-color, #2d2540);
-}
-.boss-table-header-container table { /* Ensure header table also has 100% width */
-    width: 100%;
-}
-
-
-
-
-/* Boss price table - applies to both header and body tables for consistent styling */
-.boss-price-table {
-  table-layout: fixed; /* Ensures columns adhere to specified widths */
-  width: 100%;
-}
-
-.boss-price-table th,
-.boss-price-table td {
-  padding: clamp(0.4rem, 1.2vw, 0.8rem); /* Responsive padding */
-  vertical-align: middle;
-  border-bottom: 1px solid var(--table-border-color-faint, #2a2446); /* Lighter border within table */
-}
-
-.boss-price-table th { /* Header cells specific to boss-price-table */
-  font-weight: 600;
-  font-size: clamp(0.8rem, 1.6vw, 1rem); /* Responsive font size for headers */
-  color: var(--text-color-emphasis, #e0d8fa);
-  /* position: sticky; top: 0; z-index: 1; */ /* Not needed here as the parent .boss-table-header-container handles stickiness */
-}
-
-/* Specific column widths for Boss Price Table */
-.boss-price-table .boss-price-table-header-cell, /* Boss Name column (header) */
-.boss-price-table .boss-price-table-name-cell {  /* Boss Name column (data) */
-  width: 33.333%;
-  text-align: left;
-}
-
-.boss-price-table .boss-price-table-header-cell-difficulty, /* Difficulty column (header) */
-.boss-price-table .boss-price-table-difficulty-cell { /* Difficulty column (data) */
-  width: 33.333%;
-  text-align: center;
-}
-
-.boss-price-table .boss-price-table-header-cell-price, /* Price column (header) */
-.boss-price-table .boss-price-table-price-cell { /* Price column (data) */
-  width: 33.333%;
-  text-align: right;
-}
-
-/* Text styling within cells of Boss Price Table */
-
-
-.boss-price-table-price-text {
-  font-weight: 500;
-}
-
-/* Boss images in Boss Price Table */
-.boss-price-table-image {
-  width: clamp(28px, 3.5vw, 36px); /* Responsive image size */
-  height: auto; /* Maintain aspect ratio */
-  border-radius: var(--border-radius-small, 4px);
-  margin-right: clamp(0.5rem, 0.8vw, 0.75rem);
-  vertical-align: middle;
-  background-color: rgba(255, 255, 255, 0.03); /* Subtle background for images */
-}
-
-/* Ensure all cells have consistent borders */
-
-
-
-
-/* Hover effect for rows in Boss Price Table */
-.boss-price-table tbody tr:hover {
-  background-color: var(--table-row-hover-bg, #38305c);
-}
-
-
-
-/* =====================================================================================
-   RESPONSIVE ADJUSTMENTS & MEDIA QUERIES
-   ===================================================================================== */
-
-@media (max-width: 768px) {
-  /* Reduce padding further on smaller screens for tables if needed */
-  th, td {
-    /* padding: clamp(0.3rem, 0.8vw, 0.6rem); */ /* Example of further reduction */
-  }
-
-  .boss-price-table .boss-price-table-header-cell,
-  .boss-price-table .boss-price-table-name-cell,
-  .boss-price-table .boss-price-table-header-cell-difficulty,
-  .boss-price-table .boss-price-table-difficulty-cell,
-  .boss-price-table .boss-price-table-header-cell-price,
-  .boss-price-table .boss-price-table-price-cell {
-    white-space: normal; /* Allow text to wrap in price table on small screens */
+  .cell-difficulty,
+  .cell-mesos {
+    font-size: 1rem;
   }
   
-  .boss-selection-table {
-    min-width: 100%; /* Allow selection table to be full width on mobile before scroll kicks in */
-  }
-  .boss-selection-table .col-boss-name { width: 35%; } /* Adjust col widths for mobile */
-  .boss-selection-table .col-difficulty { width: 30%; }
-  .boss-selection-table .col-party-size { width: 25%; }
-  .boss-selection-table .boss-image {
-     width: clamp(20px, 2.5vw, 28px);
-     margin-right: clamp(0.25rem, 0.5vw, 0.5rem);
+  .header-tick-all-button {
+    width: 130px;
+    height: 34px;
+    font-size: 0.85rem;
+    padding: 0.5rem 1rem;
   }
 }
 
-@media (max-width: 480px) {
-  /* Extreme small screen adjustments */
-  .boss-selection-table th,
-  .boss-selection-table td {
-    font-size: clamp(0.7rem, 1.3vw, 0.8rem); /* Even smaller fonts for very small screens */
+/* Large Desktop (1920x1080) */
+@media (min-width: 1920px) and (max-width: 2559px) {
+  .boss-table-container {
+    margin: -1rem auto;
+    width: 80%;
+    max-width: 1600px;
   }
-  .boss-price-table th,
-  .boss-price-table td {
-    font-size: clamp(0.7rem, 1.3vw, 0.85rem);
-    padding: clamp(0.25rem, 1vw, 0.5rem);
+  
+  .boss-table-grid {
+    grid-template-columns: 2.2fr 0.9fr 1.1fr 150px;
   }
-  .boss-price-table-image {
-    width: clamp(24px, 3vw, 32px);
+  
+  .boss-table-grid::before {
+    height: 56px;
+  }
+  
+  .boss-table-header > div,
+  .boss-table-row > div {
+    padding: 14px 20px;
+  }
+  
+  .boss-image {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .pitched-item-icon {
+    width: 38px;
+    height: 38px;
+  }
+  
+  .pitched-item-image {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .header-tick-all-button {
+    width: 120px;
+    height: 30px;
+    font-size: 0.78rem;
+    padding: 0.45rem 0.9rem;
   }
 }
 
-/* Styles for tables within Modals (if any) - Ensure they are also responsive */
-.modal-content .data-table { /* Example class for a table in a modal */
-  width: 100%;
-  /* Add specific responsive styling for modal tables */
+/* Standard Desktop (1366x768 - 1919x1080) */
+@media (min-width: 1366px) and (max-width: 1919px) {
+  .boss-table-container {
+    margin: -1rem auto;
+    width: 85%;
+    max-width: 1400px;
+  }
 }
 
-/* Add other table variants or specific table styles below */
-
-/* =====================================================================================
-   BOSS TABLE PAGE FULL HEIGHT LAYOUT
-   ===================================================================================== */
-
-/* Boss Table Page specific styling for full viewport height */
-.page-container.boss-table-page {
-  height: 100vh;
-  overflow: hidden; /* Prevent page scrolling */
-}
-
-/* Main container that fills the viewport minus navbar */
-.boss-table-main-container {
-  display: flex;
-  flex-direction: column;
-  height: calc(85vh - 70px); /* Subtract navbar height */
-  top: 10vh;
-  width: 100vh;
-  padding: 1rem;
-  gap: 1rem;
-  background: linear-gradient(135deg, rgba(24, 22, 34, 0.95) 0%, rgba(28, 25, 40, 0.98) 50%, rgba(20, 18, 30, 0.95) 100%);
-  backdrop-filter: blur(20px) saturate(1.2);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  border-radius: 20px;
-  margin: 1rem auto;
-  box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.03) inset,
-    0 8px 32px 0 rgba(0, 0, 0, 0.4),
-    0 4px 16px 0 rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(162, 89, 247, 0.1);
-  border: 1px solid rgba(162, 89, 247, 0.08);
-  position: relative;
-  overflow: hidden;
-}
-
-/* Header section with minimal height */
-.boss-table-header-section {
-  flex-shrink: 0;
-  text-align: center;
-  padding: 0.5rem 0;
-}
-
-.boss-table-header-section .page-title-secondary {
-  margin: 0;
-  font-size: clamp(1.5rem, 3vw, 2.2rem);
-  color: #e6e0ff;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-  letter-spacing: -0.02em;
-  font-weight: 700;
-}
-
-/* Updated boss table wrapper for full height */
-
-
-/* Fixed header container */
-.boss-table-page .boss-table-header-container {
-  flex-shrink: 0;
-  overflow-x: hidden;
-  background-color: var(--table-header-bg-sticky, #2f284d);
-  border-bottom: 1px solid var(--container-border-color, #2d2540);
-}
-
-/* Scrollable body container - fills remaining height */
-.boss-table-page .boss-table-body-container {
-  flex-grow: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  min-height: 0;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Responsive adjustments for tablets */
-@media (max-width: 768px) {
-  .boss-table-main-container {
-    height: calc(100vh - 60px); /* Smaller navbar on mobile */
-    margin: 0.5rem;
-    padding: 0.75rem;
+/* Tablet */
+@media (max-width: 1365px) and (min-width: 769px) {
+  .boss-table-container {
+    margin: -1rem auto;
+    width: 92%;
     border-radius: 12px;
   }
   
-  .boss-table-header-section {
-    padding: 0.25rem 0;
+  .boss-table-grid {
+    grid-template-columns: 1.8fr 0.8fr 1fr 120px;
+    min-width: 100%;
+    font-size: 0.85rem;
   }
   
-  .boss-table-header-section .page-title-secondary {
-    font-size: clamp(1.25rem, 4vw, 1.8rem);
+  .boss-table-grid::before {
+    height: 48px;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
   }
   
-  /* Make table more touch-friendly */
-  .boss-price-table th,
-  .boss-price-table td {
-    padding: clamp(0.5rem, 1.5vw, 1rem);
+  .boss-table-header > div,
+  .boss-table-row > div {
+    padding: 10px 14px;
   }
   
-  .boss-price-table-image {
-    width: clamp(32px, 4vw, 40px);
-  }
-}
-
-/* Mobile specific adjustments */
-@media (max-width: 480px) {
-  .boss-table-main-container {
-    height: calc(100vh - 55px); /* Even smaller navbar on mobile */
-    margin: 0.25rem;
-    padding: 0.5rem;
+  .boss-image {
+    width: 36px;
+    height: 36px;
     border-radius: 8px;
   }
   
-  .boss-table-header-section .page-title-secondary {
-    font-size: clamp(1.1rem, 4.5vw, 1.5rem);
+  .boss-name {
+    font-size: 0.85rem;
+  }
+
+  .pitched-item-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+
+  .pitched-item-image {
+    width: 22px;
+    height: 22px;
+  }
+
+  .boss-pitched-items {
+    gap: 6px;
+  }
+
+  .boss-party-size {
+    font-size: 0.68rem;
+  }
+
+  .header-tick-all-button {
+    width: 90px;
+    height: 26px;
+    padding: 0.35rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.68rem;
   }
   
-  /* Compact table styling for mobile */
-  .boss-price-table th,
-  .boss-price-table td {
-    padding: clamp(0.4rem, 1.2vw, 0.8rem);
-    font-size: clamp(0.75rem, 1.8vw, 0.9rem);
-  }
-  
-  .boss-price-table-image {
-    width: clamp(28px, 3.5vw, 36px);
-  }
-  
-  /* Ensure text wraps properly on very small screens */
-  .boss-price-table-name-cell,
-  .boss-price-table-difficulty-cell,
-  .boss-price-table-price-cell {
-    white-space: normal;
-    word-wrap: break-word;
+  .cell-difficulty,
+  .cell-mesos {
+    font-size: 0.8rem;
   }
 }
 
-/* Landscape mobile adjustments */
-@media (max-width: 768px) and (orientation: landscape) {
-  .boss-table-main-container {
-    height: calc(100vh - 50px); /* Even more compact for landscape */
-    padding: 0.5rem;
+/* Mobile */
+@media (max-width: 768px) {
+  .boss-table-container {
+    margin: -1rem auto;
+    width: 96%;
+    border-radius: 10px;
+    /* Enable horizontal scrolling on mobile */
+    overflow-x: auto;
+    overflow-y: auto;
+    /* Ensure proper scrollbar behavior */
+    -webkit-overflow-scrolling: touch;
   }
   
-  .boss-table-header-section {
-    padding: 0.25rem 0;
+  .boss-table-grid {
+    grid-template-columns: 1.4fr 0.7fr 0.9fr 100px;
+    min-width: 420px; /* Increased from 100% to ensure horizontal scrolling */
+    font-size: 0.8rem;
   }
   
-  .boss-table-header-section .page-title-secondary {
-    font-size: clamp(1rem, 3.5vw, 1.4rem);
+  .boss-table-grid::before {
+    height: 44px;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+  }
+  
+  .boss-table-header > div,
+  .boss-table-row > div {
+    padding: 8px 10px;
+  }
+  
+  .boss-image {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+  }
+  
+  .boss-name {
+    font-size: 0.8rem;
+  }
+
+  .pitched-item-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+  }
+
+  .pitched-item-image {
+    width: 18px;
+    height: 18px;
+  }
+
+  .boss-pitched-items {
+    gap: 4px;
+  }
+
+  .boss-info-section {
+    gap: 8px;
+  }
+
+  .boss-party-size {
+    font-size: 0.6rem;
+  }
+  
+  .header-boss,
+  .header-difficulty,
+  .header-mesos,
+  .header-cleared {
+    font-size: 0.7rem;
+  }
+  
+  .cell-difficulty,
+  .cell-mesos {
+    font-size: 0.75rem;
+  }
+
+  .header-tick-all-button {
+    width: 75px;
+    height: 24px;
+    padding: 0.25rem 0.4rem;
+    border-radius: 5px;
+    font-size: 0.62rem;
+  }
+
+  /* Hide tooltips on mobile to prevent interference */
+  .pitched-item-icon::before,
+  .pitched-item-icon::after {
+    display: none;
   }
 }
 
-/* High DPI screens adjustments */
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-  .boss-price-table-image {
-    image-rendering: -webkit-optimize-contrast;
-    image-rendering: crisp-edges;
-  }
+/* Scrollbar Styling */
+.boss-table-container::-webkit-scrollbar {
+  width: 6px;
 }
 
-/* Ensure scrollbar is styled consistently */
-.boss-table-page .boss-table-body-container::-webkit-scrollbar {
-  width: 8px;
-}
-
-.boss-table-page .boss-table-body-container::-webkit-scrollbar-track {
+.boss-table-container::-webkit-scrollbar-track {
   background: rgba(42, 36, 70, 0.3);
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
-.boss-table-page .boss-table-body-container::-webkit-scrollbar-thumb {
+.boss-table-container::-webkit-scrollbar-thumb {
   background: rgba(162, 89, 247, 0.5);
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
-.boss-table-page .boss-table-body-container::-webkit-scrollbar-thumb:hover {
+.boss-table-container::-webkit-scrollbar-thumb:hover {
   background: rgba(162, 89, 247, 0.7);
 }
 
-/* Firefox scrollbar styling */
-.boss-table-page .boss-table-body-container {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(162, 89, 247, 0.5) rgba(42, 36, 70, 0.3);
-}
-
-/* =====================================================================================
-   ISOLATED BOSS TABLE CONTEXTS - SEPARATE STYLING FOR WEEKLY TRACKER AND PRICE TABLE
-   ===================================================================================== */
-
-/* ===== WEEKLY TRACKER BOSS TABLE CONTEXT ===== */
-
-/* Weekly tracker specific wrapper */
-.boss-table-wrapper-weekly {
-  max-width: 80vh;
-  max-height: 40vh;
-  margin: -6.5rem auto 0 auto;
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  overflow: hidden;
-  border: 1px solid var(--container-border-color, #2d2540);
-  border-radius: var(--border-radius-large, 12px);
-  background-color: var(--background-color-secondary, #201c32);
-}
-
-/* Weekly tracker header container */
-.boss-table-header-container-weekly {
-  flex-shrink: 0;
-  overflow: hidden;
-  background: #3a2a5d;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-}
-
-/* Weekly tracker body container */
-.boss-table-body-container-weekly {
-  overflow-y: auto;
-  overflow-x: hidden;
-  flex-grow: 1;
-}
-
-/* Weekly tracker table styling */
-.boss-table-weekly {
-  border-collapse: collapse;
-
-  width: 100%;
-  table-layout: fixed;
-}
-
-.boss-table-weekly.boss-table-header {
-  border: none;
-  border-radius: 0;
-  margin-bottom: 0;
-}
-
-.boss-table-weekly.boss-table-body {
-  border: none;
-  border-radius: 0;
-  margin-top: 0;
-}
-
-/* ===== PRICE TABLE PAGE BOSS TABLE CONTEXT ===== */
-
-/* Price table specific wrapper */
-.boss-table-wrapper-price {
-  width: 100%;
-  max-width: 800px;
-  margin: -0.5rem auto 0 auto;
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  overflow: hidden;
-  border: 1px solid var(--container-border-color, #2d2540);
-  border-radius: var(--border-radius-large, 12px);
-  background-color: var(--background-color-secondary, #201c32);
-}
-
-/* Price table header container - isolated from weekly tracker */
-.boss-table-header-container-price {
-  flex-shrink: 0;
-  overflow-x: hidden;
-  background-color: var(--table-header-bg-sticky, #2f284d);
-  border-bottom: 1px solid var(--container-border-color, #2d2540);
-}
-
-/* Price table body container - isolated from weekly tracker */
-.boss-table-body-container-price {
-  flex-grow: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  min-height: 0;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Price table styling - isolated from weekly tracker */
-.boss-table-price {
-  table-layout: fixed;
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.boss-table-price.boss-table-header {
-  border: none;
-  border-radius: 0;
-}
-
-.boss-table-price.boss-table-body {
-  border: none;
-  border-radius: 0;
-}
-
-/* Price table scrollbar styling - isolated */
-.boss-table-body-container-price::-webkit-scrollbar {
-  width: 8px;
-}
-
-.boss-table-body-container-price::-webkit-scrollbar-track {
-  background: rgba(42, 36, 70, 0.3);
-  border-radius: 4px;
-}
-
-.boss-table-body-container-price::-webkit-scrollbar-thumb {
-  background: rgba(162, 89, 247, 0.5);
-  border-radius: 4px;
-}
-
-.boss-table-body-container-price::-webkit-scrollbar-thumb:hover {
-  background: rgba(162, 89, 247, 0.7);
-}
-
-.boss-table-body-container-price {
+/* Firefox scrollbar */
+.boss-table-container {
   scrollbar-width: thin;
   scrollbar-color: rgba(162, 89, 247, 0.5) rgba(42, 36, 70, 0.3);
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getCurrentWeekKey as getRealCurrentWeekKey } from '../utils/weekUtils';
 import { getHistoricalWeekAnalysis } from '../../services/utilityService.js';
+import { logger } from '../utils/logger';
 
 export function useWeekNavigation(userCode, appWeekKeyFromProps) {
   const [selectedWeekKey, setSelectedWeekKey] = useState(appWeekKeyFromProps || getRealCurrentWeekKey());
@@ -12,10 +13,14 @@ export function useWeekNavigation(userCode, appWeekKeyFromProps) {
     historicalWeeks: [],
     analysis: null
   });
+  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
 
   useEffect(() => {
     if (appWeekKeyFromProps && appWeekKeyFromProps !== selectedWeekKey) {
-      console.log(`useWeekNavigation: appWeekKeyFromProps (${appWeekKeyFromProps}) differs from selectedWeekKey (${selectedWeekKey}). Updating selectedWeekKey.`);
+      logger.info('useWeekNavigation: App week key differs from selected, updating', { 
+        appWeekKey: appWeekKeyFromProps, 
+        selectedWeekKey: selectedWeekKey 
+      });
       setSelectedWeekKey(appWeekKeyFromProps);
     }
   }, [appWeekKeyFromProps]); // Removed selectedWeekKey to prevent circular updates
@@ -23,11 +28,16 @@ export function useWeekNavigation(userCode, appWeekKeyFromProps) {
   const isHistoricalWeek = selectedWeekKey !== (appWeekKeyFromProps || getRealCurrentWeekKey());
 
   const refreshHistoricalAnalysis = useCallback(async () => {
-    if (!userCode) return;
+    if (!userCode || isLoadingAnalysis) return;
+    
     const realCurrentWeek = getRealCurrentWeekKey();
     try {
-      console.log(`🔄 Refreshing historical analysis (user: ${userCode}, relative to real week: ${realCurrentWeek})...`);
-      const analysisResult = await getHistoricalWeekAnalysis(userCode, appWeekKeyFromProps || realCurrentWeek);
+      setIsLoadingAnalysis(true);
+      logger.info('useWeekNavigation: Refreshing historical analysis', {
+        userCode: userCode,
+        realCurrentWeek: realCurrentWeek
+      });
+      const analysisResult = await getHistoricalWeekAnalysis(userCode);
       
       if (analysisResult.success) {
         setHistoricalAnalysis({
@@ -39,26 +49,41 @@ export function useWeekNavigation(userCode, appWeekKeyFromProps) {
           analysis: analysisResult.analysis
         });
         
-        console.log('✅ Historical analysis refreshed:', {
+        logger.info('useWeekNavigation: Historical analysis refreshed', {
           userType: analysisResult.userType,
           hasData: analysisResult.hasHistoricalData,
           oldestWeek: analysisResult.oldestHistoricalWeek,
           adaptiveLimit: analysisResult.adaptiveWeekLimit,
+          historicalWeeksCount: analysisResult.historicalWeeks?.length || 0
         });
       } else {
-        console.error('Error in analysisResult:', analysisResult.error);
+        logger.error('useWeekNavigation: Error in historical analysis result', analysisResult.error);
       }
     } catch (error) {
-      console.error('Error refreshing historical analysis:', error);
+      logger.error('useWeekNavigation: Error refreshing historical analysis', error);
+    } finally {
+      setIsLoadingAnalysis(false);
     }
-  }, [userCode, appWeekKeyFromProps]);
+  }, [userCode, isLoadingAnalysis]);
 
   const handleWeekChange = useCallback((newWeekKey) => {
     if (newWeekKey !== selectedWeekKey) {
+      logger.info('useWeekNavigation: Week changed', { 
+        from: selectedWeekKey, 
+        to: newWeekKey 
+      });
       setSelectedWeekKey(newWeekKey);
+      
+      // Refresh historical analysis when week changes
+      if (userCode) {
+        setTimeout(() => {
+          refreshHistoricalAnalysis();
+        }, 100);
+      }
     }
-  }, [selectedWeekKey]);
+  }, [selectedWeekKey, userCode, refreshHistoricalAnalysis]);
 
+  // Load historical analysis when userCode changes or on mount
   useEffect(() => {
     if (userCode) {
       // Use a timeout to prevent immediate cascading effects
@@ -67,13 +92,14 @@ export function useWeekNavigation(userCode, appWeekKeyFromProps) {
       }, 150);
       return () => clearTimeout(timeoutId);
     }
-  }, [userCode, appWeekKeyFromProps]); // Removed refreshHistoricalAnalysis from deps to prevent loops
+  }, [userCode]); // Only depend on userCode to prevent loops
 
   return {
     selectedWeekKey,
     isHistoricalWeek,
     handleWeekChange,
     historicalAnalysis,
-    refreshHistoricalAnalysis
+    refreshHistoricalAnalysis,
+    isLoadingAnalysis
   };
 } 

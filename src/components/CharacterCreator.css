@@ -1,0 +1,195 @@
+/* Character Creator Component */
+.character-creator {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.character-creator-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+  max-width: 500px;
+  width: 100%;
+}
+
+.character-creator-input-group {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+  width: 100%;
+  max-width: 400px;
+}
+
+.character-creator-input {
+  flex: 1;
+  padding: clamp(0.5rem, 1vw, 0.7rem) clamp(0.8rem, 1.5vw, 1rem);
+  background: var(--background-quaternary);
+  border: 2px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  color: var(--text-primary);
+  font-size: clamp(0.85rem, 1.5vw, 1rem);
+  font-weight: 500;
+  outline: none;
+  transition: var(--transition-normal);
+  backdrop-filter: var(--backdrop-blur-light);
+  box-shadow: var(--shadow-subtle);
+}
+
+.character-creator-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.8;
+}
+
+.character-creator-input:focus {
+  border-color: var(--border-accent);
+  box-shadow: 0 0 0 3px rgba(162, 89, 247, 0.25), var(--shadow-primary);
+  background: linear-gradient(135deg, rgba(162, 89, 247, 0.1), var(--background-quaternary));
+}
+
+.character-creator-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: rgba(58, 51, 90, 0.5);
+}
+
+.character-creator-button {
+  padding: clamp(0.5rem, 1vw, 0.7rem) clamp(1rem, 2vw, 1.5rem);
+  background: var(--gradient-primary);
+  color: var(--text-primary);
+  border: 2px solid var(--border-secondary);
+  border-radius: var(--radius-xl);
+  font-size: clamp(0.85rem, 1.5vw, 1rem);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-normal);
+  white-space: nowrap;
+  box-shadow: var(--shadow-subtle);
+  backdrop-filter: var(--backdrop-blur-light);
+}
+
+.character-creator-button:hover:not(:disabled) {
+  background: var(--gradient-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-primary-hover);
+  border-color: var(--border-accent);
+}
+
+.character-creator-button:active:not(:disabled) {
+  background: var(--gradient-primary-active);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-primary-active);
+}
+
+.character-creator-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(162, 89, 247, 0.25), var(--shadow-primary);
+}
+
+.character-creator-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: rgba(128, 90, 213, 0.3);
+  transform: none;
+  box-shadow: var(--shadow-subtle);
+}
+
+.character-creator-warning {
+  color: var(--warning-color);
+  font-size: clamp(0.8rem, 1.3vw, 0.9rem);
+  font-weight: 600;
+  text-align: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: rgba(255, 157, 0, 0.1);
+  border: 1px solid rgba(255, 157, 0, 0.3);
+  border-radius: var(--radius-lg);
+  backdrop-filter: var(--backdrop-blur-light);
+}
+
+.character-creator-error {
+  color: var(--error-color);
+  font-size: clamp(0.8rem, 1.3vw, 0.9rem);
+  font-weight: 600;
+  text-align: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  border-radius: var(--radius-lg);
+  backdrop-filter: var(--backdrop-blur-light);
+  animation: errorFadeIn var(--timing-normal) var(--ease-out);
+}
+
+@keyframes errorFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .character-creator-input-group {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+  
+  .character-creator-input,
+  .character-creator-button {
+    width: 100%;
+  }
+  
+  .character-creator-input {
+    padding: 0.6rem 0.9rem;
+    font-size: 0.9rem;
+  }
+  
+  .character-creator-button {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .character-creator {
+    margin-bottom: var(--spacing-lg);
+  }
+  
+  .character-creator-input,
+  .character-creator-button {
+    padding: 0.5rem 0.8rem;
+    font-size: 0.85rem;
+  }
+  
+  .character-creator-warning,
+  .character-creator-error {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.7rem;
+  }
+}
+
+@media (min-width: 1920px) {
+  .character-creator-input-group {
+    max-width: 500px;
+  }
+  
+  .character-creator-input {
+    padding: 0.8rem 1.2rem;
+    font-size: 1.1rem;
+  }
+  
+  .character-creator-button {
+    padding: 0.8rem 1.8rem;
+    font-size: 1.1rem;
+  }
+  
+  .character-creator-warning,
+  .character-creator-error {
+    font-size: 1rem;
+    padding: 0.7rem 1rem;
+  }
+} 

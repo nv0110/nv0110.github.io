@@ -122,11 +122,7 @@
   color: #c4b5d4;
 }
 
-/* Global table header styling */
-body.dark th, body.dark thead th {
-  background: #3a2a5d;
-  color: #e0d6f7;
-}
+
 
 .App.dark .delete-all-characters-btn {
   color: #a259f7;

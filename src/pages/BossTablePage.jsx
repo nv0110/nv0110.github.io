@@ -4,6 +4,7 @@ import { useViewTransition } from '../hooks/useViewTransition';
 import Navbar from '../components/Navbar';
 import ViewTransitionWrapper from '../components/ViewTransitionWrapper';
 import { HelpModal, DeleteAccountModal, BossTableHelpContent } from '../features/common/PageModals';
+import '../styles/boss-price-table.css';
 
 function BossTablePage() {
   const { navigate } = useViewTransition();
@@ -69,100 +70,73 @@ function BossTablePage() {
     }
   };
 
+  // Prepare boss data for display
+  const allBossDiffs = bossData.flatMap(boss =>
+    boss.difficulties.map(diff => ({
+      boss,
+      difficulty: diff.difficulty,
+      price: diff.price
+    }))
+  ).sort((a, b) => b.price - a.price);
+
   return (
-    <div className="page-container boss-table-page">
+    <div className="boss-price-page">
       <Navbar
         currentPage="bosstable"
         onShowHelp={() => setShowHelp(true)}
         onShowDeleteConfirm={() => setShowDeleteConfirm(true)}
       />
+      
       <ViewTransitionWrapper>
-        <div className="boss-table-main-container fade-in">
-          <div className="boss-table-header-section">
-            <h2 className="page-title-secondary">
-              Boss Crystal Price Table
-            </h2>
+        <div className="boss-price-main fade-in">
+          <div className="boss-price-header">
+            <h2 className="boss-price-title">Boss Crystal Price Table</h2>
           </div>
           
-          <div className="boss-table-wrapper-price">
-            {/* Fixed Header Table */}
-            <div className="boss-table-header-container-price">
-              <table className="boss-price-table boss-table-header">
-                <thead>
-                  <tr className="boss-table-header">
-                    <th className="boss-price-table-header-cell">
-                      Boss
-                    </th>
-                    <th className="boss-price-table-header-cell-difficulty">
-                      Difficulty
-                    </th>
-                    <th className="boss-price-table-header-cell-price">
-                      Mesos
-                    </th>
-                  </tr>
-                </thead>
-              </table>
-            </div>
-
-            {/* Scrollable Body Table */}
-            <div className="boss-table-body-container-price">
-              <table className="boss-price-table boss-table-body">
-                <tbody>
-                  {isLoadingBossData ? (
-                    <tr>
-                      <td colSpan="3" style={{ textAlign: 'center', padding: '2rem' }}>
-                        Loading boss data...
-                      </td>
-                    </tr>
-                  ) : (() => {
-                    // Flatten all boss-difficulty pairs
-                    const allBossDiffs = bossData.flatMap(boss =>
-                      boss.difficulties.map(diff => ({
-                        boss,
-                        difficulty: diff.difficulty,
-                        price: diff.price
-                      }))
-                    );
-                    // Sort by price descending
-                    allBossDiffs.sort((a, b) => b.price - a.price);
-                    return allBossDiffs.map((item, idx) => (
-                      <tr 
-                        key={item.boss.name + '-' + item.difficulty} 
-                        className={idx % 2 === 0 ? 'boss-table-row-even' : 'boss-table-row-odd'}
-                      >
-                        <td className="boss-price-table-name-cell">
-                          {item.boss.image && (
-                            <img 
-                              src={item.boss.image} 
-                              alt={item.boss.name} 
-                              className="boss-price-table-image"
-                            />
-                          )}
-                          <span className="boss-price-table-name-text">
-                            {item.boss.name}
-                          </span>
-                        </td>
-                        <td className="boss-price-table-difficulty-cell">
-                          <span className="boss-price-table-difficulty-text">
-                            {item.difficulty}
-                          </span>
-                        </td>
-                        <td className="boss-price-table-price-cell">
-                          <span className="boss-price-table-price-text">
-                            {item.price.toLocaleString()}
-                          </span>
-                        </td>
-                      </tr>
-                    ));
-                  })()}
-                </tbody>
-              </table>
+          <div className="boss-price-container">
+            <div className="boss-price-grid">
+              {/* Header */}
+              <div className="boss-price-header-row">
+                <div className="boss-price-header-cell boss-col">Boss</div>
+                <div className="boss-price-header-cell difficulty-col">Difficulty</div>
+                <div className="boss-price-header-cell price-col">Mesos</div>
+              </div>
+              
+              {/* Body */}
+              {isLoadingBossData ? (
+                <div className="boss-price-loading">Loading boss data...</div>
+              ) : (
+                allBossDiffs.map((item, index) => (
+                  <div 
+                    key={`${item.boss.name}-${item.difficulty}`}
+                    className={`boss-price-row ${index % 2 === 0 ? 'even' : 'odd'}`}
+                  >
+                    <div className="boss-price-cell boss-col">
+                      <div className="boss-price-info">
+                        {item.boss.image && (
+                          <img 
+                            src={item.boss.image} 
+                            alt={item.boss.name}
+                            className="boss-price-image"
+                          />
+                        )}
+                        <span className="boss-price-name">{item.boss.name}</span>
+                      </div>
+                    </div>
+                    <div className="boss-price-cell difficulty-col">
+                      <span className="boss-price-difficulty">{item.difficulty}</span>
+                    </div>
+                    <div className="boss-price-cell price-col">
+                      <span className="boss-price-mesos">{item.price.toLocaleString()}</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
       </ViewTransitionWrapper>
 
-      {/* Consolidated page modals for better organization */}
       <HelpModal
         showHelp={showHelp}
         onClose={() => setShowHelp(false)}

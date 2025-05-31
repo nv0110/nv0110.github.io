@@ -14,9 +14,8 @@
 /* Main mode indicator container */
 .mode-indicator-container {
   margin: -5rem auto 1.5rem auto;
-  max-width: 45vh;
-  width: 100%;
-  min-height: 100px; /* Fixed minimum height */
+  width: 24rem;
+  height: 9rem;
   border-radius: 12px;
   padding: 1rem 1.5rem;
   font-weight: 600;

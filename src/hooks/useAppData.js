@@ -59,21 +59,27 @@ export function useAppData() {
     let daysToSubtract = (dayOfWeek - 4 + 7) % 7; // 4 is Thursday
     today.setUTCDate(today.getUTCDate() - daysToSubtract);
     today.setUTCHours(0,0,0,0);
-    const timestamp = today.getTime(); // Store in a variable first
-    setActualLastResetTimestampSnapshot(timestamp);
-    // Also initialize lastWeeklyResetTimestamp if it's the very first load and not simulated
-    if (lastWeeklyResetTimestamp === 0 && simulatedWeeksForward === 0) {
-        setLastWeeklyResetTimestamp(timestamp);
-    }
-    return timestamp; // Return the calculated timestamp
-  }, [lastWeeklyResetTimestamp, simulatedWeeksForward]);
+    const timestamp = today.getTime();
+    
+    // Don't immediately set state to prevent circular loops
+    // Return the calculated timestamp instead
+    return timestamp;
+  }, []); // Remove all dependencies to prevent circular loops
 
+  // Separate function for setting the timestamp state to avoid circular dependencies
+  const updateLastResetTimestamp = useCallback((timestamp) => {
+    setActualLastResetTimestampSnapshot(timestamp);
+  }, []);
 
   useEffect(() => {
-    // Initialize on load
+    // Initialize on load - calculate timestamp but don't set state immediately
     setCurrentOperatingWeekKey(getRealCurrentWeekKeyUtil());
-    calculateAndSetActualLastResetTimestampSnapshot();
-  }, [calculateAndSetActualLastResetTimestampSnapshot]);
+    const initialTimestamp = calculateAndSetActualLastResetTimestampSnapshot();
+    // Use setTimeout to prevent immediate state update during render
+    setTimeout(() => {
+      setActualLastResetTimestampSnapshot(initialTimestamp);
+    }, 10);
+  }, []); // Empty dependency array to run only once
 
   // Load boss data from database on mount (force fresh data)
   useEffect(() => {
@@ -165,41 +171,57 @@ export function useAppData() {
         });
       }
 
-      // Update local UI state
-      setChecked({});
-      setCurrentOperatingWeekKey(newCurrentWeekKey);
-      
-      // Update reset timestamp
-      setTimeout(() => {
+      // Update local UI state with batched updates to prevent cascading
+      const updates = () => {
+        setChecked({});
+        setCurrentOperatingWeekKey(newCurrentWeekKey);
         setLastWeeklyResetTimestamp(newResetTimestampVal);
-      }, 50);
+      };
+      
+      // Use setTimeout to batch state updates and prevent cascading effects
+      setTimeout(updates, 10);
       
       console.log(`✅ Weekly reset complete. New week: ${newCurrentWeekKey}`);
     } catch (error) {
       console.error('❌ Error during weekly reset:', error);
     }
-  }, [userCode, isLoggedIn, setChecked, setCurrentOperatingWeekKey, setLastWeeklyResetTimestamp]);
-
+  }, [userCode, isLoggedIn]); // Simplified dependencies
 
   const handleExternalWeeklyReset = useCallback(async (endedRealWeekKey) => {
     console.log(`Handle External (Real) Weekly Reset. Ended week: ${endedRealWeekKey}`);
-    if (simulatedWeeksForward > 0) {
-      console.warn("Real weekly reset occurred during simulation. Reverting simulation first.");
-      // Revert simulation without triggering its own full reset actions again, just state.
-      setSimulatedWeeksForward(0);
-      setRealCurrentWeekKeySnapshot(null);
-      // actualLastResetTimestampSnapshot will be recalculated by the call below
-      // No need to set it to null here if calculateAndSet will overwrite it
+    
+    // Prevent multiple simultaneous resets
+    if (handleExternalWeeklyReset._isRunning) {
+      console.log('Weekly reset already in progress, skipping...');
+      return;
     }
+    handleExternalWeeklyReset._isRunning = true;
     
-    const newRealCurrentWeekKey = getRealCurrentWeekKeyUtil();
-    // Recalculate and set the actual snapshot, and get the value
-    const currentActualTimestamp = calculateAndSetActualLastResetTimestampSnapshot(); 
-    
-    console.log(`Processing real reset. Ended: ${endedRealWeekKey}, New Real Current: ${newRealCurrentWeekKey}, New Real Timestamp: ${new Date(currentActualTimestamp)}`);
-    await performWeeklyResetActions(endedRealWeekKey, newRealCurrentWeekKey, currentActualTimestamp);
-
-  }, [simulatedWeeksForward, performWeeklyResetActions, calculateAndSetActualLastResetTimestampSnapshot]);
+    try {
+      if (simulatedWeeksForward > 0) {
+        console.warn("Real weekly reset occurred during simulation. Reverting simulation first.");
+        // Revert simulation without triggering its own full reset actions again, just state.
+        setSimulatedWeeksForward(0);
+        setRealCurrentWeekKeySnapshot(null);
+      }
+      
+      const newRealCurrentWeekKey = getRealCurrentWeekKeyUtil();
+      // Calculate timestamp without setting state immediately to prevent loops
+      const currentActualTimestamp = calculateAndSetActualLastResetTimestampSnapshot(); 
+      
+      // Update the snapshot state separately to avoid circular dependencies
+      updateLastResetTimestamp(currentActualTimestamp);
+      
+      console.log(`Processing real reset. Ended: ${endedRealWeekKey}, New Real Current: ${newRealCurrentWeekKey}, New Real Timestamp: ${new Date(currentActualTimestamp)}`);
+      await performWeeklyResetActions(endedRealWeekKey, newRealCurrentWeekKey, currentActualTimestamp);
+      
+    } finally {
+      // Clear the running flag after completion
+      setTimeout(() => {
+        handleExternalWeeklyReset._isRunning = false;
+      }, 100);
+    }
+  }, [simulatedWeeksForward, performWeeklyResetActions, calculateAndSetActualLastResetTimestampSnapshot, updateLastResetTimestamp]);
 
   const simulateWeekForward = useCallback(async () => {
     console.log('🔮 Starting safe week forward simulation...');
@@ -250,7 +272,7 @@ export function useAppData() {
       setRealCurrentWeekKeySnapshot(null);
       setActualLastResetTimestampSnapshot(null);
     }
-  }, [simulatedWeeksForward, realCurrentWeekKeySnapshot, actualLastResetTimestampSnapshot, lastWeeklyResetTimestamp, calculateAndSetActualLastResetTimestampSnapshot]);
+  }, [simulatedWeeksForward, realCurrentWeekKeySnapshot, actualLastResetTimestampSnapshot, lastWeeklyResetTimestamp, calculateAndSetActualLastResetTimestampSnapshot, performSafeSimulationActions]);
 
   const revertWeekSimulation = useCallback(async (forceRevert = false) => {
     if (simulatedWeeksForward === 0 && !forceRevert) {
@@ -297,7 +319,7 @@ export function useAppData() {
       setActualLastResetTimestampSnapshot(null);
       setCurrentOperatingWeekKey(getRealCurrentWeekKeyUtil());
     }
-  }, [simulatedWeeksForward, realCurrentWeekKeySnapshot, actualLastResetTimestampSnapshot, calculateAndSetActualLastResetTimestampSnapshot, currentOperatingWeekKey]);
+  }, [simulatedWeeksForward, realCurrentWeekKeySnapshot, actualLastResetTimestampSnapshot, currentOperatingWeekKey, calculateAndSetActualLastResetTimestampSnapshot, performSafeRevertActions]);
   
   const isWeekSimulated = simulatedWeeksForward > 0;
 
@@ -311,7 +333,12 @@ export function useAppData() {
     }
 
     let isMounted = true;
+    let isLoading = false; // Prevent multiple simultaneous loads
+    
     const loadData = async () => {
+      if (isLoading) return;
+      isLoading = true;
+      
       try {
         setIsLoading(true);
         setError('');
@@ -439,10 +466,21 @@ export function useAppData() {
           debugSetChecked({});
         }
 
-        // Initialize timestamp for new users
+        // Initialize timestamp for new users only once
         if (lastWeeklyResetTimestamp === 0) {
-          const timestamp = calculateAndSetActualLastResetTimestampSnapshot();
-          setTimeout(() => setLastWeeklyResetTimestamp(timestamp), 100);
+          const now = new Date();
+          const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+          let dayOfWeek = today.getUTCDay(); // 0 (Sun) to 6 (Sat)
+          let daysToSubtract = (dayOfWeek - 4 + 7) % 7; // 4 is Thursday
+          today.setUTCDate(today.getUTCDate() - daysToSubtract);
+          today.setUTCHours(0,0,0,0);
+          const timestamp = today.getTime();
+          // Use a longer delay to prevent cascading effects
+          setTimeout(() => {
+            if (isMounted) {
+              setLastWeeklyResetTimestamp(timestamp);
+            }
+          }, 200);
         }
       } catch (err) {
         if (isMounted) {
@@ -455,12 +493,16 @@ export function useAppData() {
         if (isMounted) {
           setIsLoading(false);
         }
+        isLoading = false;
       }
     };
 
     loadData();
-    return () => { isMounted = false; };
-  }, [userCode, isLoggedIn]); // Simplified dependencies to prevent loops
+    return () => { 
+      isMounted = false; 
+      isLoading = false;
+    };
+  }, [userCode, isLoggedIn, lastWeeklyResetTimestamp]); // Include lastWeeklyResetTimestamp to prevent redundant timestamp initialization
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -470,12 +512,6 @@ export function useAppData() {
       }
     };
   }, []);
-
-
-
-
-
-
 
   // Function to add a new character - NOW USES NEW SERVICE
   const addCharacter = async () => {
@@ -612,7 +648,6 @@ export function useAppData() {
     // Trigger a force update to ensure Navbar reflects character count change
     forceUpdate();
   };
-
 
   // Function to update character name - UPDATED to use new service
   const updateCharacterName = async (idx, newName) => {

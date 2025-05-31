@@ -1,9 +1,30 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 function SidebarToggle({ sidebarVisible, setSidebarVisible }) {
+  const [isMobile, setIsMobile] = useState(false);
+  const [isVerySmall, setIsVerySmall] = useState(false);
+
+  // Detect mobile and very small screen sizes
+  useEffect(() => {
+    const checkScreenSize = () => {
+      const width = window.innerWidth;
+      setIsMobile(width <= 768);
+      setIsVerySmall(width <= 480);
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  // Don't render on very small screens - use FAB instead
+  if (isVerySmall) {
+    return null;
+  }
+
   return (
     <div
-      className={`sidebar-toggle ${sidebarVisible ? 'visible' : 'hidden'}`}
+      className={`sidebar-toggle ${sidebarVisible ? 'visible' : 'hidden'} ${isMobile ? 'mobile' : 'desktop'}`}
       onClick={() => setSidebarVisible(!sidebarVisible)}
       title={sidebarVisible ? 'Hide sidebar' : 'Show sidebar'}
     >
@@ -11,8 +32,8 @@ function SidebarToggle({ sidebarVisible, setSidebarVisible }) {
         // Close icon (SVG X)
         <svg
           className="sidebar-toggle-close-icon"
-          width="24"
-          height="24"
+          width={isMobile ? "20" : "24"}
+          height={isMobile ? "20" : "24"}
           viewBox="0 0 24 24"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
@@ -36,6 +57,10 @@ function SidebarToggle({ sidebarVisible, setSidebarVisible }) {
             <span
               key={index}
               className="sidebar-toggle-hamburger-line"
+              style={{
+                width: isMobile ? '18px' : '22px',
+                height: isMobile ? '2px' : '3px'
+              }}
             />
           ))}
         </div>
