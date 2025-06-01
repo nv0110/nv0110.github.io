@@ -1070,4 +1070,13 @@
   .modern-detail-stats {
     gap: 24px;
   }
+}
+
+/* Special case for Magic Eyepatch - remove height constraint */
+.modern-item-image[alt="Magic Eyepatch"] {
+  height: auto;
+}
+
+.modern-item-detail-image[alt="Magic Eyepatch"] {
+  height: auto;
 } 

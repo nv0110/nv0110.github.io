@@ -168,30 +168,30 @@ function CharacterDropdown({
             />
           </div>
         ) : (
-          <button
-            type="button"
-            className="character-dropdown-trigger"
-            onClick={() => setIsModalOpen(true)}
-            aria-expanded={isModalOpen}
-            aria-haspopup="dialog"
+        <button
+          type="button"
+          className="character-dropdown-trigger"
+          onClick={() => setIsModalOpen(true)}
+          aria-expanded={isModalOpen}
+          aria-haspopup="dialog"
+        >
+          <span className="character-dropdown-text">{displayText}</span>
+          <svg 
+            className="character-dropdown-arrow"
+            width="16" 
+            height="16" 
+            viewBox="0 0 24 24" 
+            fill="none"
           >
-            <span className="character-dropdown-text">{displayText}</span>
-            <svg 
-              className="character-dropdown-arrow"
-              width="16" 
-              height="16" 
-              viewBox="0 0 24 24" 
-              fill="none"
-            >
-              <path 
-                d="M6 9l6 6 6-6" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
+            <path 
+              d="M6 9l6 6 6-6" 
+              stroke="currentColor" 
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
         )}
       </div>
 
@@ -286,44 +286,44 @@ function CharacterDropdown({
           </svg>
         </button>
 
-        {/* Copy Character Button */}
-        <button
-          type="button"
-          className={`character-copy-btn ${canCopy ? 'enabled' : 'disabled'}`}
-          onClick={handleCopyCharacter}
-          disabled={!canCopy}
-          title={canCopy ? `Copy ${selectedCharacter.name}` : 'Select a character to copy'}
-        >
-          {isCopying ? (
-            <div className="character-copy-spinner">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <circle 
-                  cx="12" 
-                  cy="12" 
-                  r="10" 
-                  stroke="currentColor" 
-                  strokeWidth="2" 
-                  strokeDasharray="40" 
-                  strokeDashoffset="20"
-                  className="copy-spinner-circle"
-                />
-              </svg>
-            </div>
-          ) : (
-            <svg 
-              className="character-copy-icon" 
-              width="16" 
-              height="16" 
-              viewBox="0 0 352.804 352.804" 
-              fill="currentColor"
-            >
-              <path d="M318.54,57.282h-47.652V15c0-8.284-6.716-15-15-15H34.264c-8.284,0-15,6.716-15,15v265.522c0,8.284,6.716,15,15,15h47.651
-              v42.281c0,8.284,6.716,15,15,15H318.54c8.284,0,15-6.716,15-15V72.282C333.54,63.998,326.824,57.282,318.54,57.282z
-               M49.264,265.522V30h191.623v27.282H96.916c-8.284,0-15,6.716-15,15v193.24H49.264z M303.54,322.804H111.916V87.282H303.54V322.804
-              z"/>
+      {/* Copy Character Button */}
+      <button
+        type="button"
+        className={`character-copy-btn ${canCopy ? 'enabled' : 'disabled'}`}
+        onClick={handleCopyCharacter}
+        disabled={!canCopy}
+        title={canCopy ? `Copy ${selectedCharacter.name}` : 'Select a character to copy'}
+      >
+        {isCopying ? (
+          <div className="character-copy-spinner">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <circle 
+                cx="12" 
+                cy="12" 
+                r="10" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeDasharray="40" 
+                strokeDashoffset="20"
+                className="copy-spinner-circle"
+              />
             </svg>
-          )}
-        </button>
+          </div>
+        ) : (
+          <svg 
+            className="character-copy-icon" 
+            width="16" 
+            height="16" 
+            viewBox="0 0 352.804 352.804" 
+            fill="currentColor"
+          >
+            <path d="M318.54,57.282h-47.652V15c0-8.284-6.716-15-15-15H34.264c-8.284,0-15,6.716-15,15v265.522c0,8.284,6.716,15,15,15h47.651
+            v42.281c0,8.284,6.716,15,15,15H318.54c8.284,0,15-6.716,15-15V72.282C333.54,63.998,326.824,57.282,318.54,57.282z
+             M49.264,265.522V30h191.623v27.282H96.916c-8.284,0-15,6.716-15,15v193.24H49.264z M303.54,322.804H111.916V87.282H303.54V322.804
+            z"/>
+          </svg>
+        )}
+      </button>
       </div>
     </div>
   );
