@@ -300,6 +300,7 @@ function InputPage() {
             addCharacter={addCharacter}
             removeCharacter={removeCharacter}
                 setNewCharName={setNewCharName}
+            updateCharacterName={updateCharacterName}
             
             // Boss data and operations
                   sortedBossData={sortedBossData}

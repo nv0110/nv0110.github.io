@@ -1015,7 +1015,7 @@ export function useAppData() {
   // Function to update character name - UPDATED to use new service
   const updateCharacterName = async (idx, newName) => {
     const character = characterBossSelections[idx];
-    if (!character) return;
+    if (!character) return { success: false, error: 'Character not found' };
 
     try {
       // Update in user_boss_data using new service
@@ -1028,7 +1028,7 @@ export function useAppData() {
       if (!result.success) {
         setError(result.error || 'Failed to update character name');
         setTimeout(() => setError(''), 3000);
-        return;
+        return { success: false, error: result.error || 'Failed to update character name' };
       }
 
       // Update local state
@@ -1037,10 +1037,12 @@ export function useAppData() {
       setCharacterBossSelections(updatedCharacters);
       
       logger.info('useAppData: Character name updated in user_boss_data table');
+      return { success: true };
     } catch (error) {
       logger.error('useAppData: Error updating character name', { error });
       setError('Failed to update character name');
       setTimeout(() => setError(''), 3000);
+      return { success: false, error: 'Failed to update character name' };
     }
   };
 

@@ -32,7 +32,7 @@ function PitchedItemsModal({
         let itemImage = '/items/crystal.png'; // fallback
         
         // Search through all boss items to find the image
-        const allBossNames = ['Lotus', 'Damien', 'Lucid', 'Will', 'Gloom', 'Darknell', 'Verus Hilla', 'Chosen Seren', 'Watcher Kalos', 'Kaling'];
+        const allBossNames = ['Lotus', 'Damien', 'Lucid', 'Will', 'Gloom', 'Darknell', 'Verus Hilla', 'Chosen Seren', 'Watcher Kalos', 'Kaling', 'Limbo'];
         for (const bossName of allBossNames) {
           const bossItems = getBossPitchedItems(bossName);
           const itemObj = bossItems.find(bossItem => bossItem.name === item.item);

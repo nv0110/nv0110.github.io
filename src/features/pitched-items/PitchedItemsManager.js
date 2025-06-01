@@ -231,7 +231,7 @@ export function usePitchedItemsManager(userId) {
 export function getItemImage(itemName) {
   const allBossNames = [
     'Lotus', 'Damien', 'Lucid', 'Will', 'Gloom', 'Darknell', 
-    'Verus Hilla', 'Chosen Seren', 'Watcher Kalos', 'Kaling'
+    'Verus Hilla', 'Chosen Seren', 'Watcher Kalos', 'Kaling', 'Limbo'
   ];
   
   for (const bossName of allBossNames) {

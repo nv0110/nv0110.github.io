@@ -264,9 +264,15 @@
     font-size: 10px;
   }
   
+  .character-edit-btn,
   .character-copy-btn {
     width: 36px;
     height: 36px;
+  }
+  
+  .character-edit-input {
+    padding: clamp(0.4rem, 0.8vw, 0.5rem) clamp(0.6rem, 1.2vw, 0.8rem);
+    font-size: clamp(0.75rem, 1.3vw, 0.85rem);
   }
 }
 
@@ -292,15 +298,22 @@
     font-size: 9px;
   }
   
+  .character-edit-btn,
   .character-copy-btn {
     width: 32px;
     height: 32px;
   }
   
+  .character-edit-icon,
   .character-copy-icon,
   .character-copy-spinner {
     width: 14px;
     height: 14px;
+  }
+  
+  .character-edit-input {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
   }
 }
 
@@ -326,15 +339,22 @@
     font-size: 14px;
   }
   
+  .character-edit-btn,
   .character-copy-btn {
     width: 44px;
     height: 44px;
   }
   
+  .character-edit-icon,
   .character-copy-icon,
   .character-copy-spinner {
     width: 18px;
     height: 18px;
+  }
+  
+  .character-edit-input {
+    padding: 0.7rem 1.2rem;
+    font-size: 1rem;
   }
 }
 
@@ -355,6 +375,117 @@
   display: flex;
   align-items: center;
   flex: 1;
+}
+
+/* Character Action Buttons Container */
+.character-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+}
+
+/* Character Edit Input */
+.character-edit-input-container {
+  position: relative;
+  flex: 1;
+}
+
+.character-edit-input {
+  width: 100%;
+  padding: clamp(0.5rem, 1vw, 0.7rem) clamp(0.8rem, 1.5vw, 1rem);
+  font-size: clamp(0.8rem, 1.5vw, 0.9rem);
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--gradient-container-bg);
+  border: 2px solid rgba(162, 89, 247, 0.3);
+  border-radius: var(--radius-lg);
+  backdrop-filter: var(--backdrop-blur-light);
+  box-shadow: var(--shadow-subtle), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: var(--transition-normal);
+  outline: none;
+}
+
+.character-edit-input:focus {
+  border-color: rgba(162, 89, 247, 0.6);
+  box-shadow: var(--shadow-medium), 
+              0 0 0 3px rgba(162, 89, 247, 0.15),
+              inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.character-edit-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Character Edit Button */
+.character-edit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-lg);
+  border: 2px solid rgba(162, 89, 247, 0.3);
+  cursor: pointer;
+  transition: var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  backdrop-filter: var(--backdrop-blur-light);
+  box-shadow: var(--shadow-subtle), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.character-edit-btn.enabled {
+  background: linear-gradient(135deg, rgba(106, 17, 203, 0.15) 0%, rgba(58, 42, 93, 0.25) 100%);
+  color: var(--text-primary);
+}
+
+.character-edit-btn.enabled::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(162, 89, 247, 0.1), transparent);
+  transition: left 0.6s ease;
+  z-index: 1;
+}
+
+.character-edit-btn.enabled:hover::before {
+  left: 100%;
+}
+
+.character-edit-btn.enabled:hover {
+  border-color: rgba(162, 89, 247, 0.5);
+  background: linear-gradient(135deg, rgba(106, 17, 203, 0.25) 0%, rgba(58, 42, 93, 0.35) 100%);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-medium), 
+              0 3px 10px rgba(162, 89, 247, 0.15),
+              inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.character-edit-btn.enabled:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-subtle);
+}
+
+.character-edit-btn.disabled {
+  background: rgba(58, 51, 90, 0.3);
+  color: var(--text-muted);
+  border-color: rgba(162, 89, 247, 0.1);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.character-edit-icon {
+  position: relative;
+  z-index: 2;
+  transition: transform var(--timing-normal) var(--ease-out);
+}
+
+.character-edit-btn.enabled:hover .character-edit-icon {
+  transform: scale(1.1);
 }
 
 /* Character Copy Button */

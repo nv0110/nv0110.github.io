@@ -17,6 +17,7 @@ function CharacterManagementContainer({
   addCharacter = () => {},
   removeCharacter = () => {},
   setNewCharName = () => {},
+  updateCharacterName = () => {},
   
   // Boss data and operations
   sortedBossData = [],
@@ -59,6 +60,7 @@ function CharacterManagementContainer({
                   onCharacterChange={handleCharacterChange}
                   onRemoveCharacter={removeCharacter}
                   onCopyCharacter={onCopyCharacter}
+                  onEditCharacterName={updateCharacterName}
                 />
               </div>
               
