@@ -247,14 +247,15 @@ function getBossImagePath(bossName) {
 /**
  * Get pitched items for a boss (temporary until moved to database)
  * @param {string} bossName - Boss name
+ * @param {string} [difficulty] - Optional difficulty to filter items
  * @returns {Array} - Array of pitched items
  */
-export function getBossPitchedItems(bossName) {
+export function getBossPitchedItems(bossName, difficulty = null) {
   const pitchedItemsMap = {
     'Lotus': [
-      { name: 'Black Heart', image: '/items/blackheart.png' },
-      { name: 'Berserked', image: '/items/berserked.png' },
-      { name: 'Total Control', image: '/items/tc.png' }
+      { name: 'Black Heart', image: '/items/blackheart.png', difficulties: ['Hard', 'Extreme'] },
+      { name: 'Berserked', image: '/items/berserked.png', difficulties: ['Hard', 'Extreme'] },
+      { name: 'Total Control', image: '/items/tc.png', difficulty: 'Extreme' }
     ],
     'Damien': [
       { name: 'Magic Eyepatch', image: '/items/eyepatch.webp', difficulty: 'Hard' }
@@ -266,7 +267,7 @@ export function getBossPitchedItems(bossName) {
       { name: 'Cursed Spellbook', image: '/items/book.webp', difficulty: 'Hard' }
     ],
     'Gloom': [
-      { name: 'Endless Terror', image: '/items/et.webp' }
+      { name: 'Endless Terror', image: '/items/et.webp', difficulty: 'Chaos' }
     ],
     'Darknell': [
       { name: 'Commanding Force Earring', image: '/items/cfe.webp', difficulty: 'Hard' }
@@ -291,7 +292,28 @@ export function getBossPitchedItems(bossName) {
     ]
   };
   
-  return pitchedItemsMap[bossName] || [];
+  const allItems = pitchedItemsMap[bossName] || [];
+  
+  // If no difficulty specified, return all items (backward compatibility)
+  if (!difficulty) {
+    return allItems;
+  }
+  
+  // Filter items based on difficulty
+  return allItems.filter(item => {
+    // If item has specific difficulty requirement, check if it matches
+    if (item.difficulty) {
+      return item.difficulty === difficulty;
+    }
+    
+    // If item has multiple difficulties array, check if current difficulty is included
+    if (item.difficulties && Array.isArray(item.difficulties)) {
+      return item.difficulties.includes(difficulty);
+    }
+    
+    // If item has no difficulty restrictions, show it for all difficulties
+    return true;
+  });
 }
 
 /**

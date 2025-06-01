@@ -61,23 +61,8 @@ function BossTable({
 
   // Get pitched items for a boss/difficulty combination
   const getBossItems = (bossName, difficulty) => {
-    const items = getBossPitchedItems(bossName) || [];
-    
-    // Filter items based on difficulty rules
-    return items.filter(item => {
-      // If item has specific difficulty requirement, check if it matches
-      if (item.difficulty) {
-        return item.difficulty === difficulty;
-      }
-      
-      // If item has multiple difficulties array, check if current difficulty is included
-      if (item.difficulties && Array.isArray(item.difficulties)) {
-        return item.difficulties.includes(difficulty);
-      }
-      
-      // If item has no difficulty restrictions, show it for all difficulties
-      return true;
-    });
+    // Use the updated getBossPitchedItems with difficulty filtering
+    return getBossPitchedItems(bossName, difficulty);
   };
 
   // Check if pitched item is checked/obtained
