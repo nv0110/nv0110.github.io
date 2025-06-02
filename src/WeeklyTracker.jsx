@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { STORAGE_KEYS } from './constants';
 import WeekNavigator from './components/WeekNavigator';
-import CrystalAnimation from './components/CrystalAnimation';
 import CharacterSidebar from './components/CharacterSidebar';
 import SidebarToggle from './components/SidebarToggle';
 import BossTable from './components/BossTable';
@@ -36,7 +35,6 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
 
   // Basic UI state
   const [sidebarVisible, setSidebarVisible] = useState(true);
-  const [crystalAnimations, setCrystalAnimations] = useState([]);
   const [selectedCharIdx, setSelectedCharIdx] = useState(0);
   const [error, setError] = useState(null);
   const [showNoCharactersMessage, setShowNoCharactersMessage] = useState(false);
@@ -85,7 +83,6 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
     selectedCharIdx,
     checked,
     setChecked,
-    setCrystalAnimations,
     setError,
     onDataChange: () => {
       refreshWeeklyData();
@@ -389,20 +386,6 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
             // Don't fail the pitched item operation if auto-check fails
           }
         }
-        
-        // Show crystal animation
-        setCrystalAnimations(prev => [
-          ...prev,
-          {
-            id: Date.now() + Math.random(),
-            image: itemImage || '/images/pitched-items/test-crystal.png',
-            bossName,
-            itemName,
-            characterName,
-            startPosition: { x: 50, y: 50 },
-            endPosition: { x: window.innerWidth - 100, y: 100 }
-          }
-        ]);
       }
     } catch (error) {
       logger.error('WeeklyTracker: Error handling pitched item click', error);
@@ -430,15 +413,6 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
 
   return (
     <div className="weekly-tracker">
-      {crystalAnimations.length > 0 && crystalAnimations.map(animation => (
-        <CrystalAnimation
-          key={animation.id}
-          startPosition={animation.startPosition}
-          endPosition={animation.endPosition}
-          onComplete={() => setCrystalAnimations(prev => prev.filter(a => a.id !== animation.id))}
-        />
-      ))}
-
       <div className="weekly-tracker-container">
         {/* Sidebar - DO NOT MODIFY */}
         <CharacterSidebar
