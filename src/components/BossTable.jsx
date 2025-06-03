@@ -271,10 +271,13 @@ function BossTable({
                 {formatMesos(Math.ceil(mesosAmount))}
               </div>
 
-              <div className="cell-cleared" onClick={(e) => e.stopPropagation()}>
+              <div className="cell-cleared">
                 <CustomCheckbox
                   checked={isChecked}
-                  onChange={(e) => onBossCheck(boss, e.target.checked, e)}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    onBossCheck(boss, e.target.checked, e);
+                  }}
                 />
               </div>
             </div>

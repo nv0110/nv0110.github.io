@@ -246,12 +246,15 @@ function BossConfigTable({
               </div>
 
               {/* Config Cell */}
-              <div className={`boss-config-cell-config ${isExpanded ? 'expanded' : ''}`} onClick={(e) => e.stopPropagation()}>
+              <div className={`boss-config-cell-config ${isExpanded ? 'expanded' : ''}`}>
                 <div className="config-controls">
                   {/* Boss Selection Checkbox */}
                   <CustomCheckbox
                     checked={isSelected}
-                    onChange={(e) => !isDisabledDueToLimit && handleBossToggle(boss.name, e.target.checked)}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      !isDisabledDueToLimit && handleBossToggle(boss.name, e.target.checked);
+                    }}
                     disabled={isDisabledDueToLimit}
                   />
 
@@ -259,7 +262,10 @@ function BossConfigTable({
                   {isSelected && (
                     <select
                       value={selectedPartySize}
-                      onChange={(e) => handlePartySizeChange(boss.name, e.target.value)}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        handlePartySizeChange(boss.name, e.target.value);
+                      }}
                       onClick={(e) => e.stopPropagation()}
                       className="party-size-dropdown"
                       title={`Party Size: ${selectedPartySize}`}
