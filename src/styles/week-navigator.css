@@ -637,7 +637,7 @@
 @media (max-width: 1365px) and (min-width: 769px) {
   .week-navigator-container {
     width: 26rem;
-    height: 7rem; /* More compact height for tablets */
+    height: 9rem; /* More compact height for tablets */
     padding: 1rem;
     margin: -1.5rem auto 1.25rem auto; /* Reduced negative margin to prevent cutoff */
   }
