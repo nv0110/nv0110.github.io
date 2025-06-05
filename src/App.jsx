@@ -10,6 +10,11 @@ import React from 'react';
 import Navbar from './components/Navbar';
 import { clearPitchedItemsForWeek } from '../services/pitchedItemsService.js';
 
+// Import debug helpers for development
+if (process.env.NODE_ENV === 'development') {
+  import('./utils/debugHelpers.js');
+}
+
 // Lazy load page components for code splitting
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const InputPage = lazy(() => import('./pages/InputPage'));

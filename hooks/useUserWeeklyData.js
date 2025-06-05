@@ -8,6 +8,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthentication } from './useAuthentication';
 import { getCurrentMapleWeekStartDate } from '../utils/mapleWeekUtils';
+import { logger } from '../src/utils/logger';
 import {
   fetchUserWeeklyData,
   saveOrUpdateUserWeeklyData,
@@ -56,7 +57,7 @@ export function useUserWeeklyData() {
         }
       } catch (err) {
         if (isMounted) {
-          console.error('Failed to load weekly data:', err);
+          logger.error('useUserWeeklyData: Failed to load weekly data:', err);
           setError('Failed to load weekly data. Please try again.');
         }
       } finally {
@@ -85,7 +86,7 @@ export function useUserWeeklyData() {
         setError(result.error || 'Failed to refresh data.');
       }
     } catch (err) {
-      console.error('Failed to refresh weekly data:', err);
+      logger.error('useUserWeeklyData: Failed to refresh weekly data:', err);
       setError('Failed to refresh data.');
     } finally {
       setIsLoading(false);
@@ -137,7 +138,7 @@ export function useUserWeeklyData() {
         return result;
       }
     } catch (err) {
-      console.error('Failed to add character:', err);
+      logger.error('useUserWeeklyData: Failed to add character:', err);
       const errorMessage = 'Failed to add character.';
       setError(errorMessage);
       return { success: false, error: errorMessage };
@@ -177,7 +178,7 @@ export function useUserWeeklyData() {
         return result;
       }
     } catch (err) {
-      console.error('Failed to remove character:', err);
+      logger.error('useUserWeeklyData: Failed to remove character:', err);
       const errorMessage = 'Failed to remove character.';
       setError(errorMessage);
       return { success: false, error: errorMessage };
@@ -212,7 +213,7 @@ export function useUserWeeklyData() {
         return result;
       }
     } catch (err) {
-      console.error('Failed to update character name:', err);
+      logger.error('useUserWeeklyData: Failed to update character name:', err);
       const errorMessage = 'Failed to update character name.';
       setError(errorMessage);
       return { success: false, error: errorMessage };
@@ -247,7 +248,7 @@ export function useUserWeeklyData() {
         return result;
       }
     } catch (err) {
-      console.error('Failed to update boss configuration:', err);
+      logger.error('useUserWeeklyData: Failed to update boss configuration:', err);
       const errorMessage = 'Failed to update boss configuration.';
       setError(errorMessage);
       return { success: false, error: errorMessage };

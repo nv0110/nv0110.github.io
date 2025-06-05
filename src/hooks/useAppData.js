@@ -703,10 +703,41 @@ export function useAppData() {
     try {
       // Clear weekly_clears in user_boss_data for the new week using new service
       if (userCode && isLoggedIn) {
-        const { saveCurrentWeekData } = await import('../../services/userWeeklyDataService.js');
+        const { fetchCurrentWeekData, saveCurrentWeekData } = await import('../../services/userWeeklyDataService.js');
         
-        // Clear weekly_clears for new week (preserve char_map and boss_config)
+        // First, fetch existing data for current week to preserve char_map and boss_config
+        const existingData = await fetchCurrentWeekData(userCode);
+        
+        let preservedCharMap = {};
+        let preservedBossConfig = {};
+        
+        if (existingData.success && existingData.data) {
+          // Current week data exists, preserve char_map and boss_config
+          preservedCharMap = existingData.data.char_map || {};
+          preservedBossConfig = existingData.data.boss_config || {};
+        } else {
+          // Current week data doesn't exist, try to get from previous week
+          // This handles the case where weekly reset creates new week data
+          if (characterBossSelections && characterBossSelections.length > 0) {
+            // Reconstruct char_map and boss_config from current UI state
+            for (const char of characterBossSelections) {
+              preservedCharMap[char.index.toString()] = char.name;
+              
+              // Convert character bosses back to config string
+              if (char.bosses && char.bosses.length > 0) {
+                const { convertBossesToConfigString } = await import('../utils/bossCodeMapping.js');
+                preservedBossConfig[char.index.toString()] = await convertBossesToConfigString(char.bosses);
+              } else {
+                preservedBossConfig[char.index.toString()] = '';
+              }
+            }
+          }
+        }
+        
+        // Clear weekly_clears for new week while preserving char_map and boss_config
         await saveCurrentWeekData(userCode, {
+          char_map: preservedCharMap,
+          boss_config: preservedBossConfig,
           weekly_clears: {} // Clear all weekly clears for new week
         });
       }

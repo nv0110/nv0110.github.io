@@ -22,28 +22,53 @@ async function getSupabase() {
  */
 export async function fetchUserWeeklyData(userId, mapleWeekStart) {
   if (!userId || !mapleWeekStart) {
+    logger.error('fetchUserWeeklyData: Missing required parameters', { userId, mapleWeekStart });
     return { success: false, error: 'Missing required parameters.' };
   }
   
   try {
     const supabase = await getSupabase();
     
+    logger.info(`fetchUserWeeklyData: Querying database`, {
+      userId,
+      mapleWeekStart,
+      queryTable: 'user_boss_data',
+      queryColumns: 'user_id, maple_week_start'
+    });
+    
     const { data, error } = await supabase
       .from('user_boss_data')
       .select('*')
       .eq('user_id', userId)
-      .eq('maple_week_start', mapleWeekStart)
-      .single();
+      .eq('maple_week_start', mapleWeekStart);
     
-    if (error && error.code !== 'PGRST116') {
-      logger.error('Error fetching user weekly data:', error);
+    logger.info(`fetchUserWeeklyData: Database query result`, {
+      hasData: !!data,
+      hasError: !!error,
+      errorCode: error?.code,
+      errorMessage: error?.message,
+      dataLength: Array.isArray(data) ? data.length : (data ? 1 : 0),
+      rawData: data
+    });
+    
+    if (error) {
+      logger.error('fetchUserWeeklyData: Database error', error);
       return { success: false, error: 'Failed to fetch weekly data.' };
     }
     
-    return { success: true, data: data || null };
+    // Handle array response - take first result if multiple exist
+    const weekData = Array.isArray(data) ? (data.length > 0 ? data[0] : null) : data;
+    
+    logger.info(`fetchUserWeeklyData: Processed result`, {
+      hasWeekData: !!weekData,
+      originalDataType: Array.isArray(data) ? 'array' : typeof data,
+      resultKeys: weekData ? Object.keys(weekData) : null
+    });
+    
+    return { success: true, data: weekData };
     
   } catch (error) {
-    logger.error('Unexpected error fetching user weekly data:', error);
+    logger.error('fetchUserWeeklyData: Unexpected error', error);
     return { success: false, error: 'Failed to fetch weekly data.' };
   }
 }
@@ -69,15 +94,83 @@ export async function saveOrUpdateUserWeeklyData(userId, mapleWeekStart, weeklyD
       ...weeklyDataPayload
     };
     
-    const { error } = await supabase
+    // Check if record already exists before upsert
+    const existingCheck = await supabase
       .from('user_boss_data')
-      .upsert(recordToUpsert, {
-        onConflict: 'user_id,maple_week_start',
-        ignoreDuplicates: false
-      });
+      .select('user_id, maple_week_start')
+      .eq('user_id', userId)
+      .eq('maple_week_start', mapleWeekStart);
+    
+    // Also check what other records exist for this user
+    const allUserRecords = await supabase
+      .from('user_boss_data')
+      .select('user_id, maple_week_start')
+      .eq('user_id', userId);
+
+    if (existingCheck.error) {
+      logger.error('saveOrUpdateUserWeeklyData: Error checking existing record', existingCheck.error);
+    }
+
+    logger.info(`saveOrUpdateUserWeeklyData: Record analysis`, {
+      targetWeek: mapleWeekStart,
+      hasExistingForWeek: existingCheck.data && existingCheck.data.length > 0,
+      existingForWeekCount: existingCheck.data ? existingCheck.data.length : 0,
+      allUserRecordsCount: allUserRecords.data ? allUserRecords.data.length : 0,
+      allUserWeeks: allUserRecords.data ? allUserRecords.data.map(r => r.maple_week_start) : [],
+      operation: existingCheck.data && existingCheck.data.length > 0 ? 'update' : 'insert'
+    });
+
+    let result;
+    
+    if (existingCheck.data && existingCheck.data.length > 0) {
+      // Record exists - use UPDATE
+      logger.info(`saveOrUpdateUserWeeklyData: Updating existing record`);
+      result = await supabase
+        .from('user_boss_data')
+        .update(weeklyDataPayload)
+        .eq('user_id', userId)
+        .eq('maple_week_start', mapleWeekStart);
+    } else {
+      // No record exists for this week - check if any record exists for user
+      if (allUserRecords.data && allUserRecords.data.length > 0) {
+        // User has records for other weeks, but database constraint only allows one record per user
+        // This indicates wrong primary key setup - we need to delete old record first
+        logger.info(`saveOrUpdateUserWeeklyData: Database constraint issue detected - user has ${allUserRecords.data.length} existing records, deleting and inserting`);
+        
+        // Delete all existing records for this user
+        const deleteResult = await supabase
+          .from('user_boss_data')
+          .delete()
+          .eq('user_id', userId);
+        
+        if (deleteResult.error) {
+          logger.error('saveOrUpdateUserWeeklyData: Failed to delete existing records', deleteResult.error);
+          return { success: false, error: 'Failed to clear existing data.' };
+        }
+        
+        logger.info(`saveOrUpdateUserWeeklyData: Deleted existing records, now inserting new record`);
+      }
+      
+      // Insert new record
+      logger.info(`saveOrUpdateUserWeeklyData: Inserting new record`);
+      result = await supabase
+        .from('user_boss_data')
+        .insert(recordToUpsert);
+    }
+    
+    const { error } = result;
+    
+    logger.info(`saveOrUpdateUserWeeklyData: Operation completed successfully`, {
+      operation: existingCheck.data && existingCheck.data.length > 0 ? 'update' : 'insert',
+      targetWeek: mapleWeekStart,
+      userId: userId,
+      charCount: Object.keys(weeklyDataPayload.char_map || {}).length,
+      bossConfigCount: Object.keys(weeklyDataPayload.boss_config || {}).length,
+      clearsCount: Object.keys(weeklyDataPayload.weekly_clears || {}).length
+    });
     
     if (error) {
-      logger.error('Error saving user weekly data:', error);
+      logger.error('saveOrUpdateUserWeeklyData: Operation failed', error);
       return { success: false, error: 'Failed to save weekly data.' };
     }
     
@@ -410,12 +503,134 @@ async function validateBossConfigString(bossConfigString) {
 
 /**
  * Convenience function to get current week data for a user
+ * Handles weekly reset by migrating previous week's character setup if current week has no data
  * @param {string} userId - User's unique ID
  * @returns {Promise<{success: boolean, data?: object, error?: string}>}
  */
 export async function fetchCurrentWeekData(userId) {
   const currentWeekStart = getCurrentMapleWeekStartDate();
-  return await fetchUserWeeklyData(userId, currentWeekStart);
+  
+  logger.info(`fetchCurrentWeekData: Starting for user ${userId}, current week start: ${currentWeekStart}`);
+  
+  // First, try to fetch data for current week
+  const currentWeekResult = await fetchUserWeeklyData(userId, currentWeekStart);
+  
+  logger.info(`fetchCurrentWeekData: Current week query result`, {
+    success: currentWeekResult.success,
+    hasData: !!currentWeekResult.data,
+    error: currentWeekResult.error,
+    data: currentWeekResult.data
+  });
+  
+  if (!currentWeekResult.success) {
+    logger.error('fetchCurrentWeekData: Failed to fetch current week data', currentWeekResult.error);
+    return currentWeekResult;
+  }
+  
+  // If current week data exists, return it
+  if (currentWeekResult.data) {
+    logger.info(`fetchCurrentWeekData: Found existing data for current week ${currentWeekStart}`, {
+      charCount: currentWeekResult.data.char_map ? Object.keys(currentWeekResult.data.char_map).length : 0,
+      charMap: currentWeekResult.data.char_map,
+      bossConfig: currentWeekResult.data.boss_config
+    });
+    return currentWeekResult;
+  }
+  
+  // No current week data found, check for previous week data to migrate
+  try {
+    logger.info(`fetchCurrentWeekData: No data found for current week ${currentWeekStart}, checking previous week`);
+    
+    // Calculate previous week start date
+    const currentDate = new Date(currentWeekStart + 'T00:00:00.000Z');
+    const previousWeekDate = new Date(currentDate);
+    previousWeekDate.setUTCDate(currentDate.getUTCDate() - 7);
+    
+    const previousWeekStart = previousWeekDate.getUTCFullYear() + '-' + 
+      String(previousWeekDate.getUTCMonth() + 1).padStart(2, '0') + '-' + 
+      String(previousWeekDate.getUTCDate()).padStart(2, '0');
+    
+    logger.info(`fetchCurrentWeekData: Checking previous week ${previousWeekStart} for user ${userId}`);
+    
+    // Fetch previous week data
+    const previousWeekResult = await fetchUserWeeklyData(userId, previousWeekStart);
+    
+    if (!previousWeekResult.success) {
+      logger.info(`fetchCurrentWeekData: Failed to fetch previous week data: ${previousWeekResult.error}`);
+      return { success: true, data: null };
+    }
+    
+    if (!previousWeekResult.data) {
+      logger.info('fetchCurrentWeekData: No previous week data found either');
+      return { success: true, data: null };
+    }
+    
+    const previousData = previousWeekResult.data;
+    
+    // Check if previous week has character setup
+    if (!previousData.char_map || Object.keys(previousData.char_map).length === 0) {
+      logger.info('fetchCurrentWeekData: Previous week data exists but has no characters');
+      return { success: true, data: null };
+    }
+    
+         logger.info(`fetchCurrentWeekData: Migrating ${Object.keys(previousData.char_map).length} characters from ${previousWeekStart} to ${currentWeekStart} for user ${userId}`, {
+       previousCharMap: previousData.char_map,
+       previousBossConfig: previousData.boss_config,
+       previousWeeklyClears: previousData.weekly_clears
+     });
+     
+     // Migrate character setup to current week, but reset weekly clears
+     const migratedData = {
+       char_map: previousData.char_map,
+       boss_config: previousData.boss_config || {},
+       weekly_clears: {} // Reset weekly clears for new week
+     };
+     
+     // Initialize empty weekly clears for all characters
+     Object.keys(migratedData.char_map).forEach(charIndex => {
+       migratedData.weekly_clears[charIndex] = '';
+     });
+     
+     logger.info(`fetchCurrentWeekData: Prepared migration data`, {
+       migratedCharMap: migratedData.char_map,
+       migratedBossConfig: migratedData.boss_config,
+       migratedWeeklyClears: migratedData.weekly_clears
+     });
+    
+         // Double-check if current week data was created between our checks
+     const recheckResult = await fetchUserWeeklyData(userId, currentWeekStart);
+     if (recheckResult.success && recheckResult.data) {
+       logger.info(`fetchCurrentWeekData: Current week data appeared during migration, using existing data`);
+       return recheckResult;
+     }
+
+     // Save migrated data to current week
+     const saveResult = await saveOrUpdateUserWeeklyData(userId, currentWeekStart, migratedData);
+     
+     if (!saveResult.success) {
+       logger.error(`fetchCurrentWeekData: Failed to save migrated data for user ${userId}: ${saveResult.error}`);
+       
+       // Try one more fetch to see if data exists now
+       const finalCheckResult = await fetchUserWeeklyData(userId, currentWeekStart);
+       if (finalCheckResult.success && finalCheckResult.data) {
+         logger.info(`fetchCurrentWeekData: Found data after failed migration - using existing data`);
+         return finalCheckResult;
+       }
+       
+       // If still no data, check if we can return previous week data as fallback
+       logger.error(`fetchCurrentWeekData: Migration completely failed - returning previous week data as fallback`);
+       return { success: true, data: previousData };
+     }
+    
+    logger.info(`fetchCurrentWeekData: Successfully migrated data for user ${userId} from ${previousWeekStart} to ${currentWeekStart}`);
+    
+    // Return the migrated data
+    return { success: true, data: migratedData };
+    
+  } catch (error) {
+    logger.error('fetchCurrentWeekData: Error during weekly data migration:', error);
+    return { success: false, error: 'Failed to check for previous week data.' };
+  }
 }
 
 /**
@@ -427,6 +642,120 @@ export async function fetchCurrentWeekData(userId) {
 export async function saveCurrentWeekData(userId, weeklyDataPayload) {
   const currentWeekStart = getCurrentMapleWeekStartDate();
   return await saveOrUpdateUserWeeklyData(userId, currentWeekStart, weeklyDataPayload);
+}
+
+/**
+ * Debug function to check if user has data for previous week (useful for testing weekly reset)
+ * @param {string} userId - User's unique ID
+ * @returns {Promise<{success: boolean, currentWeekData?: object, previousWeekData?: object, error?: string}>}
+ */
+export async function debugWeeklyDataTransition(userId) {
+  try {
+    const currentWeekStart = getCurrentMapleWeekStartDate();
+    
+    // Calculate previous week start date
+    const currentDate = new Date(currentWeekStart + 'T00:00:00.000Z');
+    const previousWeekDate = new Date(currentDate);
+    previousWeekDate.setUTCDate(currentDate.getUTCDate() - 7);
+    
+    const previousWeekStart = previousWeekDate.getUTCFullYear() + '-' + 
+      String(previousWeekDate.getUTCMonth() + 1).padStart(2, '0') + '-' + 
+      String(previousWeekDate.getUTCDate()).padStart(2, '0');
+    
+    // Fetch both current and previous week data
+    const [currentResult, previousResult] = await Promise.all([
+      fetchUserWeeklyData(userId, currentWeekStart),
+      fetchUserWeeklyData(userId, previousWeekStart)
+    ]);
+    
+    return {
+      success: true,
+      currentWeekStart,
+      previousWeekStart,
+      currentWeekData: currentResult.success ? currentResult.data : null,
+      previousWeekData: previousResult.success ? previousResult.data : null,
+      currentWeekError: currentResult.success ? null : currentResult.error,
+      previousWeekError: previousResult.success ? null : previousResult.error
+    };
+    
+  } catch (error) {
+    logger.error('Error in debugWeeklyDataTransition:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Force migration test function - manually trigger migration for testing
+ * @param {string} userId - User's unique ID
+ * @returns {Promise<{success: boolean, result?: object, error?: string}>}
+ */
+export async function forceMigrationTest(userId) {
+  try {
+    logger.info(`forceMigrationTest: Starting manual migration test for user ${userId}`);
+    
+    const result = await fetchCurrentWeekData(userId);
+    
+    logger.info(`forceMigrationTest: Migration test completed`, {
+      success: result.success,
+      hasData: !!result.data,
+      dataKeys: result.data ? Object.keys(result.data) : [],
+      charCount: result.data?.char_map ? Object.keys(result.data.char_map).length : 0
+    });
+    
+    return {
+      success: true,
+      result: result
+    };
+    
+  } catch (error) {
+    logger.error('forceMigrationTest: Error during migration test:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Debug function to inspect all user data in database (for troubleshooting)
+ * @param {string} userId - User's unique ID
+ * @returns {Promise<{success: boolean, allData?: object[], error?: string}>}
+ */
+export async function debugAllUserData(userId) {
+  try {
+    const supabase = await getSupabase();
+    
+    logger.info(`debugAllUserData: Fetching all data for user ${userId}`);
+    
+    // Get ALL rows for this user (no date filter)
+    const { data, error } = await supabase
+      .from('user_boss_data')
+      .select('*')
+      .eq('user_id', userId)
+      .order('maple_week_start', { ascending: false });
+    
+    if (error) {
+      logger.error('debugAllUserData: Database error', error);
+      return { success: false, error: error.message };
+    }
+    
+    logger.info(`debugAllUserData: Found ${data?.length || 0} rows for user ${userId}`, {
+      allData: data,
+      weekStarts: data?.map(row => row.maple_week_start),
+      characterCounts: data?.map(row => ({
+        week: row.maple_week_start,
+        charCount: row.char_map ? Object.keys(row.char_map).length : 0,
+        chars: row.char_map
+      }))
+    });
+    
+    return {
+      success: true,
+      allData: data || [],
+      currentWeekStart: getCurrentMapleWeekStartDate()
+    };
+    
+  } catch (error) {
+    logger.error('debugAllUserData: Unexpected error', error);
+    return { success: false, error: error.message };
+  }
 }
 
 /**
