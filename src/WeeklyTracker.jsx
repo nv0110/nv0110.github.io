@@ -460,45 +460,49 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
               />
             </div>
 
-            {/* Conditional rendering: Historical Cards vs Boss Table */}
+            {/* Conditional rendering: Historical Cards vs Boss Table with smooth transitions */}
             {showCharacterDetails && (
-              <>
+              <div className="weekly-tracker-table-transition-container">
                 {weekNavigation.isHistoricalWeek ? (
-                  <HistoricalWeekCards
-                    bossData={bossData}
-                    characterKey={charKey}
-                    selectedWeekKey={weekNavigation.selectedWeekKey}
-                    selectedCharIdx={selectedCharIdx}
-                    pitchedChecked={pitchedChecked}
-                    onPitchedItemClick={handlePitchedItemClick}
-                    userCode={userCode}
-                    cloudPitchedItems={cloudPitchedItems}
-                    characterBossSelections={characterBossSelections}
-                  />
+                  <div className="table-content-wrapper fade-in-content" key="historical">
+                    <HistoricalWeekCards
+                      bossData={bossData}
+                      characterKey={charKey}
+                      selectedWeekKey={weekNavigation.selectedWeekKey}
+                      selectedCharIdx={selectedCharIdx}
+                      pitchedChecked={pitchedChecked}
+                      onPitchedItemClick={handlePitchedItemClick}
+                      userCode={userCode}
+                      cloudPitchedItems={cloudPitchedItems}
+                      characterBossSelections={characterBossSelections}
+                    />
+                  </div>
                 ) : (
-              <BossTable
-                bosses={sortedBosses}
-                bossData={bossData}
-                checked={checked}
-                characterKey={charKey}
-                onBossCheck={bossActions.handleCheck}
-                getBossPrice={getBossPrice}
-                    showTickAll={true}
-                onTickAll={bossActions.handleTickAll}
-                allTicked={charBosses.every(b => checked[charKey]?.[b.name + '-' + b.difficulty]) && charBosses.length > 0}
-                    // Pitched items props
-                    pitchedChecked={pitchedChecked}
-                    onPitchedItemClick={handlePitchedItemClick}
-                    isHistoricalWeek={false}
-                    userCode={userCode}
-                    selectedWeekKey={weekNavigation.selectedWeekKey}
-                    selectedCharIdx={selectedCharIdx}
-                    userInteractionRef={userInteractionRef}
-                    cloudPitchedItems={cloudPitchedItems}
-                    characterBossSelections={characterBossSelections}
-                  />
+                  <div className="table-content-wrapper fade-in-content" key="current">
+                    <BossTable
+                      bosses={sortedBosses}
+                      bossData={bossData}
+                      checked={checked}
+                      characterKey={charKey}
+                      onBossCheck={bossActions.handleCheck}
+                      getBossPrice={getBossPrice}
+                      showTickAll={true}
+                      onTickAll={bossActions.handleTickAll}
+                      allTicked={charBosses.every(b => checked[charKey]?.[b.name + '-' + b.difficulty]) && charBosses.length > 0}
+                      // Pitched items props
+                      pitchedChecked={pitchedChecked}
+                      onPitchedItemClick={handlePitchedItemClick}
+                      isHistoricalWeek={false}
+                      userCode={userCode}
+                      selectedWeekKey={weekNavigation.selectedWeekKey}
+                      selectedCharIdx={selectedCharIdx}
+                      userInteractionRef={userInteractionRef}
+                      cloudPitchedItems={cloudPitchedItems}
+                      characterBossSelections={characterBossSelections}
+                    />
+                  </div>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>

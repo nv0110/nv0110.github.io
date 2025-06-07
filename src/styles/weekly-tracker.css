@@ -111,6 +111,39 @@
   margin-bottom: 24px;
 }
 
+/* ===== TABLE TRANSITION ANIMATIONS ===== */
+
+.weekly-tracker-table-transition-container {
+  position: relative;
+  width: 100%;
+  min-height: 300px;
+}
+
+.table-content-wrapper {
+  width: 100%;
+  position: relative;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.table-content-wrapper.fade-in-content {
+  opacity: 1;
+  transform: translateY(0);
+  animation: fadeInTable 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes fadeInTable {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* ===== BUTTON STYLES ===== */
 
 /* Tick all button */
@@ -234,6 +267,25 @@
     flex-direction: column;
     gap: var(--spacing-sm);
   }
+
+  .weekly-tracker-table-transition-container {
+    min-height: 250px;
+  }
+
+  .table-content-wrapper {
+    transform: translateY(6px);
+  }
+
+  @keyframes fadeInTable {
+    0% {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }
 
 @media (max-width: 480px) {
@@ -249,5 +301,24 @@
   
   .weekly-tracker-navigator-wrapper {
     min-height: 160px; /* Further reduced for very small screens with wrapper */
+  }
+
+  .weekly-tracker-table-transition-container {
+    min-height: 200px;
+  }
+
+  .table-content-wrapper {
+    transform: translateY(4px);
+  }
+
+  @keyframes fadeInTable {
+    0% {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 } 
