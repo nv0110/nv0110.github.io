@@ -171,11 +171,14 @@ function HistoricalWeekCards({
     });
   };
 
-  logger.info('HistoricalWeekCards: Rendering with data', {
-    bossesWithItemsCount: allBossesWithPitchedItems.length,
-    weekKey: selectedWeekKey,
-    characterName: characterName
-  });
+  // Debug logging moved to useEffect to prevent infinite loop
+  useEffect(() => {
+    logger.info('HistoricalWeekCards: Rendering with data', {
+      bossesWithItemsCount: allBossesWithPitchedItems.length,
+      weekKey: selectedWeekKey,
+      characterName: characterName
+    });
+  }, [allBossesWithPitchedItems.length, selectedWeekKey, characterName]);
 
   if (!allBossesWithPitchedItems.length) {
     return (

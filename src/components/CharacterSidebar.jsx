@@ -25,6 +25,7 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
   const [isMobile, setIsMobile] = useState(false);
   const [isVerySmall, setIsVerySmall] = useState(false);
   const [showCharacterProgress, setShowCharacterProgress] = useState(false);
+  const [showAccountCrystals, setShowAccountCrystals] = useState(false);
   
   // Scroll indicator hook
   const { showIndicator, elementRef } = useScrollIndicator([visibleCharSummaries, sidebarVisible]);
@@ -42,21 +43,46 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  // Close sidebar when clicking outside on mobile
+  // Close sidebar when clicking outside (simplified to prevent transition interference)
   useEffect(() => {
-    if (!isMobile) return;
+    if (!sidebarVisible) return;
 
     const handleClickOutside = (event) => {
-      if (sidebarVisible && !event.target.closest('.sidebar-scroll') && 
-          !event.target.closest('.sidebar-toggle') && 
-          !event.target.closest('.sidebar-mobile-fab')) {
+      // Check if click is on functional UI areas that should not close sidebar
+      const isProtectedArea = 
+        event.target.closest('.sidebar-scroll') ||
+        event.target.closest('.sidebar-toggle') || 
+        event.target.closest('.sidebar-mobile-fab') ||
+        event.target.closest('.modal-overlay') ||
+        event.target.closest('.dropdown-menu') ||
+        event.target.closest('.navbar') ||
+        event.target.closest('button') ||
+        event.target.closest('select') ||
+        event.target.closest('input') ||
+        event.target.closest('a') ||
+        event.target.closest('[role="button"]') ||
+        event.target.closest('.clickable') ||
+        // Boss table and functional areas
+        event.target.closest('.boss-config-table-grid') ||
+        event.target.closest('.boss-config-row') ||
+        event.target.closest('.week-navigator') ||
+        event.target.closest('.week-card') ||
+        event.target.closest('.crystal-tracker') ||
+        event.target.closest('.character-dropdown') ||
+        event.target.closest('.mode-indicator') ||
+        // Any element with click handlers
+        event.target.onclick ||
+        event.target.getAttribute('onClick');
+      
+      if (!isProtectedArea) {
         setSidebarVisible && setSidebarVisible(false);
       }
     };
 
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, [isMobile, sidebarVisible, setSidebarVisible]);
+    // Add listener immediately without timing delays
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [sidebarVisible, setSidebarVisible]);
 
   const handlePitchedClick = useCallback((e, character) => {
     e.stopPropagation();
@@ -76,14 +102,29 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
 
   const handleContextMenu = useCallback((e, character) => {
     e.preventDefault();
+    e.stopPropagation();
     setPurgeTargetCharacter({ name: character.name, idx: character.idx });
     setShowCharacterPurgeConfirm(true);
   }, [setPurgeTargetCharacter, setShowCharacterPurgeConfirm]);
 
   // Toggle between weekly and character progress
-  const handleProgressToggle = useCallback(() => {
+  const handleProgressToggle = useCallback((e) => {
+    e.stopPropagation();
     setShowCharacterProgress(prev => !prev);
   }, []);
+
+  // Toggle between character and account-wide crystal count
+  const handleCrystalToggle = useCallback((e) => {
+    e.stopPropagation();
+    setShowAccountCrystals(prev => !prev);
+  }, []);
+
+  // Calculate account-wide crystal totals
+  const getAccountCrystalTotals = useCallback(() => {
+    const totalPossible = visibleCharSummaries.reduce((sum, char) => sum + char.total, 0);
+    const totalCleared = visibleCharSummaries.reduce((sum, char) => sum + char.cleared, 0);
+    return { totalPossible, totalCleared };
+  }, [visibleCharSummaries]);
 
   return (
     <>
@@ -203,6 +244,71 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
                     </div>
                   </div>
                 )
+              )}
+            </div>
+          )}
+
+          {/* Crystal Count Display - for selected character */}
+          {visibleCharSummaries[selectedCharIdx] && (
+            <div 
+              className="sidebar-crystal-count premium-progress"
+              onClick={handleCrystalToggle}
+            >
+              {!showAccountCrystals ? (
+                /* Character Crystal Count (default state) */
+                <div className="sidebar-crystal-count-container sidebar-crystal-count-character">
+                  <div className="sidebar-crystal-count-header">
+                    <span className="crystal-count-character">
+                      {visibleCharSummaries[selectedCharIdx].name}
+                    </span>
+                    <span className={`crystal-count-display ${visibleCharSummaries[selectedCharIdx].allCleared ? 'all-cleared' : ''}`}>
+                      {visibleCharSummaries[selectedCharIdx].cleared}/{visibleCharSummaries[selectedCharIdx].total} crystals
+                    </span>
+                  </div>
+                  {visibleCharSummaries[selectedCharIdx].allCleared && (
+                    <div className="crystal-count-status">
+                      <svg className="crystal-complete-icon" width="14" height="14" viewBox="0 0 22 22">
+                        <circle cx="11" cy="11" r="11" fill="#38a169" />
+                        <polyline points="6,12 10,16 16,7" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <span className="crystal-complete-text">Week Complete!</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Account-wide Crystal Count (toggled state) */
+                (() => {
+                  const { totalPossible, totalCleared } = getAccountCrystalTotals();
+                  const remainingCrystals = totalPossible - totalCleared;
+                  const allAccountCleared = totalPossible > 0 && totalCleared === totalPossible;
+                  return (
+                    <div className="sidebar-crystal-count-container sidebar-crystal-count-account">
+                      <div className="crystal-account-header">
+                        <span className="crystal-account-title">Account Overview</span>
+                      </div>
+                      <div className="crystal-account-stats">
+                        <div className="crystal-stat-item crystal-stat-sold">
+                          <span className="crystal-stat-number">{totalCleared}</span>
+                          <span className="crystal-stat-label">Sold</span>
+                        </div>
+                        <div className="crystal-stat-divider">•</div>
+                        <div className="crystal-stat-item crystal-stat-remaining">
+                          <span className="crystal-stat-number">{remainingCrystals}</span>
+                          <span className="crystal-stat-label">Remaining</span>
+                        </div>
+                      </div>
+                      {allAccountCleared && (
+                        <div className="crystal-count-status">
+                          <svg className="crystal-complete-icon" width="14" height="14" viewBox="0 0 22 22">
+                            <circle cx="11" cy="11" r="11" fill="#38a169" />
+                            <polyline points="6,12 10,16 16,7" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          <span className="crystal-complete-text">All Complete!</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()
               )}
             </div>
           )}
