@@ -25,7 +25,7 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
   const [isMobile, setIsMobile] = useState(false);
   const [isVerySmall, setIsVerySmall] = useState(false);
   const [showCharacterProgress, setShowCharacterProgress] = useState(false);
-  const [showAccountCrystals, setShowAccountCrystals] = useState(false);
+  const [showAccountCrystals, setShowAccountCrystals] = useState(true);
   
   // Scroll indicator hook
   const { showIndicator, elementRef } = useScrollIndicator([visibleCharSummaries, sidebarVisible]);
@@ -254,29 +254,8 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
               className="sidebar-crystal-count premium-progress"
               onClick={handleCrystalToggle}
             >
-              {!showAccountCrystals ? (
-                /* Character Crystal Count (default state) */
-                <div className="sidebar-crystal-count-container sidebar-crystal-count-character">
-                  <div className="sidebar-crystal-count-header">
-                    <span className="crystal-count-character">
-                      {visibleCharSummaries[selectedCharIdx].name}
-                    </span>
-                    <span className={`crystal-count-display ${visibleCharSummaries[selectedCharIdx].allCleared ? 'all-cleared' : ''}`}>
-                      {visibleCharSummaries[selectedCharIdx].cleared}/{visibleCharSummaries[selectedCharIdx].total} crystals
-                    </span>
-                  </div>
-                  {visibleCharSummaries[selectedCharIdx].allCleared && (
-                    <div className="crystal-count-status">
-                      <svg className="crystal-complete-icon" width="14" height="14" viewBox="0 0 22 22">
-                        <circle cx="11" cy="11" r="11" fill="#38a169" />
-                        <polyline points="6,12 10,16 16,7" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                      <span className="crystal-complete-text">Week Complete!</span>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                /* Account-wide Crystal Count (toggled state) */
+              {showAccountCrystals ? (
+                /* Account-wide Crystal Count (default state) */
                 (() => {
                   const { totalPossible, totalCleared } = getAccountCrystalTotals();
                   const remainingCrystals = totalPossible - totalCleared;
@@ -309,6 +288,27 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
                     </div>
                   );
                 })()
+              ) : (
+                /* Character Crystal Count (toggled state) */
+                <div className="sidebar-crystal-count-container sidebar-crystal-count-character">
+                  <div className="sidebar-crystal-count-header">
+                    <span className="crystal-count-character">
+                      {visibleCharSummaries[selectedCharIdx].name}
+                    </span>
+                    <span className={`crystal-count-display ${visibleCharSummaries[selectedCharIdx].allCleared ? 'all-cleared' : ''}`}>
+                      {visibleCharSummaries[selectedCharIdx].cleared}/{visibleCharSummaries[selectedCharIdx].total} crystals
+                    </span>
+                  </div>
+                  {visibleCharSummaries[selectedCharIdx].allCleared && (
+                    <div className="crystal-count-status">
+                      <svg className="crystal-complete-icon" width="14" height="14" viewBox="0 0 22 22">
+                        <circle cx="11" cy="11" r="11" fill="#38a169" />
+                        <polyline points="6,12 10,16 16,7" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <span className="crystal-complete-text">Week Complete!</span>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )}
