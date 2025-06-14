@@ -63,6 +63,9 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
         event.target.closest('[role="button"]') ||
         event.target.closest('.clickable') ||
         // Boss table and functional areas
+        event.target.closest('.boss-table-container') ||
+        event.target.closest('.boss-table-grid') ||
+        event.target.closest('.boss-table-row') ||
         event.target.closest('.boss-config-table-grid') ||
         event.target.closest('.boss-config-row') ||
         event.target.closest('.week-navigator') ||
