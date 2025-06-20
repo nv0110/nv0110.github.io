@@ -1052,16 +1052,20 @@ function EnhancementCalculatorPage() {
                     </div>
                   </div>
 
-                  {/* Overall Total */}
-                  {plannerData.characters.length > 0 && (
-                    <div className="overall-total">
-                      <h3 className="section-title">Overall Total</h3>
-                      <div className="total-cost-display">
-                        <span className="total-amount">{formatMesos(getOverallTotalCost())}</span>
-                        <span className="total-unit">mesos</span>
-                      </div>
+                  {/* Total Costs */}
+                  <div className="overall-total">
+                    <h3 className="section-title">Total Costs</h3>
+                    <div className="total-cost-display">
+                      {plannerData.characters.length > 0 ? (
+                        <>
+                          <span className="total-amount">{formatMesos(getOverallTotalCost())}</span>
+                          <span className="total-unit">mesos</span>
+                        </>
+                      ) : (
+                        <span className="total-amount">0 mesos</span>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
 
                 {/* Characters List */}
