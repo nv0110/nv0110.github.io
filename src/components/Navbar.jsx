@@ -135,6 +135,7 @@ function Navbar({ onWeeklyReset, onExport, onImport, fileInputRef }) {
   const getPageFromPath = (pathname) => {
     if (pathname === '/') return 'calculator';
     if (pathname === '/weeklytracker') return 'weeklytracker';
+    if (pathname === '/enhancement') return 'enhancement';
     if (pathname === '/bosstable') return 'bosstable';
     return 'calculator';
   };
@@ -221,6 +222,14 @@ function Navbar({ onWeeklyReset, onExport, onImport, fileInputRef }) {
             )}
             
             <button
+              onClick={() => navigate('/enhancement')}
+              className={`navbar-nav-btn ${currentPageFromPath === 'enhancement' ? 'active' : ''}`}
+              title="Starforce Cost Calculator & Planner"
+            >
+              SF Planner
+            </button>
+            
+            <button
               onClick={() => navigate('/bosstable')}
               className={`navbar-nav-btn ${currentPageFromPath === 'bosstable' ? 'active' : ''}`}
               title="Boss Crystal Price Reference"
@@ -296,6 +305,17 @@ function Navbar({ onWeeklyReset, onExport, onImport, fileInputRef }) {
                 <span>Weekly Tracker</span>
               </button>
             )}
+            
+            <button
+              onClick={() => handleNavigation('/enhancement')}
+              className={`navbar-mobile-nav-btn ${currentPageFromPath === 'enhancement' ? 'active' : ''}`}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z"/>
+                <path d="M5 3v4M19 17v4M3 5h4M17 19h4"/>
+              </svg>
+              <span>SF Planner</span>
+            </button>
             
             <button
               onClick={() => handleNavigation('/bosstable')}

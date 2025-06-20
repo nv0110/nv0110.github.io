@@ -751,7 +751,7 @@
 }
 
 /* Large Tablet (1025px-1115px) */
-@media (max-width: 1115px) and (min-width: 1025px) {
+@media (max-width: 1200px) and (min-width: 1025px) {
   .navbar-content {
     padding: 0 1.25rem;
   }
@@ -761,15 +761,7 @@
   }
   
   .navbar-timer {
-    padding: 0.4rem 0.7rem;
-  }
-  
-  .navbar-timer-label {
-    font-size: 0.8rem;
-  }
-  
-  .navbar-timer-countdown {
-    font-size: 0.85rem;
+    display: none;
   }
   
   .navbar-usercode {
@@ -838,45 +830,7 @@
   }
 }
 
-/* Tablet (769px-1024px) */
-@media (max-width: 1024px) and (min-width: 769px) {
-  .navbar-content {
-    padding: 0 1.25rem;
-  }
-  
-  .navbar-left {
-    gap: 1.25rem;
-  }
-  
-  .navbar-timer {
-    display: none;
-  }
-  
-  .navbar-usercode {
-    font-size: 0.85rem;
-    padding: 0.4rem 0.7rem;
-    margin-left: auto;
-  }
-  
-  .navbar-navigation {
-    padding: 5px;
-  }
-  
-  .navbar-nav-btn {
-    padding: 0.3rem 0.65rem;
-    font-size: 0.8rem;
-  }
-  
-  .navbar-icon-button {
-    width: 38px;
-    height: 38px;
-  }
-  
-  .navbar-icon-button svg {
-    width: 18px;
-    height: 18px;
-  }
-}
+
 
 /* Mobile (up to 768px) */
 @media (max-width: 768px) {

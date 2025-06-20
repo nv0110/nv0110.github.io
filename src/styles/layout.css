@@ -17,7 +17,8 @@ body, #root {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  overflow-y: hidden;
+  overflow-y: hidden; /* Reverted back to hidden for fixed layouts */
+  overflow-x: hidden; /* Keep horizontal scroll hidden */
   margin: 0; /* Ensure no default body margin */
 }
 
@@ -40,7 +41,7 @@ body, #root {
 /* Area for content that scrolls independently of the navbar */
 .main-content-scrollable-area {
   flex-grow: 1; 
-  overflow-y: auto; 
+  overflow-y: auto; /* Reverted back to auto for fixed layout pages */
   padding: clamp(var(--spacing-md), 2vw, var(--spacing-lg)); /* Responsive padding using variables */
   display: flex;
   flex-direction: column;

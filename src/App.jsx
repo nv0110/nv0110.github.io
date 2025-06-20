@@ -18,6 +18,7 @@ if (process.env.NODE_ENV === 'development') {
 // Lazy load page components for code splitting
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const InputPage = lazy(() => import('./pages/InputPage'));
+const EnhancementCalculatorPage = lazy(() => import('./pages/EnhancementCalculatorPage'));
 const BossTablePage = lazy(() => import('./pages/BossTablePage'));
 const WeeklyTrackerPage = lazy(() => import('./pages/WeeklyTrackerPage'));
 
@@ -249,6 +250,10 @@ function MainAppContent() {
               <Route 
                 path="/weeklytracker" 
                 element={<ProtectedRoute><WeeklyTrackerPage /></ProtectedRoute>}
+              />
+              <Route 
+                path="/enhancement" 
+                element={<ProtectedRoute><EnhancementCalculatorPage /></ProtectedRoute>}
               />
               <Route 
                 path="/bosstable" 
