@@ -1674,7 +1674,7 @@ select.event-select::-ms-expand {
   background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
   border-radius: 1rem;
-  overflow: hidden;
+  overflow: visible;
   transition: box-shadow 0.2s ease;
 }
 
@@ -1839,7 +1839,7 @@ select.event-select::-ms-expand {
   background: var(--bg-quaternary);
   border: 1px solid rgba(162, 89, 247, 0.15);
   border-radius: 0.75rem;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
@@ -1850,6 +1850,7 @@ select.event-select::-ms-expand {
   gap: 1rem;
   padding: 1rem;
   border-bottom: 1px solid var(--border-secondary);
+  overflow: visible;
 }
 
 .item-info {
@@ -1857,6 +1858,7 @@ select.event-select::-ms-expand {
   flex-direction: column;
   gap: 0.5rem;
   min-width: 0;
+  overflow: visible;
 }
 
 
@@ -2582,6 +2584,7 @@ select.event-select::-ms-expand {
   gap: 16px;
   flex-wrap: wrap;
   width: 100%;
+  overflow: visible;
 }
 
 .item-type-selector {
@@ -2794,7 +2797,7 @@ select.event-select::-ms-expand {
   opacity: 0;
   visibility: hidden;
   transition: all 0.2s ease;
-  z-index: 1000;
+  z-index: 9999;
   pointer-events: none;
 }
 
