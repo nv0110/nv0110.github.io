@@ -274,35 +274,36 @@ function rollOutcome(rates) {
  * @returns {number} - Cost for this attempt
  */
 function getSingleAttemptCost(effectiveLevel, currentStar, options, originalLevel) {
+  let baseCost = 0;
+  
   // Check for special cost caps first
   const specialCap = getSpecialCostCap(originalLevel, currentStar);
   if (specialCap !== null) {
-    return applyDiscounts(specialCap, options, currentStar);
+    baseCost = specialCap;
+  } else {
+    // Calculate base cost using GMS formula
+    const equipLevelCubed = Math.round(Math.pow(effectiveLevel, 3));
+    const starPlusOne = currentStar + 1;
+
+    // Apply GMS formula based on star level
+    if (currentStar >= 0 && currentStar <= 9) {
+      baseCost = (100 * equipLevelCubed * starPlusOne) / (2500 + 10);
+    } else if (currentStar === 10) {
+      baseCost = (100 * equipLevelCubed * Math.pow(starPlusOne, 2.7)) / (40000 + 10);
+    } else if (currentStar === 11) {
+      baseCost = (100 * equipLevelCubed * Math.pow(starPlusOne, 2.7)) / (22000 + 10);
+    } else if (currentStar === 12) {
+      baseCost = (100 * equipLevelCubed * Math.pow(starPlusOne, 2.7)) / (15000 + 10);
+    } else if (currentStar === 13) {
+      baseCost = (100 * equipLevelCubed * Math.pow(starPlusOne, 2.7)) / (11000 + 10);
+    } else if (currentStar === 14) {
+      baseCost = (100 * equipLevelCubed * Math.pow(starPlusOne, 2.7)) / (7500 + 10);
+    } else if (currentStar >= 15 && currentStar <= 24) {
+      baseCost = (100 * equipLevelCubed * Math.pow(starPlusOne, 2.7)) / (20000 + 10);
+    }
+
+    baseCost = roundToNearestHundreds(baseCost);
   }
-
-  // Calculate base cost using GMS formula
-  const equipLevelCubed = Math.round(Math.pow(effectiveLevel, 3));
-  const starPlusOne = currentStar + 1;
-  let baseCost = 0;
-
-  // Apply GMS formula based on star level
-  if (currentStar >= 0 && currentStar <= 9) {
-    baseCost = (100 * equipLevelCubed * starPlusOne) / (2500 + 10);
-  } else if (currentStar === 10) {
-    baseCost = (100 * equipLevelCubed * Math.pow(starPlusOne, 2.7)) / (40000 + 10);
-  } else if (currentStar === 11) {
-    baseCost = (100 * equipLevelCubed * Math.pow(starPlusOne, 2.7)) / (22000 + 10);
-  } else if (currentStar === 12) {
-    baseCost = (100 * equipLevelCubed * Math.pow(starPlusOne, 2.7)) / (15000 + 10);
-  } else if (currentStar === 13) {
-    baseCost = (100 * equipLevelCubed * Math.pow(starPlusOne, 2.7)) / (11000 + 10);
-  } else if (currentStar === 14) {
-    baseCost = (100 * equipLevelCubed * Math.pow(starPlusOne, 2.7)) / (7500 + 10);
-  } else if (currentStar >= 15 && currentStar <= 24) {
-    baseCost = (100 * equipLevelCubed * Math.pow(starPlusOne, 2.7)) / (20000 + 10);
-  }
-
-  baseCost = roundToNearestHundreds(baseCost);
   
   let finalCost = applyDiscounts(baseCost, options, currentStar);
 

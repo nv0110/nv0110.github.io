@@ -30,14 +30,14 @@ function EnhancementCalculatorPage() {
     };
   }, []);
 
-  // Mode state - 'calculator' or 'planner'
+  // Initialize states with defaults first
   const [mode, setMode] = useState('calculator');
-
+  
   // Form state for calculator mode
   const [equipLevel, setEquipLevel] = useState(200);
   const [currentStar, setCurrentStar] = useState(0);
   const [targetStar, setTargetStar] = useState(17);
-  const [eventType, setEventType] = useState('none'); // 'none', '30off', '51015', 'ssf'
+  const [eventType, setEventType] = useState('none');
   const [mvpLevel, setMvpLevel] = useState('none');
   const [isZeroWeapon, setIsZeroWeapon] = useState(false);
   const [safeguard15to16, setSafeguard15to16] = useState(false);
@@ -48,6 +48,14 @@ function EnhancementCalculatorPage() {
   const [calculationResult, setCalculationResult] = useState(null);
   const [isCalculating, setIsCalculating] = useState(false);
 
+  // Global settings for all items - defined early to avoid circular dependency
+  const [globalSettings, setGlobalSettings] = useState({
+    eventType: 'none',
+    mvpLevel: 'none',
+    useStarCatch: false,
+    useMedianCost: false
+  });
+
   // Planner state
   const [plannerData, setPlannerData] = useState({
     characters: []
@@ -55,17 +63,54 @@ function EnhancementCalculatorPage() {
   const [newCharacterName, setNewCharacterName] = useState('');
   const [expandedCharacters, setExpandedCharacters] = useState(new Set());
 
-  // Load planner data from localStorage on mount
+  // Load all saved settings from localStorage on mount
   useEffect(() => {
-    const savedData = localStorage.getItem('enhancementPlannerData');
-    if (savedData) {
-      try {
-        const parsed = JSON.parse(savedData);
+    try {
+      // Load planner data
+      const savedPlannerData = localStorage.getItem('enhancementPlannerData');
+      if (savedPlannerData) {
+        const parsed = JSON.parse(savedPlannerData);
         setPlannerData(parsed);
         logger.info('Loaded planner data from localStorage');
-      } catch (error) {
-        logger.error('Failed to load planner data:', error);
       }
+
+      // Load mode
+      const savedMode = localStorage.getItem('enhancementCalculator_mode');
+      if (savedMode) {
+        setMode(savedMode);
+        logger.info('Loaded mode from localStorage:', savedMode);
+      }
+
+      // Load calculator settings
+      const savedCalculatorSettings = localStorage.getItem('enhancementCalculator_calculatorSettings');
+      if (savedCalculatorSettings) {
+        const settings = JSON.parse(savedCalculatorSettings);
+        setEquipLevel(settings.equipLevel || 200);
+        setCurrentStar(settings.currentStar || 0);
+        setTargetStar(settings.targetStar || 17);
+        setEventType(settings.eventType || 'none');
+        setMvpLevel(settings.mvpLevel || 'none');
+        setIsZeroWeapon(settings.isZeroWeapon || false);
+        setSafeguard15to16(settings.safeguard15to16 || false);
+        setSafeguard16to17(settings.safeguard16to17 || false);
+        setUseStarCatch(settings.useStarCatch || false);
+        logger.info('Loaded calculator settings from localStorage');
+      }
+
+      // Load global settings
+      const savedGlobalSettings = localStorage.getItem('enhancementCalculator_globalSettings');
+      if (savedGlobalSettings) {
+        const settings = JSON.parse(savedGlobalSettings);
+        setGlobalSettings({
+          eventType: settings.eventType || 'none',
+          mvpLevel: settings.mvpLevel || 'none',
+          useStarCatch: settings.useStarCatch || false,
+          useMedianCost: settings.useMedianCost || false
+        });
+        logger.info('Loaded global settings from localStorage:', settings);
+      }
+    } catch (error) {
+      logger.error('Failed to load saved settings:', error);
     }
   }, []);
 
@@ -76,6 +121,35 @@ function EnhancementCalculatorPage() {
       logger.info('Saved planner data to localStorage');
     }
   }, [plannerData]);
+
+  // Save mode to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('enhancementCalculator_mode', mode);
+    logger.info('Saved mode to localStorage:', mode);
+  }, [mode]);
+
+  // Save calculator settings to localStorage whenever they change
+  useEffect(() => {
+    const calculatorSettings = {
+      equipLevel,
+      currentStar,
+      targetStar,
+      eventType,
+      mvpLevel,
+      isZeroWeapon,
+      safeguard15to16,
+      safeguard16to17,
+      useStarCatch
+    };
+    localStorage.setItem('enhancementCalculator_calculatorSettings', JSON.stringify(calculatorSettings));
+    logger.info('Saved calculator settings to localStorage');
+  }, [equipLevel, currentStar, targetStar, eventType, mvpLevel, isZeroWeapon, safeguard15to16, safeguard16to17, useStarCatch]);
+
+  // Save global settings to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('enhancementCalculator_globalSettings', JSON.stringify(globalSettings));
+    logger.info('Saved global settings to localStorage:', globalSettings);
+  }, [globalSettings]);
 
   // Character management functions
   const addCharacter = useCallback(() => {
@@ -145,12 +219,7 @@ function EnhancementCalculatorPage() {
     { value: 'shield', name: 'Shield', icon: '🛡️' }
   ];
 
-  // Global settings for all items
-  const [globalSettings, setGlobalSettings] = useState({
-    eventType: 'none',
-    mvpLevel: 'none',
-    useStarCatch: false
-  });
+
 
   const addItem = useCallback((characterId) => {
     const newItem = {
@@ -228,14 +297,12 @@ function EnhancementCalculatorPage() {
           if (item.equipLevel && item.currentStar !== null && item.targetStar !== null && item.currentStar < item.targetStar) {
             // Inline calculation to avoid dependency issues
             try {
-              // Determine safeguard settings based on event and star range
+              // Use exact same logic as calculator page
               const is51015Event = globalSettings.eventType === '51015' || globalSettings.eventType === 'ssf';
-              const includes15to16 = item.currentStar <= 15 && item.targetStar >= 16;
-              const includes16to17 = item.currentStar <= 16 && item.targetStar >= 17;
               
-              // Apply safeguard logic
-              const safeguard15to16 = item.useSafeguard && includes15to16 && !is51015Event; // No safeguard needed if guaranteed
-              const safeguard16to17 = item.useSafeguard && includes16to17;
+              // Apply safeguards exactly like the calculator - if user enables safeguard, enable both
+              const safeguard15to16 = item.useSafeguard && !is51015Event; // Same as calculator logic
+              const safeguard16to17 = item.useSafeguard; // Same as calculator logic
 
               const result = calculateStarforceCost(item.equipLevel, item.currentStar, item.targetStar, {
                 eventType: globalSettings.eventType,
@@ -301,7 +368,7 @@ function EnhancementCalculatorPage() {
       
       return () => clearTimeout(timeoutId);
     }
-  }, [globalSettings]); // Removed calculateAllItems to avoid circular dependency
+  }, [globalSettings, calculateAllItems]);
 
   const calculateItemCost = useCallback((characterId, itemId) => {
     logger.info('calculateItemCost called with:', { characterId, itemId });
@@ -348,14 +415,12 @@ function EnhancementCalculatorPage() {
       }
 
       try {
-        // Determine safeguard settings based on event and star range
+        // Use exact same logic as calculator page
         const is51015Event = globalSettings.eventType === '51015' || globalSettings.eventType === 'ssf';
-        const includes15to16 = item.currentStar <= 15 && item.targetStar >= 16;
-        const includes16to17 = item.currentStar <= 16 && item.targetStar >= 17;
         
-        // Apply safeguard logic
-        const safeguard15to16 = item.useSafeguard && includes15to16 && !is51015Event; // No safeguard needed if guaranteed
-        const safeguard16to17 = item.useSafeguard && includes16to17;
+        // Apply safeguards exactly like the calculator - if user enables safeguard, enable both
+        const safeguard15to16 = item.useSafeguard && !is51015Event; // Same as calculator logic
+        const safeguard16to17 = item.useSafeguard; // Same as calculator logic
 
         logger.info('Calculating cost for item:', item.name, 'with params:', {
           equipLevel: item.equipLevel,
@@ -423,11 +488,16 @@ function EnhancementCalculatorPage() {
   const getCharacterTotalCost = useCallback((character) => {
     return character.items.reduce((total, item) => {
       if (item.calculationResult?.success) {
-        return total + item.calculationResult.averageCost;
+        const cost = globalSettings.useMedianCost 
+          ? item.calculationResult.medianCost 
+          : item.calculationResult.averageCost;
+        return total + cost;
       }
       return total;
     }, 0);
-  }, []);
+  }, [globalSettings.useMedianCost]);
+
+
 
   // Calculate overall total cost
   const getOverallTotalCost = useCallback(() => {
@@ -515,6 +585,18 @@ function EnhancementCalculatorPage() {
       logger.info('Equipment level capped at 150 due to Zero weapon setting');
     }
   }, [isZeroWeapon, equipLevel]);
+
+  // Save mode when it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('enhancementCalculator_mode', mode);
+      logger.info('Saved mode to localStorage:', mode);
+    } catch (error) {
+      logger.error('Failed to save mode to localStorage:', error);
+    }
+  }, [mode]);
+
+
 
   return (
     <div className="enhancement-calculator-page-wrapper">
@@ -1018,6 +1100,18 @@ function EnhancementCalculatorPage() {
 
                     <div className="setting-group">
                       <button
+                        type="button"
+                        className={`toggle-button ${globalSettings.useMedianCost ? 'active' : ''}`}
+                        onClick={() => setGlobalSettings(prev => ({ ...prev, useMedianCost: !prev.useMedianCost }))}
+                        title={globalSettings.useMedianCost ? 'Using median cost (50th percentile)' : 'Using average cost (mean)'}
+                      >
+                        <span className="toggle-icon">📊</span>
+                        <span className="toggle-text">{globalSettings.useMedianCost ? 'Median Cost' : 'Average Cost'}</span>
+                      </button>
+                    </div>
+
+                    <div className="setting-group">
+                      <button
                         onClick={calculateAllItems}
                         className="calculate-all-button"
                         disabled={plannerData.characters.length === 0}
@@ -1054,7 +1148,12 @@ function EnhancementCalculatorPage() {
 
                   {/* Total Costs */}
                   <div className="overall-total">
-                    <h3 className="section-title">Total Costs</h3>
+                    <h3 className="section-title">
+                      Total Costs 
+                      <span className="cost-type-indicator">
+                        {globalSettings.useMedianCost ? 'Median' : 'Average'}
+                      </span>
+                    </h3>
                     <div className="total-cost-display">
                       {plannerData.characters.length > 0 ? (
                         <>
@@ -1201,34 +1300,12 @@ function ItemCard({ item, characterId, onUpdateItem, onRemoveItem, onCalculate, 
   // Check if safeguard options should be disabled based on global events
   const is51015Event = globalSettings.eventType === '51015' || globalSettings.eventType === 'ssf';
   
-  // Determine what safeguard actually protects based on event and star range
+  // Determine what safeguard actually protects based on event
   const getSafeguardTooltip = () => {
-    const starRange = `${item.currentStar}★→${item.targetStar}★`;
-    const includes15to16 = item.currentStar <= 15 && item.targetStar >= 16;
-    const includes16to17 = item.currentStar <= 16 && item.targetStar >= 17;
-    
-    if (!includes15to16 && !includes16to17) {
-      return "Safeguard (no dangerous upgrades in range)";
-    }
-    
     if (is51015Event) {
-      // 15→16 is guaranteed, only 16→17 needs safeguard
-      if (includes16to17) {
-        return `Safeguard 16★→17★ (15★→16★ guaranteed by event)`;
-      } else {
-        return "Safeguard (15★→16★ guaranteed by event)";
-      }
+      return "Safeguard 16★→17★ (15★→16★ guaranteed by event)";
     } else {
-      // Normal event or no event
-      const protectedRanges = [];
-      if (includes15to16) protectedRanges.push("15★→16★");
-      if (includes16to17) protectedRanges.push("16★→17★");
-      
-      if (protectedRanges.length > 0) {
-        return `Safeguard ${protectedRanges.join(" & ")}`;
-      } else {
-        return "Safeguard";
-      }
+      return "Safeguard 15★→16★ & 16★→17★ (same as calculator)";
     }
   };
 
@@ -1319,7 +1396,22 @@ function ItemCard({ item, characterId, onUpdateItem, onRemoveItem, onCalculate, 
             {/* Cost Display */}
             {item.calculationResult?.success ? (
               <div className="item-cost-badge">
-                💰 {formatMesos(item.calculationResult.averageCost)}
+                <div className="meso-part">
+                  💰 {formatMesos(globalSettings.useMedianCost 
+                    ? item.calculationResult.medianCost 
+                    : item.calculationResult.averageCost)}
+                  <div className="cost-tooltip meso-tooltip">
+                    {globalSettings.useMedianCost ? 'Median' : 'Average'} Cost: {(globalSettings.useMedianCost 
+                      ? item.calculationResult.medianCost 
+                      : item.calculationResult.averageCost).toLocaleString()} mesos
+                  </div>
+                </div>
+                <div className="boom-part">
+                  💥{item.calculationResult.averageBooms.toFixed(1)}
+                  <div className="cost-tooltip boom-tooltip">
+                    Expected Booms: {item.calculationResult.averageBooms.toFixed(2)}
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="item-cost-pending-badge">

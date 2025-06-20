@@ -1624,6 +1624,30 @@ select.event-select::-ms-expand {
   font-weight: 500;
 }
 
+.cost-type-indicator {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  margin-left: 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  transition: all 0.2s ease;
+  vertical-align: middle;
+}
+
+.cost-type-indicator:hover {
+  background: rgba(139, 92, 246, 0.12);
+  border-color: rgba(139, 92, 246, 0.25);
+  color: var(--accent-primary);
+  transform: translateY(-0.5px);
+}
+
 /* ===== CHARACTERS LIST ===== */
 
 .characters-list {
@@ -1879,18 +1903,61 @@ select.event-select::-ms-expand {
 .item-cost-badge {
   background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05));
   border: 1px solid rgba(139, 92, 246, 0.3);
-  color: var(--accent-primary);
-  padding: 0.375rem 0.75rem;
   border-radius: 0.5rem;
   font-size: 0.85rem;
   font-weight: 600;
   white-space: nowrap;
   box-shadow: 0 2px 4px rgba(139, 92, 246, 0.1);
   min-width: 90px;
-  text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 0;
+  position: relative;
+}
+
+.meso-part {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.08));
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  color: #22c55e;
+  padding: 0.375rem 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem 0 0 0.5rem;
+  border-right: none;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.2);
+  text-shadow: 0 0 4px rgba(34, 197, 94, 0.3);
+  cursor: help;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.meso-part:hover {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.25), rgba(34, 197, 94, 0.15));
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
+}
+
+.boom-part {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.08));
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+  padding: 0.375rem 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0 0.5rem 0.5rem 0;
+  border-left: none;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.2);
+  text-shadow: 0 0 4px rgba(239, 68, 68, 0.3);
+  cursor: help;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.boom-part:hover {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(239, 68, 68, 0.15));
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
 }
 
 .item-cost-pending-badge {
@@ -2258,10 +2325,13 @@ select.event-select::-ms-expand {
     flex-direction: column;
     gap: 1rem;
     align-items: flex-start;
+    position: relative;
   }
   
   .item-actions {
-    align-self: flex-end;
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
   }
   
   .item-calculate-button {
@@ -2692,6 +2762,81 @@ select.event-select::-ms-expand {
   .toggle-controls-inline {
     gap: 6px;
   }
+
+  /* Responsive styling for meso/boom parts */
+  .meso-part,
+  .boom-part {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .boom-part:hover {
+    /* Removed scale animation for mobile */
+  }
+}
+
+/* Custom Tooltip Styling */
+.cost-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 0.5rem;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.cost-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: var(--bg-primary);
+}
+
+.meso-part:hover .cost-tooltip,
+.boom-part:hover .cost-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(-2px);
+}
+
+.meso-tooltip {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.95), rgba(34, 197, 94, 0.9));
+  border-color: rgba(34, 197, 94, 0.6);
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.meso-tooltip::after {
+  border-top-color: rgba(34, 197, 94, 0.95);
+}
+
+.boom-tooltip {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(239, 68, 68, 0.9));
+  border-color: rgba(239, 68, 68, 0.6);
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.boom-tooltip::after {
+  border-top-color: rgba(239, 68, 68, 0.95);
 }
 
 /* ===== LEVEL CAP STYLING ===== */
