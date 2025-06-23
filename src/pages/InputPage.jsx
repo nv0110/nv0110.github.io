@@ -1,5 +1,5 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
-import { useAuthentication } from '../../hooks/useAuthentication';
+import { useAuthentication } from '../hooks/useAuthentication';
 import { useViewTransition } from '../hooks/useViewTransition';
 import { useAppData } from '../hooks/AppDataContext.jsx';
 import { useQuickSelect } from '../hooks/useQuickSelect';
@@ -63,7 +63,7 @@ function InputPage() {
   // Handle export (simplified version)
   const handleExport = async () => {
     try {
-      const { exportUserData } = await import('../../services/utilityService.js');
+      const { exportUserData } = await import('../services/utilityService.js');
       const result = await exportUserData(userCode);
       
       if (result.success) {
@@ -98,7 +98,7 @@ function InputPage() {
       try {
         const importedJson = JSON.parse(e.target.result);
         
-        const { importUserData } = await import('../../services/utilityService.js');
+        const { importUserData } = await import('../services/utilityService.js');
         const result = await importUserData(userCode, importedJson);
         
         if (!result.success) throw new Error(result.error);
@@ -142,8 +142,8 @@ function InputPage() {
 
     try {
       // Import necessary services
-      const { addCharacterToWeeklySetup, updateCharacterBossConfigInWeeklySetup } = await import('../../services/userWeeklyDataService.js');
-      const { getCurrentMapleWeekStartDate } = await import('../../utils/mapleWeekUtils.js');
+      const { addCharacterToWeeklySetup, updateCharacterBossConfigInWeeklySetup } = await import('../services/userWeeklyDataService.js');
+      const { getCurrentMapleWeekStartDate } = await import('../utils/mapleWeekUtils.js');
       
       const currentWeekStart = getCurrentMapleWeekStartDate();
       const clonedName = `${charToClone.name} (Copy)`;

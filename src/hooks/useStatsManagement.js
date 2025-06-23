@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getCurrentYearKey } from '../utils/weekUtils';
 import { MONTH_NAMES } from '../constants';
-import { getYearlyPitchedStats } from '../../services/pitchedItemsService.js';
-import { purgePitchedRecords, clearCharacterPitchedUI, getPitchedResetAuditHistory, purgeAllStatsData } from '../../services/utilityService.js';
-import { getBossPitchedItems } from '../../services/bossRegistryService.js';
+import { getYearlyPitchedStats } from '../services/pitchedItemsService.js';
+import { purgePitchedRecords, clearCharacterPitchedUI, getPitchedResetAuditHistory, purgeAllStatsData } from '../services/utilityService.js';
+import { getBossPitchedItems } from '../services/bossRegistryService.js';
 import { logger } from '../utils/logger.js';
 
 // Helper function to get item image
@@ -312,7 +312,7 @@ export function useStatsManagement(userCode, refreshPitchedItems) {
       logger.userAction('Adding historical pitched item', `${itemName} for ${bossName} by ${characterName}`);
       
       // Import the pitched items service
-      const { addPitchedItem } = await import('../../services/pitchedItemsService.js');
+      const { addPitchedItem } = await import('../services/pitchedItemsService.js');
       
       // Create the pitched item data (now includes boss name)
       const pitchedItemData = {
@@ -374,7 +374,7 @@ export function useStatsManagement(userCode, refreshPitchedItems) {
       logger.userAction('Removing historical pitched item', `${itemName} from ${targetBossName} by ${characterName}`);
       
       // Import the pitched items service
-      const { removePitchedItem } = await import('../../services/pitchedItemsService.js');
+      const { removePitchedItem } = await import('../services/pitchedItemsService.js');
       
       // Remove the historical pitched item from the database
       // The service now expects (userId, charId, bossName, item, date)

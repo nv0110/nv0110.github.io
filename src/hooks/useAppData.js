@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, createContext, useContext } from 'react';
-import { useAuthentication } from '../../hooks/useAuthentication';
+import { useAuthentication } from './useAuthentication';
 import { useBossCalculations } from './useBossCalculations';
 import { LIMITS, COOLDOWNS, ANIMATION_DURATIONS, STORAGE_KEYS } from '../constants';
 import { getCurrentWeekKey as getRealCurrentWeekKeyUtil } from '../utils/weekUtils';
@@ -144,7 +144,7 @@ export function useAppData() {
               // Check abort signal before each async operation
               if (abortController.signal.aborted || !userCode || !isLoggedIn) return { success: false, error: 'Aborted' };
               
-              const { getBossDataForFrontend } = await import('../../services/bossRegistryService.js');
+              const { getBossDataForFrontend } = await import('../services/bossRegistryService.js');
               // Only force refresh boss registry if we have a user and are starting fresh
               // Don't force refresh during logout/cleanup operations
               const shouldForceRefresh = userCode && isLoggedIn;
@@ -160,7 +160,7 @@ export function useAppData() {
               // Check abort signal before each async operation
               if (abortController.signal.aborted || !userCode || !isLoggedIn) return { success: false, error: 'Aborted' };
               
-              const { fetchCurrentWeekData } = await import('../../services/userWeeklyDataService.js');
+              const { fetchCurrentWeekData } = await import('../services/userWeeklyDataService.js');
               return await fetchCurrentWeekData(userCode);
             } catch (error) {
               if (abortController.signal.aborted) return { success: false, error: 'Aborted' };
@@ -247,7 +247,7 @@ export function useAppData() {
           // Fetch boss registry once for all conversions
           let bossRegistryData = [];
           try {
-            const { fetchBossRegistry } = await import('../../services/bossRegistryService.js');
+            const { fetchBossRegistry } = await import('../services/bossRegistryService.js');
             const registryResult = await fetchBossRegistry();
             if (registryResult.success && !abortController.signal.aborted) {
               bossRegistryData = registryResult.data;
@@ -469,7 +469,7 @@ export function useAppData() {
               // Check auth state before import
               if (!isLoggedIn || !newUserCode) return { success: false, error: 'Auth state invalid' };
               
-              const { getBossDataForFrontend } = await import('../../services/bossRegistryService.js');
+              const { getBossDataForFrontend } = await import('../services/bossRegistryService.js');
               return await getBossDataForFrontend(true); // Force refresh for new user
             } catch (error) {
               logger.error('useAppData: Error loading boss data on auth refresh', { error });
@@ -481,7 +481,7 @@ export function useAppData() {
               // Check auth state before import
               if (!isLoggedIn || !newUserCode) return { success: false, error: 'Auth state invalid' };
               
-              const { fetchCurrentWeekData } = await import('../../services/userWeeklyDataService.js');
+              const { fetchCurrentWeekData } = await import('../services/userWeeklyDataService.js');
               return await fetchCurrentWeekData(newUserCode);
             } catch (error) {
               logger.error('useAppData: Error loading weekly data on auth refresh', { error });
@@ -546,7 +546,7 @@ export function useAppData() {
           
           // Fetch boss registry for conversions
           try {
-            const { fetchBossRegistry } = await import('../../services/bossRegistryService.js');
+            const { fetchBossRegistry } = await import('../services/bossRegistryService.js');
             const registryResult = await fetchBossRegistry();
             if (registryResult.success) {
               const bossRegistryData = registryResult.data;
@@ -703,7 +703,7 @@ export function useAppData() {
     try {
       // Clear weekly_clears in user_boss_data for the new week using new service
       if (userCode && isLoggedIn) {
-        const { fetchCurrentWeekData, saveCurrentWeekData } = await import('../../services/userWeeklyDataService.js');
+                  const { fetchCurrentWeekData, saveCurrentWeekData } = await import('../services/userWeeklyDataService.js');
         
         // First, fetch existing data for current week to preserve char_map and boss_config
         const existingData = await fetchCurrentWeekData(userCode);
@@ -936,8 +936,8 @@ export function useAppData() {
 
     try {
       // Use new service to add character to user_boss_data table
-      const { addCharacterToWeeklySetup } = await import('../../services/userWeeklyDataService.js');
-      const { getCurrentMapleWeekStartDate } = await import('../../utils/mapleWeekUtils.js');
+      const { addCharacterToWeeklySetup } = await import('../services/userWeeklyDataService.js');
+      const { getCurrentMapleWeekStartDate } = await import('../utils/mapleWeekUtils.js');
       
       const currentWeekStart = getCurrentMapleWeekStartDate();
       const result = await addCharacterToWeeklySetup(userCode, currentWeekStart, newCharName.trim());
@@ -1013,8 +1013,8 @@ export function useAppData() {
     
     // Remove character from user_boss_data using new service
     try {
-      const { removeCharacterFromWeeklySetup } = await import('../../services/userWeeklyDataService.js');
-      const { getCurrentMapleWeekStartDate } = await import('../../utils/mapleWeekUtils.js');
+      const { removeCharacterFromWeeklySetup } = await import('../services/userWeeklyDataService.js');
+      const { getCurrentMapleWeekStartDate } = await import('../utils/mapleWeekUtils.js');
       
       const currentWeekStart = getCurrentMapleWeekStartDate();
       const removeResult = await removeCharacterFromWeeklySetup(userCode, currentWeekStart, charToRemove.index);
@@ -1032,7 +1032,7 @@ export function useAppData() {
     
     // Remove associated pitched_items from database
     try {
-      const { purgePitchedRecords } = await import('../../services/utilityService.js');
+      const { purgePitchedRecords } = await import('../services/utilityService.js');
       await purgePitchedRecords(userCode, charToRemove.name, charToRemove.index);
     } catch (purgeError) {
       logger.warn('useAppData: Error purging pitched records for removed character', { error: purgeError });
@@ -1050,8 +1050,8 @@ export function useAppData() {
 
     try {
       // Update in user_boss_data using new service
-      const { updateCharacterNameInWeeklySetup } = await import('../../services/userWeeklyDataService.js');
-      const { getCurrentMapleWeekStartDate } = await import('../../utils/mapleWeekUtils.js');
+      const { updateCharacterNameInWeeklySetup } = await import('../services/userWeeklyDataService.js');
+      const { getCurrentMapleWeekStartDate } = await import('../utils/mapleWeekUtils.js');
       
       const currentWeekStart = getCurrentMapleWeekStartDate();
       const result = await updateCharacterNameInWeeklySetup(userCode, currentWeekStart, character.index, newName);
@@ -1114,8 +1114,8 @@ export function useAppData() {
     // Save to database
     try {
       const { convertBossesToConfigString } = await import('../utils/bossCodeMapping.js');
-      const { updateCharacterBossConfigInWeeklySetup } = await import('../../services/userWeeklyDataService.js');
-      const { getCurrentMapleWeekStartDate } = await import('../../utils/mapleWeekUtils.js');
+      const { updateCharacterBossConfigInWeeklySetup } = await import('../services/userWeeklyDataService.js');
+      const { getCurrentMapleWeekStartDate } = await import('../utils/mapleWeekUtils.js');
       
       const currentWeekStart = getCurrentMapleWeekStartDate();
       const bossConfigString = await convertBossesToConfigString(char.bosses);
@@ -1168,8 +1168,8 @@ export function useAppData() {
     // Save to database
     try {
       const { convertBossesToConfigString } = await import('../utils/bossCodeMapping.js');
-      const { updateCharacterBossConfigInWeeklySetup } = await import('../../services/userWeeklyDataService.js');
-      const { getCurrentMapleWeekStartDate } = await import('../../utils/mapleWeekUtils.js');
+      const { updateCharacterBossConfigInWeeklySetup } = await import('../services/userWeeklyDataService.js');
+      const { getCurrentMapleWeekStartDate } = await import('../utils/mapleWeekUtils.js');
       
       const currentWeekStart = getCurrentMapleWeekStartDate();
       const bossConfigString = await convertBossesToConfigString(newBosses);
@@ -1211,8 +1211,8 @@ export function useAppData() {
 
       // Save updated boss configuration to database
       const { convertBossesToConfigString } = await import('../utils/bossCodeMapping.js');
-      const { updateCharacterBossConfigInWeeklySetup } = await import('../../services/userWeeklyDataService.js');
-      const { getCurrentMapleWeekStartDate } = await import('../../utils/mapleWeekUtils.js');
+      const { updateCharacterBossConfigInWeeklySetup } = await import('../services/userWeeklyDataService.js');
+      const { getCurrentMapleWeekStartDate } = await import('../utils/mapleWeekUtils.js');
       
       const currentWeekStart = getCurrentMapleWeekStartDate();
       const bossConfigString = await convertBossesToConfigString(char.bosses);
@@ -1288,8 +1288,8 @@ export function useAppData() {
 
     try {
       // Import necessary services
-      const { addCharacterToWeeklySetup, updateCharacterBossConfigInWeeklySetup } = await import('../../services/userWeeklyDataService.js');
-      const { getCurrentMapleWeekStartDate } = await import('../../utils/mapleWeekUtils.js');
+              const { addCharacterToWeeklySetup, updateCharacterBossConfigInWeeklySetup } = await import('../services/userWeeklyDataService.js');
+      const { getCurrentMapleWeekStartDate } = await import('../utils/mapleWeekUtils.js');
       
       const currentWeekStart = getCurrentMapleWeekStartDate();
       

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getCurrentWeekKey as getRealCurrentWeekKey } from '../utils/weekUtils';
-import { getHistoricalWeekAnalysis, getCharacterHistoricalWeekAnalysis } from '../../services/utilityService.js';
+import { getHistoricalWeekAnalysis, getCharacterHistoricalWeekAnalysis } from '../services/utilityService.js';
 import { logger } from '../utils/logger';
 
 export function useWeekNavigation(userCode, appWeekKeyFromProps, selectedCharacterName = null) {

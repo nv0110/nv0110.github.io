@@ -99,7 +99,7 @@ export function getNameAndDifficultyFromBossCode(bossCode) {
  */
 export async function getCrystalValue(bossName, difficulty) {
   try {
-    const { getCrystalValue: getRegistryCrystalValue } = await import('../../services/bossRegistryService.js');
+    const { getCrystalValue: getRegistryCrystalValue } = await import('../services/bossRegistryService.js');
     return await getRegistryCrystalValue(bossName, difficulty);
   } catch (error) {
     console.error('Error getting crystal value from registry:', error);
@@ -182,7 +182,7 @@ export function parseBossConfigStringToFrontend(configString) {
  */
 export async function getBossRegistryId(bossName, difficulty) {
   try {
-    const { fetchBossRegistry } = await import('../../services/bossRegistryService.js');
+    const { fetchBossRegistry } = await import('../services/bossRegistryService.js');
     const registryResult = await fetchBossRegistry();
     
     if (!registryResult.success) {

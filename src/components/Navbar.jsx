@@ -1,4 +1,4 @@
-import { useAuthentication } from '../../hooks/useAuthentication';
+import { useAuthentication } from '../hooks/useAuthentication';
 import { useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { getTimeUntilReset, getCurrentWeekKey } from '../utils/weekUtils';

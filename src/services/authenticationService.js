@@ -5,11 +5,11 @@
  * Handles create, login, and delete account operations for user_data table.
  */
 
-import { logger } from '../src/utils/logger.js';
+import { logger } from '../utils/logger.js';
 
 // Helper: get supabase client dynamically for code splitting
 async function getSupabase() {
-  const { supabase } = await import('../src/supabaseClient');
+  const { supabase } = await import('../supabaseClient');
   return supabase;
 }
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuthentication } from '../../hooks/useAuthentication';
+import { useAuthentication } from '../hooks/useAuthentication';
 import ViewTransitionWrapper from '../components/ViewTransitionWrapper';
 import { 
   calculateStarforceCost, 
@@ -40,8 +40,7 @@ function EnhancementCalculatorPage() {
   const [eventType, setEventType] = useState('none');
   const [mvpLevel, setMvpLevel] = useState('none');
   const [isZeroWeapon, setIsZeroWeapon] = useState(false);
-  const [safeguard15to16, setSafeguard15to16] = useState(false);
-  const [safeguard16to17, setSafeguard16to17] = useState(false);
+  const [useSafeguard, setUseSafeguard] = useState(false);
   const [useStarCatch, setUseStarCatch] = useState(false);
 
   // Calculation results and controls for calculator mode
@@ -91,8 +90,7 @@ function EnhancementCalculatorPage() {
         setEventType(settings.eventType || 'none');
         setMvpLevel(settings.mvpLevel || 'none');
         setIsZeroWeapon(settings.isZeroWeapon || false);
-        setSafeguard15to16(settings.safeguard15to16 || false);
-        setSafeguard16to17(settings.safeguard16to17 || false);
+        setUseSafeguard(settings.useSafeguard || false);
         setUseStarCatch(settings.useStarCatch || false);
         logger.info('Loaded calculator settings from localStorage');
       }
@@ -137,13 +135,12 @@ function EnhancementCalculatorPage() {
       eventType,
       mvpLevel,
       isZeroWeapon,
-      safeguard15to16,
-      safeguard16to17,
+      useSafeguard,
       useStarCatch
     };
     localStorage.setItem('enhancementCalculator_calculatorSettings', JSON.stringify(calculatorSettings));
     logger.info('Saved calculator settings to localStorage');
-  }, [equipLevel, currentStar, targetStar, eventType, mvpLevel, isZeroWeapon, safeguard15to16, safeguard16to17, useStarCatch]);
+  }, [equipLevel, currentStar, targetStar, eventType, mvpLevel, isZeroWeapon, useSafeguard, useStarCatch]);
 
   // Save global settings to localStorage whenever they change
   useEffect(() => {
@@ -297,20 +294,12 @@ function EnhancementCalculatorPage() {
           if (item.equipLevel && item.currentStar !== null && item.targetStar !== null && item.currentStar < item.targetStar) {
             // Inline calculation to avoid dependency issues
             try {
-              // Use exact same logic as calculator page
-              const is51015Event = globalSettings.eventType === '51015' || globalSettings.eventType === 'ssf';
-              
-              // Apply safeguards exactly like the calculator - if user enables safeguard, enable both
-              const safeguard15to16 = item.useSafeguard && !is51015Event; // Same as calculator logic
-              const safeguard16to17 = item.useSafeguard; // Same as calculator logic
-
               const result = calculateStarforceCost(item.equipLevel, item.currentStar, item.targetStar, {
                 eventType: globalSettings.eventType,
                 mvpLevel: globalSettings.mvpLevel,
                 hasPremium: false,
                 isZeroWeapon: item.isZeroWeapon,
-                safeguard15to16,
-                safeguard16to17,
+                useSafeguard: item.useSafeguard,
                 useStarCatch: globalSettings.useStarCatch
               });
 
@@ -415,13 +404,6 @@ function EnhancementCalculatorPage() {
       }
 
       try {
-        // Use exact same logic as calculator page
-        const is51015Event = globalSettings.eventType === '51015' || globalSettings.eventType === 'ssf';
-        
-        // Apply safeguards exactly like the calculator - if user enables safeguard, enable both
-        const safeguard15to16 = item.useSafeguard && !is51015Event; // Same as calculator logic
-        const safeguard16to17 = item.useSafeguard; // Same as calculator logic
-
         logger.info('Calculating cost for item:', item.name, 'with params:', {
           equipLevel: item.equipLevel,
           currentStar: item.currentStar,
@@ -429,8 +411,7 @@ function EnhancementCalculatorPage() {
           eventType: globalSettings.eventType,
           mvpLevel: globalSettings.mvpLevel,
           isZeroWeapon: item.isZeroWeapon,
-          safeguard15to16,
-          safeguard16to17,
+          useSafeguard: item.useSafeguard,
           useStarCatch: globalSettings.useStarCatch
         });
 
@@ -439,8 +420,7 @@ function EnhancementCalculatorPage() {
           mvpLevel: globalSettings.mvpLevel,
           hasPremium: false,
           isZeroWeapon: item.isZeroWeapon,
-          safeguard15to16,
-          safeguard16to17,
+          useSafeguard: item.useSafeguard,
           useStarCatch: globalSettings.useStarCatch
         });
 
@@ -526,8 +506,7 @@ function EnhancementCalculatorPage() {
           eventType,
           mvpLevel,
           isZeroWeapon,
-          safeguard15to16,
-          safeguard16to17,
+          useSafeguard,
           useStarCatch
         });
         
@@ -536,8 +515,7 @@ function EnhancementCalculatorPage() {
           mvpLevel,
           hasPremium: false, // Not needed for heroic server
           isZeroWeapon,
-          safeguard15to16,
-          safeguard16to17,
+          useSafeguard,
           useStarCatch
         });
         
@@ -550,14 +528,14 @@ function EnhancementCalculatorPage() {
         setIsCalculating(false);
       }
     }, 100);
-  }, [equipLevel, currentStar, targetStar, eventType, mvpLevel, isZeroWeapon, safeguard15to16, safeguard16to17, useStarCatch]);
+  }, [equipLevel, currentStar, targetStar, eventType, mvpLevel, isZeroWeapon, useSafeguard, useStarCatch]);
 
   // Clear results when inputs change to indicate recalculation needed
   useEffect(() => {
     if (calculationResult) {
       setCalculationResult(null);
     }
-  }, [equipLevel, currentStar, targetStar, eventType, mvpLevel, isZeroWeapon, safeguard15to16, safeguard16to17, useStarCatch]);
+  }, [equipLevel, currentStar, targetStar, eventType, mvpLevel, isZeroWeapon, useSafeguard, useStarCatch]);
 
   // Redirect if not logged in - handled by ProtectedRoute in App.jsx
   if (!isLoggedIn) {
@@ -568,15 +546,10 @@ function EnhancementCalculatorPage() {
 
   // Check if safeguard options should be disabled based on events
   const is51015Event = eventType === '51015' || eventType === 'ssf';
-  const shouldDisableSafeguard15to16 = is51015Event; // 15→16 is guaranteed during 5/10/15 events
+  // During 5/10/15 events, safeguard is still useful for 16→17★, so don't disable it completely
+  const shouldDisableSafeguard = false; // Never disable - just update the text to clarify what it protects
 
-  // Auto-disable safeguard if event makes it unnecessary
-  useEffect(() => {
-    if (shouldDisableSafeguard15to16 && safeguard15to16) {
-      setSafeguard15to16(false);
-      logger.info('Safeguard 15→16 disabled due to 5/10/15 event (guaranteed success)');
-    }
-  }, [eventType, shouldDisableSafeguard15to16, safeguard15to16]);
+  // Note: We removed the auto-disable logic since safeguard is still useful for 16→17★ during 5/10/15 events
 
   // Auto-cap equipment level when Zero weapon is toggled
   useEffect(() => {
@@ -808,39 +781,28 @@ function EnhancementCalculatorPage() {
                     <h3 className="section-title">Safeguard Options</h3>
                     
                     <div className="toggle-group">
-                      <label className={`toggle-label ${shouldDisableSafeguard15to16 ? 'disabled' : ''}`}>
+                      <label className="toggle-label">
                         <input
                           type="checkbox"
-                          checked={safeguard15to16}
-                          onChange={(e) => setSafeguard15to16(e.target.checked)}
+                          checked={useSafeguard}
+                          onChange={(e) => setUseSafeguard(e.target.checked)}
                           className="toggle-checkbox"
-                          disabled={shouldDisableSafeguard15to16}
                         />
                         <span className="toggle-slider"></span>
                         <span className="toggle-text">
-                          Safeguard 15★ → 16★
-                          {shouldDisableSafeguard15to16 && <span className="disabled-reason"> (Guaranteed by event)</span>}
+                          {is51015Event ? 'Safeguard 16★ → 17★' : 'Safeguard 15★ → 16★ & 16★ → 17★'}
+                          {is51015Event && <span className="event-clarification"> (15★→16★ guaranteed by event)</span>}
                         </span>
                       </label>
                     </div>
                     
-                    <div className="toggle-group">
-                      <label className="toggle-label">
-                        <input
-                          type="checkbox"
-                          checked={safeguard16to17}
-                          onChange={(e) => setSafeguard16to17(e.target.checked)}
-                          className="toggle-checkbox"
-                        />
-                        <span className="toggle-slider"></span>
-                        <span className="toggle-text">Safeguard 16★ → 17★</span>
-                      </label>
-                    </div>
-                    
-                    {(safeguard15to16 || safeguard16to17) && (
+                    {useSafeguard && (
                       <div className="safeguard-info">
                         <p className="info-text">
-                          Safeguard doubles the cost but prevents equipment destruction.
+                          {is51015Event 
+                            ? "Safeguard doubles the cost but prevents equipment destruction for 16★→17★. The 15★→16★ upgrade is guaranteed by the event and doesn't need safeguarding."
+                            : "Safeguard doubles the cost but prevents equipment destruction for both 15★→16★ and 16★→17★."
+                          }
                         </p>
                       </div>
                     )}
@@ -1019,14 +981,10 @@ function EnhancementCalculatorPage() {
                                 <span className="summary-value">Enabled (+5% Success)</span>
                               </div>
                             )}
-                            {(calculationResult.options.safeguard15to16 || calculationResult.options.safeguard16to17) && (
+                            {calculationResult.options.useSafeguard && (
                               <div className="summary-item">
-                                <span className="summary-label">Safeguards:</span>
-                                <span className="summary-value">
-                                  {calculationResult.options.safeguard15to16 && '15★→16★'}
-                                  {calculationResult.options.safeguard15to16 && calculationResult.options.safeguard16to17 && ', '}
-                                  {calculationResult.options.safeguard16to17 && '16★→17★'}
-                                </span>
+                                <span className="summary-label">Safeguard:</span>
+                                <span className="summary-value">15★→16★ & 16★→17★</span>
                               </div>
                             )}
                             {calculationResult.options.isZeroWeapon && (
@@ -1302,10 +1260,10 @@ function ItemCard({ item, characterId, onUpdateItem, onRemoveItem, onCalculate, 
   
   // Determine what safeguard actually protects based on event
   const getSafeguardTooltip = () => {
-    if (is51015Event) {
+    if (globalSettings.eventType === '51015' || globalSettings.eventType === 'ssf') {
       return "Safeguard 16★→17★ (15★→16★ guaranteed by event)";
     } else {
-      return "Safeguard 15★→16★ & 16★→17★ (same as calculator)";
+      return "Safeguard 15★→16★ & 16★→17★ (prevents equipment destruction)";
     }
   };
 

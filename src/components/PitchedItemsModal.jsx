@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getBossPitchedItems } from '../../services/bossRegistryService.js';
+import { getBossPitchedItems } from '../services/bossRegistryService.js';
 import '../styles/pitched-modal.css';
 
 function PitchedItemsModal({

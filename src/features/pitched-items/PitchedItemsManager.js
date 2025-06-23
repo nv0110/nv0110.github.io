@@ -15,9 +15,9 @@ import {
   addPitchedItem as addPitchedItemService,
   removePitchedItem as removePitchedItemService,
   getYearlyPitchedStats
-} from '../../services/pitchedItemsService.js';
-import { convertDateToWeekKey } from '../../utils/weekUtils.js';
-import { getBossPitchedItems } from '../../services/bossRegistryService.js';
+} from '../services/pitchedItemsService.js';
+import { convertDateToWeekKey } from '../utils/weekUtils.js';
+import { getBossPitchedItems } from '../services/bossRegistryService.js';
 
 /**
  * Hook for managing pitched items with the new simplified format

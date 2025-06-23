@@ -1,8 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
 import { logger } from '../utils/logger';
 import { getBossRegistryId } from '../utils/bossCodeMapping';
-import { toggleBossClearStatus, clearAllBossesForCharacter, markAllBossesForCharacter } from '../../services/userWeeklyDataService.js';
-import { getCurrentMapleWeekStartDate } from '../../utils/mapleWeekUtils.js';
+import { toggleBossClearStatus, clearAllBossesForCharacter, markAllBossesForCharacter } from '../services/userWeeklyDataService.js';
+import { getCurrentMapleWeekStartDate } from '../utils/mapleWeekUtils.js';
 
 /**
  * Hook for managing boss actions (check/uncheck, tick all)
@@ -106,8 +106,8 @@ export function useBossActions({
       logger.debug('useBossActions: Boss registry ID obtained', bossRegistryId);
 
       // Update database
-      const { toggleBossClearStatus } = await import('../../services/userWeeklyDataService');
-      const { getCurrentMapleWeekStartDate } = await import('../../utils/mapleWeekUtils.js');
+      const { toggleBossClearStatus } = await import('../services/userWeeklyDataService');
+      const { getCurrentMapleWeekStartDate } = await import('../utils/mapleWeekUtils.js');
       
       const currentWeekStart = getCurrentMapleWeekStartDate();
       
@@ -156,7 +156,7 @@ export function useBossActions({
           });
 
           // Import pitched items service
-          const { removeManyPitchedItems } = await import('../../services/pitchedItemsService.js');
+          const { removeManyPitchedItems } = await import('../services/pitchedItemsService.js');
           const { getCurrentWeekKey, convertWeekKeyToDate, getWeekDateRange } = await import('../utils/weekUtils.js');
           
           const currentWeek = getCurrentWeekKey();
@@ -180,7 +180,7 @@ export function useBossActions({
           // We need to remove all items for this boss regardless of item name
           // Since we don't have direct access to cloudPitchedItems here, we'll use the service
           // to find and remove items by character name and boss name for current week
-          const { getPitchedItems } = await import('../../services/pitchedItemsService.js');
+          const { getPitchedItems } = await import('../services/pitchedItemsService.js');
           const pitchedResult = await getPitchedItems(userId, {});
           
           logger.info('useBossActions: Retrieved pitched items for removal check', {
@@ -417,8 +417,8 @@ export function useBossActions({
       });
 
       // Use bulk operations instead of parallel individual operations
-      const { clearAllBossesForCharacter, markAllBossesForCharacter } = await import('../../services/userWeeklyDataService');
-      const { getCurrentMapleWeekStartDate } = await import('../../utils/mapleWeekUtils.js');
+      const { clearAllBossesForCharacter, markAllBossesForCharacter } = await import('../services/userWeeklyDataService');
+      const { getCurrentMapleWeekStartDate } = await import('../utils/mapleWeekUtils.js');
       
       const currentWeekStart = getCurrentMapleWeekStartDate();
       
@@ -473,7 +473,7 @@ export function useBossActions({
             });
 
             // Import pitched items service
-            const { getPitchedItems, removeManyPitchedItems } = await import('../../services/pitchedItemsService.js');
+            const { getPitchedItems, removeManyPitchedItems } = await import('../services/pitchedItemsService.js');
             const { getCurrentWeekKey } = await import('../utils/weekUtils.js');
             const { convertWeekKeyToDate } = await import('../utils/weekUtils.js');
             

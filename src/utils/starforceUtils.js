@@ -1,8 +1,8 @@
 import { logger } from './logger';
 
 /**
- * Starforce success rates by star level (base rates without any modifiers)
- * Based on official GMS rates from the wiki
+ * Starforce success rates by star level (GMS Savior rates from MathBro's calculator)
+ * Format: { success, maintain, decrease, destroy }
  * Note: 🠋 symbol indicates failure results in star decrease, not maintain
  */
 const STARFORCE_RATES = {
@@ -17,10 +17,10 @@ const STARFORCE_RATES = {
   8: { success: 60, maintain: 40, decrease: 0, destroy: 0 },
   9: { success: 55, maintain: 45, decrease: 0, destroy: 0 },
   10: { success: 50, maintain: 50, decrease: 0, destroy: 0 },
-  11: { success: 45, maintain: 55, decrease: 0, destroy: 0 },
-  12: { success: 40, maintain: 60, decrease: 0, destroy: 0 },
-  13: { success: 35, maintain: 65, decrease: 0, destroy: 0 },
-  14: { success: 30, maintain: 70, decrease: 0, destroy: 0 },
+  11: { success: 45, maintain: 55, decrease: 0, destroy: 0 }, // Savior: no decrease/boom 11-14
+  12: { success: 40, maintain: 60, decrease: 0, destroy: 0 }, // Savior: no decrease/boom 11-14
+  13: { success: 35, maintain: 65, decrease: 0, destroy: 0 }, // Savior: no decrease/boom 11-14
+  14: { success: 30, maintain: 70, decrease: 0, destroy: 0 }, // Savior: no decrease/boom 11-14
   15: { success: 30, maintain: 67.9, decrease: 0, destroy: 2.1 }, // 15→16 doesn't decrease on fail
   16: { success: 30, maintain: 0, decrease: 67.9, destroy: 2.1 }, // 16→17 decreases on fail
   17: { success: 30, maintain: 0, decrease: 67.9, destroy: 2.1 }, // 17→18 decreases on fail  
@@ -32,6 +32,62 @@ const STARFORCE_RATES = {
   23: { success: 2, maintain: 0, decrease: 68.6, destroy: 29.4 }, // 23→24 decreases on fail
   24: { success: 1, maintain: 0, decrease: 59.4, destroy: 39.6 } // 24→25 decreases on fail
 };
+
+/**
+ * Create a meso cost function using MathBro's formula
+ * Formula: 100 * round(extraMult * itemLevel^3 * (currentStar + 1)^currentStarExp / divisor + 10)
+ */
+function makeMesoFunction(divisor, currentStarExp = 2.7, extraMult = 1) {
+  return (currentStar, itemLevel) => {
+    // MathBro's exact formula implementation
+    const calculation = extraMult * Math.pow(itemLevel, 3) * Math.pow(currentStar + 1, currentStarExp) / divisor + 10;
+    const baseCost = 100 * Math.round(calculation);
+    return baseCost;
+  };
+}
+
+/**
+ * Get the appropriate meso function for GMS Savior costs based on star level
+ */
+function getGMSMesoFunction(currentStar) {
+  switch (currentStar) {
+    case 11:
+      return makeMesoFunction(22000); // 2.7 exponent, divisor 22000
+    case 12:
+      return makeMesoFunction(15000); // 2.7 exponent, divisor 15000
+    case 13:
+      return makeMesoFunction(11000); // 2.7 exponent, divisor 11000
+    case 14:
+      return makeMesoFunction(7500);  // 2.7 exponent, divisor 7500
+    default:
+      if (currentStar >= 0 && currentStar <= 9) {
+        return makeMesoFunction(2500, 1); // Linear exponent for 0-9 stars
+      } else if (currentStar === 10) {
+        return makeMesoFunction(40000); // 2.7 exponent, divisor 40000
+      } else if (currentStar >= 15 && currentStar <= 24) {
+        return makeMesoFunction(20000); // 2.7 exponent, divisor 20000
+      }
+      // Fallback for any edge cases
+      return makeMesoFunction(20000);
+  }
+}
+
+/**
+ * Calculate base starforce cost using GMS Savior formula (MathBro's implementation)
+ */
+function getGMSBaseCost(currentStar, itemLevel) {
+  const mesoFn = getGMSMesoFunction(currentStar);
+  return mesoFn(currentStar, itemLevel);
+}
+
+/**
+ * Check if chance time is active (MathBro's logic)
+ * @param {number} decreaseCount - Number of consecutive decreases
+ * @returns {boolean} - Whether chance time is active
+ */
+function checkChanceTime(decreaseCount) {
+  return decreaseCount === 2;
+}
 
 /**
  * Simulate starforce enhancement with all mechanics
@@ -71,8 +127,7 @@ export function calculateStarforceCost(equipLevel, currentStar, targetStar, opti
       mvpLevel = 'none',
       hasPremium = false,
       isZeroWeapon = false,
-      safeguard15to16 = false,
-      safeguard16to17 = false,
+      useSafeguard = false,
       useStarCatch = false
     } = options;
 
@@ -86,8 +141,7 @@ export function calculateStarforceCost(equipLevel, currentStar, targetStar, opti
         mvpLevel,
         hasPremium,
         isZeroWeapon,
-        safeguard15to16,
-        safeguard16to17,
+        useSafeguard,
         useStarCatch
       });
       results.push(result);
@@ -111,7 +165,7 @@ export function calculateStarforceCost(equipLevel, currentStar, targetStar, opti
       equipLevel,
       currentStar,
       targetStar,
-      options: { eventType, mvpLevel, hasPremium, isZeroWeapon, safeguard15to16, safeguard16to17, useStarCatch },
+      options: { eventType, mvpLevel, hasPremium, isZeroWeapon, useSafeguard, useStarCatch },
       simulationCount: simulations,
       duration: endTime - startTime
     };
@@ -134,8 +188,7 @@ function simulateSingleRun(equipLevel, startStar, targetStar, options) {
   let currentStar = startStar;
   let totalCost = 0;
   let attempts = 0;
-  let chanceTimeActive = false;
-  let consecutiveDecreases = 0;
+  let consecutiveDecreases = 0; // Track for chance time (MathBro's logic)
   let booms = 0;
   let decreases = 0;
   let successes = 0;
@@ -145,55 +198,57 @@ function simulateSingleRun(equipLevel, startStar, targetStar, options) {
   while (currentStar < targetStar) {
     attempts++;
     
+    // Check for chance time BEFORE cost calculation (MathBro's order)
+    const isChanceTime = checkChanceTime(consecutiveDecreases);
+    
     // Get cost for this attempt
-    const attemptCost = getSingleAttemptCost(effectiveLevel, currentStar, options, equipLevel);
+    const attemptCost = getSingleAttemptCost(effectiveLevel, currentStar, options, equipLevel, isChanceTime);
     totalCost += attemptCost;
 
-    // Determine if this upgrade is guaranteed
-    const isGuaranteedUpgrade = chanceTimeActive || 
-      ((options.eventType === '51015' || options.eventType === 'ssf') && 
-       (currentStar === 5 || currentStar === 10 || currentStar === 15));
+    // MathBro's logic: If chance time is active, it's guaranteed success
+    if (isChanceTime) {
+      currentStar++;
+      successes++;
+      consecutiveDecreases = 0;
+      continue;
+    }
 
-    // Get success rates for this star level
-    const rates = getModifiedSuccessRates(currentStar, options, isGuaranteedUpgrade);
+    // Determine if this upgrade is guaranteed by 5/10/15 event
+    const is51015Guaranteed = (options.eventType === '51015' || options.eventType === 'ssf') && 
+      (currentStar === 5 || currentStar === 10 || currentStar === 15);
+    
+    if (is51015Guaranteed) {
+      currentStar++;
+      successes++;
+      consecutiveDecreases = 0;
+      continue;
+    }
+
+    // Get success rates for this star level and apply modifications
+    const rates = getModifiedSuccessRates(currentStar, options);
     
     // Roll for outcome
     const outcome = rollOutcome(rates);
     
-    // Apply outcome
+    // Apply outcome (MathBro's logic)
     if (outcome === 'success') {
       currentStar++;
       successes++;
       consecutiveDecreases = 0;
-      chanceTimeActive = false;
     } else if (outcome === 'decrease') {
-      // Decrease only happens at specific star levels (16+, 21+, 22+)
-      // Stars can't go below 12★
-      if (currentStar >= 12) {
-        currentStar = Math.max(12, currentStar - 1);
-        decreases++;
-        consecutiveDecreases++;
-        
-        // Check for Chance Time (2 consecutive decreases)
-        if (consecutiveDecreases >= 2) {
-          chanceTimeActive = true;
-          consecutiveDecreases = 0; // Reset counter
-        }
-      }
+      // Decrease happens and star goes down by 1
+      currentStar = Math.max(0, currentStar - 1); // Can't go below 0
+      decreases++;
+      consecutiveDecreases++;
+    } else if (outcome === 'maintain') {
+      // Stay at same star level
+      consecutiveDecreases = 0;
     } else if (outcome === 'destroy') {
-      // Check if safeguarded
-      const isSafeguarded = (currentStar === 15 && options.safeguard15to16) || 
-                           (currentStar === 16 && options.safeguard16to17);
-      
-      if (!isSafeguarded) {
-        currentStar = 12; // Item destroyed, reset to 12★ (trace mechanics)
-        booms++;
-        consecutiveDecreases = 0;
-        chanceTimeActive = false;
-      }
-      // If safeguarded, treat as maintain (no star change, no destruction)
+      // Item destroyed, reset to 12★ for normal items (MathBro's logic)
+      currentStar = 12;
+      booms++;
+      consecutiveDecreases = 0;
     }
-    // 'maintain' does nothing
 
     // Safety check to prevent infinite loops
     if (attempts > 10000) {
@@ -213,42 +268,68 @@ function simulateSingleRun(equipLevel, startStar, targetStar, options) {
 }
 
 /**
- * Get modified success rates based on options
+ * Get modified success rates based on options (MathBro's implementation)
  * @param {number} currentStar - Current star level
  * @param {Object} options - Enhancement options
- * @param {boolean} isGuaranteedUpgrade - Whether this upgrade is guaranteed
  * @returns {Object} - Modified success rates
  */
-function getModifiedSuccessRates(currentStar, options, isGuaranteedUpgrade) {
+function getModifiedSuccessRates(currentStar, options) {
   const baseRates = STARFORCE_RATES[currentStar];
   
-  if (isGuaranteedUpgrade) {
-    return { success: 100, maintain: 0, decrease: 0, destroy: 0 };
-  }
+  let successRate = baseRates.success / 100; // Convert to decimal
+  let maintainRate = baseRates.maintain / 100;
+  let decreaseRate = baseRates.decrease / 100;
+  let destroyRate = baseRates.destroy / 100;
 
-  let successRate = baseRates.success;
+  // Apply safeguard FIRST (MathBro's order)
+  const shouldApplySafeguard = options.useSafeguard && 
+    currentStar >= 15 && currentStar <= 16;
   
-  // Apply Star Catch bonus (+5% multiplicatively)
-  if (options.useStarCatch && !isGuaranteedUpgrade) {
-    successRate *= 1.05;
+  if (shouldApplySafeguard) {
+    if (decreaseRate > 0) {
+      // If there's a decrease chance, boom becomes decrease
+      decreaseRate += destroyRate;
+    } else {
+      // If no decrease chance, boom becomes maintain
+      maintainRate += destroyRate;
+    }
+    destroyRate = 0;
   }
 
-  // Redistribute rates to maintain 100% total
-  const totalNonSuccess = baseRates.maintain + baseRates.decrease + baseRates.destroy;
-  const successIncrease = successRate - baseRates.success;
-  const redistributionFactor = totalNonSuccess > 0 ? (100 - successRate) / totalNonSuccess : 0;
+  // Apply Star Catch SECOND (MathBro's order) - (+5% multiplicatively to success rate)
+  if (options.useStarCatch) {
+    successRate *= 1.05;
+    const leftOver = 1 - successRate;
+    
+    // Redistribute the remaining probability proportionally (MathBro's exact logic)
+    if (decreaseRate === 0) {
+      // No decrease, redistribute between maintain and destroy
+      const totalNonSuccess = maintainRate + destroyRate;
+      if (totalNonSuccess > 0) {
+        maintainRate = maintainRate * leftOver / totalNonSuccess;
+        destroyRate = leftOver - maintainRate;
+      }
+    } else {
+      // Has decrease, redistribute between decrease and destroy
+      const totalNonSuccess = decreaseRate + destroyRate;
+      if (totalNonSuccess > 0) {
+        decreaseRate = decreaseRate * leftOver / totalNonSuccess;
+        destroyRate = leftOver - decreaseRate;
+      }
+    }
+  }
 
   return {
-    success: successRate,
-    maintain: baseRates.maintain * redistributionFactor,
-    decrease: baseRates.decrease * redistributionFactor,
-    destroy: baseRates.destroy * redistributionFactor
+    success: successRate * 100, // Convert back to percentage for rollOutcome
+    maintain: maintainRate * 100,
+    decrease: decreaseRate * 100,
+    destroy: destroyRate * 100
   };
 }
 
 /**
  * Roll for enhancement outcome based on rates
- * @param {Object} rates - Success rates
+ * @param {Object} rates - Success rates (in percentages)
  * @returns {string} - Outcome ('success', 'maintain', 'decrease', 'destroy')
  */
 function rollOutcome(rates) {
@@ -266,14 +347,15 @@ function rollOutcome(rates) {
 }
 
 /**
- * Get cost for a single enhancement attempt
+ * Get cost for a single enhancement attempt (MathBro's implementation)
  * @param {number} effectiveLevel - Effective equipment level
  * @param {number} currentStar - Current star level
  * @param {Object} options - Enhancement options
  * @param {number} originalLevel - Original equipment level
+ * @param {boolean} isChanceTime - Whether chance time is active
  * @returns {number} - Cost for this attempt
  */
-function getSingleAttemptCost(effectiveLevel, currentStar, options, originalLevel) {
+function getSingleAttemptCost(effectiveLevel, currentStar, options, originalLevel, isChanceTime = false) {
   let baseCost = 0;
   
   // Check for special cost caps first
@@ -281,66 +363,57 @@ function getSingleAttemptCost(effectiveLevel, currentStar, options, originalLeve
   if (specialCap !== null) {
     baseCost = specialCap;
   } else {
-    // Calculate base cost using GMS formula
-    const equipLevelCubed = Math.round(Math.pow(effectiveLevel, 3));
-    const starPlusOne = currentStar + 1;
-
-    // Apply GMS formula based on star level
-    if (currentStar >= 0 && currentStar <= 9) {
-      baseCost = (100 * equipLevelCubed * starPlusOne) / (2500 + 10);
-    } else if (currentStar === 10) {
-      baseCost = (100 * equipLevelCubed * Math.pow(starPlusOne, 2.7)) / (40000 + 10);
-    } else if (currentStar === 11) {
-      baseCost = (100 * equipLevelCubed * Math.pow(starPlusOne, 2.7)) / (22000 + 10);
-    } else if (currentStar === 12) {
-      baseCost = (100 * equipLevelCubed * Math.pow(starPlusOne, 2.7)) / (15000 + 10);
-    } else if (currentStar === 13) {
-      baseCost = (100 * equipLevelCubed * Math.pow(starPlusOne, 2.7)) / (11000 + 10);
-    } else if (currentStar === 14) {
-      baseCost = (100 * equipLevelCubed * Math.pow(starPlusOne, 2.7)) / (7500 + 10);
-    } else if (currentStar >= 15 && currentStar <= 24) {
-      baseCost = (100 * equipLevelCubed * Math.pow(starPlusOne, 2.7)) / (20000 + 10);
-    }
-
-    baseCost = roundToNearestHundreds(baseCost);
+    // Calculate base cost using GMS Savior formula (MathBro's implementation)
+    baseCost = getGMSBaseCost(currentStar, effectiveLevel);
   }
   
-  let finalCost = applyDiscounts(baseCost, options, currentStar);
-
-  // Apply safeguard cost (doubles the cost)
-  const isSafeguarded = (currentStar === 15 && options.safeguard15to16) || 
-                       (currentStar === 16 && options.safeguard16to17);
-  
-  if (isSafeguarded) {
-    finalCost *= 2; // Safeguard doubles the cost
-  }
+  // Apply all discounts and safeguard cost in one go (MathBro's way)
+  let finalCost = applyDiscounts(baseCost, options, currentStar, isChanceTime);
 
   return finalCost;
 }
 
 /**
- * Apply discounts to base cost
+ * Apply discounts to base cost (MathBro's implementation)
  * @param {number} baseCost - Base cost before discounts
  * @param {Object} options - Enhancement options
  * @param {number} currentStar - Current star level
+ * @param {boolean} isChanceTime - Whether chance time is active
  * @returns {number} - Cost after discounts
  */
-function applyDiscounts(baseCost, options, currentStar) {
-  let finalCost = baseCost;
+function applyDiscounts(baseCost, options, currentStar, isChanceTime = false) {
+  let multiplier = 1;
 
-  // Apply MVP discount (only up to 16★→17★)
-  if (currentStar <= 16) {
-    const mvpMultiplier = getMvpDiscountMultiplier(options.mvpLevel, options.hasPremium);
-    finalCost *= mvpMultiplier;
+  // Apply MVP discount (only up to 15★ in MathBro's implementation)
+  if (currentStar <= 15) {
+    if (options.mvpLevel === 'silver') {
+      multiplier -= 0.03; // 3% discount
+    } else if (options.mvpLevel === 'gold') {
+      multiplier -= 0.05; // 5% discount
+    } else if (options.mvpLevel === 'diamond') {
+      multiplier -= 0.10; // 10% discount
+    }
   }
 
-  // Apply event discount
+  // Apply event discount (30% off events)
   const hasDiscountEvent = options.eventType === '30off' || options.eventType === 'ssf';
   if (hasDiscountEvent) {
-    finalCost *= 0.7;
+    multiplier -= 0.3; // 30% discount
   }
 
-  return roundToNearestHundreds(finalCost);
+  // Apply safeguard cost - MathBro's exact implementation
+  const is51015Event = options.eventType === '51015' || options.eventType === 'ssf';
+  const shouldApplySafeguard = options.useSafeguard && 
+    !isChanceTime && // MathBro: No safeguard cost during chance time
+    !(is51015Event && currentStar === 15) && // MathBro: No safeguard cost if 15→16 is guaranteed
+    currentStar >= 15 && currentStar <= 16;
+  
+  if (shouldApplySafeguard) {
+    multiplier += 1; // MathBro: additive +1 to multiplier (so 1 becomes 2, 0.7 becomes 1.7)
+  }
+
+  const finalCost = baseCost * multiplier;
+  return Math.round(finalCost); // MathBro rounds to nearest integer, not hundreds
 }
 
 /**
@@ -426,36 +499,8 @@ function getEffectiveEquipLevel(equipLevel, isZeroWeapon = false) {
     return 150;
   }
   
-  // Round down to nearest 10 levels
-  return Math.floor(equipLevel / 10) * 10;
-}
-
-/**
- * Get MVP discount multiplier
- * @param {string} mvpLevel - MVP level ('none', 'silver', 'gold', 'diamond')
- * @param {boolean} hasPremium - Whether Premium Service is active
- * @returns {number} - Discount multiplier (0.9 = 10% discount)
- */
-function getMvpDiscountMultiplier(mvpLevel, hasPremium = false) {
-  let discount = 0;
-  
-  switch (mvpLevel) {
-    case 'silver':
-      discount += 0.03; // 3%
-      break;
-    case 'gold':
-      discount += 0.05; // 5%
-      break;
-    case 'diamond':
-      discount += 0.10; // 10%
-      break;
-  }
-  
-  if (hasPremium) {
-    discount += 0.05; // Additional 5%
-  }
-  
-  return 1 - discount;
+  // MathBro doesn't round equipment level - use the exact level
+  return equipLevel;
 }
 
 /**

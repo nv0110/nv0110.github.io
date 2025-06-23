@@ -1,5 +1,5 @@
-import { supabase } from '../src/supabaseClient.js';
-import { convertDateToWeekKey } from '../src/utils/weekUtils.js';
+import { supabase } from '../supabaseClient.js';
+import { convertDateToWeekKey } from '../utils/weekUtils.js';
 
 /**
  * Pitched Items Service

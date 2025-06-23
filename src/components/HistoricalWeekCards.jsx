@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { getBossPitchedItems, getBossDifficulties } from '../../services/bossRegistryService';
+import { getBossPitchedItems, getBossDifficulties } from '../services/bossRegistryService';
 import { convertDateToWeekKey } from '../utils/weekUtils';
 import { getPitchedKey } from '../utils/stringUtils';
 import { logger } from '../utils/logger';

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuthentication } from '../../hooks/useAuthentication';
+import { useAuthentication } from '../hooks/useAuthentication';
 import { useViewTransition } from '../hooks/useViewTransition';
 import WeeklyTracker from '../WeeklyTracker';
 import { useAppData } from '../hooks/AppDataContext.jsx';

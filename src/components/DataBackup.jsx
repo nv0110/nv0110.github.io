@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { exportUserData, importUserData } from '../../services/utilityService.js';
+import { exportUserData, importUserData } from '../services/utilityService.js';
 
 function DataBackup({ userCode }) {
   const [importStatus, setImportStatus] = useState(null);

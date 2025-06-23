@@ -7,7 +7,7 @@ import {
   clearPitchedItemsForWeek,
   getYearlyPitchedStats,
   purgeAllPitchedItems
-} from '../../services/pitchedItemsService.js';
+} from '../services/pitchedItemsService.js';
 import { convertDateToWeekKey } from '../utils/weekUtils.js';
 import { logger } from '../utils/logger';
 

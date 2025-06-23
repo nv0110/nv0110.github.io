@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import CustomCheckbox from './CustomCheckbox';
-import { getBossPitchedItems } from '../../services/bossRegistryService';
+import { getBossPitchedItems } from '../services/bossRegistryService';
 import { getPitchedKey } from '../utils/stringUtils';
 import '../styles/tables.css';
 import { logger } from '../utils/logger';

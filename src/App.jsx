@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Suspense, lazy, Component, useRef, useEffect } from 'react';
-import { useAuthentication } from '../hooks/useAuthentication';
+import { useAuthentication } from './hooks/useAuthentication';
 import { ForceUpdateProvider } from './hooks/ForceUpdateContext';
 import ViewTransitionWrapper from './components/ViewTransitionWrapper';
 import { AppDataProvider, useAppData } from './hooks/AppDataContext.jsx';
@@ -8,12 +8,9 @@ import { STORAGE_KEYS } from './constants';
 import './App.css';
 import React from 'react';
 import Navbar from './components/Navbar';
-import { clearPitchedItemsForWeek } from '../services/pitchedItemsService.js';
+import { clearPitchedItemsForWeek } from './services/pitchedItemsService.js';
 
-// Import debug helpers for development
-if (process.env.NODE_ENV === 'development') {
-  import('./utils/debugHelpers.js');
-}
+
 
 // Lazy load page components for code splitting
 const LoginPage = lazy(() => import('./pages/LoginPage'));

@@ -8,7 +8,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthentication } from './useAuthentication';
 import { getCurrentMapleWeekStartDate } from '../utils/mapleWeekUtils';
-import { logger } from '../src/utils/logger';
+import { logger } from '../utils/logger';
 import {
   fetchUserWeeklyData,
   saveOrUpdateUserWeeklyData,

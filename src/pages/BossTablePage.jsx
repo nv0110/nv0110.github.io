@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuthentication } from '../../hooks/useAuthentication';
+import { useAuthentication } from '../hooks/useAuthentication';
 import { useViewTransition } from '../hooks/useViewTransition';
 import Navbar from '../components/Navbar';
 import ViewTransitionWrapper from '../components/ViewTransitionWrapper';
@@ -50,7 +50,7 @@ function BossTablePage() {
           return;
         }
         
-        const { getBossDataForFrontend } = await import('../../services/bossRegistryService.js');
+        const { getBossDataForFrontend } = await import('../services/bossRegistryService.js');
         
         // Final auth check before API call
         if (!isLoggedIn || abortController.signal.aborted || !isMounted) {

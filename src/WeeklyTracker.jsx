@@ -19,7 +19,7 @@ import { usePitchedItems } from './hooks/usePitchedItems';
 import { useBossActions } from './hooks/useBossActions';
 import { useStatsManagement } from './hooks/useStatsManagement';
 import { useAppData } from './hooks/AppDataContext.jsx';
-import { useUserWeeklyData } from '../hooks/useUserWeeklyData.js';
+import { useUserWeeklyData } from './hooks/useUserWeeklyData.js';
 
 function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked, userCode, appWeekKey, showOnboardingIndicators }) {
   const { lastWeeklyResetTimestamp } = useAppData();
@@ -252,7 +252,7 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
       } else {
         if (isHistorical) {
           // For historical items that aren't checked, open the historical modal
-          const getBossPitchedItems = (await import('../services/bossRegistryService.js')).getBossPitchedItems;
+          const getBossPitchedItems = (await import('./services/bossRegistryService.js')).getBossPitchedItems;
           const bossItems = getBossPitchedItems(bossName) || [];
           const item = bossItems.find(i => i.name === itemName);
           
@@ -322,8 +322,8 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
                   
                   // Use database service directly to avoid UI conflicts
                   const { getBossRegistryId } = await import('./utils/bossCodeMapping.js');
-                  const { toggleBossClearStatus } = await import('../services/userWeeklyDataService.js');
-                  const { getCurrentMapleWeekStartDate } = await import('../utils/mapleWeekUtils.js');
+                  const { toggleBossClearStatus } = await import('./services/userWeeklyDataService.js');
+                  const { getCurrentMapleWeekStartDate } = await import('./utils/mapleWeekUtils.js');
                   
                   const bossRegistryId = await getBossRegistryId(targetBoss.name, targetBoss.difficulty);
                   const currentWeekStart = getCurrentMapleWeekStartDate();

@@ -3,7 +3,7 @@
  * This helps reconstruct boss configurations from historical pitched items
  */
 
-import { getBossPitchedItems, fetchBossRegistry } from '../../services/bossRegistryService';
+import { getBossPitchedItems, fetchBossRegistry } from '../services/bossRegistryService';
 
 /**
  * Get available difficulties for a boss from the actual boss registry
@@ -23,7 +23,7 @@ async function getActualBossDifficulties(bossName) {
       .map(entry => entry.difficulty)
       .sort();
     
-    console.log(`getActualBossDifficulties: Found difficulties for ${bossName}:`, difficulties);
+    // Debug: Found difficulties for ${bossName}
     
     return difficulties;
   } catch (error) {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getBossPrice } from '../../services/bossRegistryService';
+import { getBossPrice } from '../services/bossRegistryService';
 import '../styles/components/quick-select-modal.css';
 
 function QuickSelectModal({
