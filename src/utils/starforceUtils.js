@@ -384,8 +384,8 @@ function getSingleAttemptCost(effectiveLevel, currentStar, options, originalLeve
 function applyDiscounts(baseCost, options, currentStar, isChanceTime = false) {
   let multiplier = 1;
 
-  // Apply MVP discount (only up to 15★ in MathBro's implementation)
-  if (currentStar <= 15) {
+  // Apply MVP discount (up to 16★ → 17★, so applies to stars 0-16)
+  if (currentStar <= 16) {
     if (options.mvpLevel === 'silver') {
       multiplier -= 0.03; // 3% discount
     } else if (options.mvpLevel === 'gold') {
@@ -395,25 +395,25 @@ function applyDiscounts(baseCost, options, currentStar, isChanceTime = false) {
     }
   }
 
-  // Apply event discount (30% off events)
+  // Apply event discount (30% off events) - applied before safeguard costs
   const hasDiscountEvent = options.eventType === '30off' || options.eventType === 'ssf';
   if (hasDiscountEvent) {
     multiplier -= 0.3; // 30% discount
   }
 
-  // Apply safeguard cost - MathBro's exact implementation
+  // Apply safeguard cost AFTER discounts - doubles the discounted cost
   const is51015Event = options.eventType === '51015' || options.eventType === 'ssf';
   const shouldApplySafeguard = options.useSafeguard && 
-    !isChanceTime && // MathBro: No safeguard cost during chance time
-    !(is51015Event && currentStar === 15) && // MathBro: No safeguard cost if 15→16 is guaranteed
+    !isChanceTime && // No safeguard cost during chance time
+    !(is51015Event && currentStar === 15) && // No safeguard cost if 15→16 is guaranteed
     currentStar >= 15 && currentStar <= 16;
   
   if (shouldApplySafeguard) {
-    multiplier += 1; // MathBro: additive +1 to multiplier (so 1 becomes 2, 0.7 becomes 1.7)
+    multiplier += 1; // Additive +1 to multiplier (so 1 becomes 2, 0.7 becomes 1.7)
   }
 
   const finalCost = baseCost * multiplier;
-  return Math.round(finalCost); // MathBro rounds to nearest integer, not hundreds
+  return Math.round(finalCost);
 }
 
 /**

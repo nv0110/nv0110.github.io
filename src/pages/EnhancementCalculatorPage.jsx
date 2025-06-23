@@ -1590,7 +1590,7 @@ function FormulaReferenceModal({ onClose }) {
                 FinalCost = round(BaseCost × Multiplier)
               </div>
               <div className="formula-details">
-                <p><strong>MVP Discounts (applies to 0★-15★ only):</strong></p>
+                <p><strong>MVP Discounts (applies to 0★-16★ only):</strong></p>
                 <ul>
                   <li>Silver MVP: -3% (0.03)</li>
                   <li>Gold MVP: -5% (0.05)</li>
