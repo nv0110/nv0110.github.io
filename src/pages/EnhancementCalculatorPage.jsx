@@ -47,6 +47,9 @@ function EnhancementCalculatorPage() {
   const [calculationResult, setCalculationResult] = useState(null);
   const [isCalculating, setIsCalculating] = useState(false);
 
+  // Formula modal state
+  const [showFormulaModal, setShowFormulaModal] = useState(false);
+
   // Global settings for all items - defined early to avoid circular dependency
   const [globalSettings, setGlobalSettings] = useState({
     eventType: 'none',
@@ -596,6 +599,15 @@ function EnhancementCalculatorPage() {
                 </button>
               </div>
             </div>
+
+            {/* Floating Formula Reference Button */}
+            <button
+              className="formula-floating-button"
+              onClick={() => setShowFormulaModal(true)}
+              title="View Formulas & Math Reference"
+            >
+              ?
+            </button>
 
             {mode === 'calculator' ? (
               // Existing calculator mode
@@ -1208,6 +1220,13 @@ function EnhancementCalculatorPage() {
                 </div>
               </div>
             )}
+
+            {/* Formula Reference Modal */}
+            {showFormulaModal && (
+              <FormulaReferenceModal 
+                onClose={() => setShowFormulaModal(false)} 
+              />
+            )}
           </div>
         </ViewTransitionWrapper>
       </div>
@@ -1394,6 +1413,279 @@ function ItemCard({ item, characterId, onUpdateItem, onRemoveItem, onCalculate, 
           ⚠️ {item.calculationResult.error}
         </div>
       )}
+    </div>
+  );
+}
+
+// Formula Reference Modal Component
+function FormulaReferenceModal({ onClose }) {
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="formula-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="formula-modal-header">
+          <h2>Starforce Enhancement Formulas & Math Reference</h2>
+          <button className="close-button" onClick={onClose}>×</button>
+        </div>
+        
+        <div className="formula-modal-content">
+          
+          {/* Base Cost Formula */}
+          <div className="formula-section">
+            <h3>🧮 Base Cost Formula</h3>
+            <div className="formula-box">
+              <div className="formula-title">Meso Cost Calculation</div>
+              <div className="formula-math">
+                Cost = 100 × round(extraMult × itemLevel³ × (currentStar + 1)^starExp / divisor + 10)
+              </div>
+              <div className="formula-details">
+                <p><strong>Where:</strong></p>
+                <ul>
+                  <li><code>extraMult</code>: 1.0 (multiplier constant)</li>
+                  <li><code>itemLevel</code>: Equipment level (1-300, capped at 150 for Zero weapons)</li>
+                  <li><code>currentStar</code>: Current star level (0-24)</li>
+                  <li><code>starExp</code>: Star exponent (varies by star level)</li>
+                  <li><code>divisor</code>: Divisor constant (varies by star level)</li>
+                </ul>
+              </div>
+            </div>
+            
+            <div className="formula-table">
+              <h4>Star-Specific Parameters:</h4>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Star Level</th>
+                    <th>Star Exponent</th>
+                    <th>Divisor</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>0★ - 9★</td>
+                    <td>1.0</td>
+                    <td>2,500</td>
+                    <td>Linear scaling</td>
+                  </tr>
+                  <tr>
+                    <td>10★</td>
+                    <td>2.7</td>
+                    <td>40,000</td>
+                    <td>Exponential scaling begins</td>
+                  </tr>
+                  <tr>
+                    <td>11★</td>
+                    <td>2.7</td>
+                    <td>22,000</td>
+                    <td>-</td>
+                  </tr>
+                  <tr>
+                    <td>12★</td>
+                    <td>2.7</td>
+                    <td>15,000</td>
+                    <td>-</td>
+                  </tr>
+                  <tr>
+                    <td>13★</td>
+                    <td>2.7</td>
+                    <td>11,000</td>
+                    <td>-</td>
+                  </tr>
+                  <tr>
+                    <td>14★</td>
+                    <td>2.7</td>
+                    <td>7,500</td>
+                    <td>-</td>
+                  </tr>
+                  <tr>
+                    <td>15★ - 24★</td>
+                    <td>2.7</td>
+                    <td>20,000</td>
+                    <td>High star scaling</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Success Rates */}
+          <div className="formula-section">
+            <h3>🎯 Success Rates</h3>
+            <div className="formula-box">
+              <div className="formula-title">Base Success Rates (GMS Savior)</div>
+              <div className="formula-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Star Level</th>
+                      <th>Success %</th>
+                      <th>Maintain %</th>
+                      <th>Decrease %</th>
+                      <th>Destroy %</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>0★ - 4★</td><td>95% - 80%</td><td>5% - 20%</td><td>0%</td><td>0%</td></tr>
+                    <tr><td>5★ - 10★</td><td>75% - 50%</td><td>25% - 50%</td><td>0%</td><td>0%</td></tr>
+                    <tr><td>11★ - 14★</td><td>45% - 30%</td><td>55% - 70%</td><td>0%</td><td>0%</td></tr>
+                    <tr><td>15★</td><td>30%</td><td>67.9%</td><td>0%</td><td>2.1%</td></tr>
+                    <tr><td>16★ - 17★</td><td>30%</td><td>0%</td><td>67.9%</td><td>2.1%</td></tr>
+                    <tr><td>18★ - 19★</td><td>30%</td><td>0%</td><td>67.2%</td><td>2.8%</td></tr>
+                    <tr><td>20★</td><td>30%</td><td>63%</td><td>0%</td><td>7%</td></tr>
+                    <tr><td>21★</td><td>30%</td><td>0%</td><td>63%</td><td>7%</td></tr>
+                    <tr><td>22★</td><td>3%</td><td>0%</td><td>77.6%</td><td>19.4%</td></tr>
+                    <tr><td>23★</td><td>2%</td><td>0%</td><td>68.6%</td><td>29.4%</td></tr>
+                    <tr><td>24★</td><td>1%</td><td>0%</td><td>59.4%</td><td>39.6%</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Star Catch Effect */}
+          <div className="formula-section">
+            <h3>⭐ Star Catch Minigame</h3>
+            <div className="formula-box">
+              <div className="formula-title">Success Rate Modification</div>
+              <div className="formula-math">
+                ModifiedSuccessRate = BaseSuccessRate × 1.05
+              </div>
+              <div className="formula-details">
+                <p><strong>Effect:</strong> +5% multiplicative increase to success rate</p>
+                <p><strong>Redistribution:</strong> Remaining probability is redistributed proportionally between other outcomes</p>
+                <p><strong>Note:</strong> Does not appear during guaranteed upgrades (5/10/15 events, Chance Time)</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Safeguard Mechanics */}
+          <div className="formula-section">
+            <h3>🛡️ Safeguard Mechanics</h3>
+            <div className="formula-box">
+              <div className="formula-title">Safeguard Cost & Effect</div>
+              <div className="formula-math">
+                SafeguardCost = BaseCost × 2
+              </div>
+              <div className="formula-details">
+                <p><strong>Protection:</strong> Prevents equipment destruction (boom) for 15★→16★ and 16★→17★</p>
+                <p><strong>Effect:</strong> Boom chance becomes decrease chance (or maintain if no decrease)</p>
+                <p><strong>Cost:</strong> Doubles the enhancement cost</p>
+                <p><strong>Special Cases:</strong></p>
+                <ul>
+                  <li>No safeguard cost during Chance Time</li>
+                  <li>No safeguard needed for 15★→16★ during 5/10/15 events (guaranteed)</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Discount Application */}
+          <div className="formula-section">
+            <h3>💰 Discount Application Order</h3>
+            <div className="formula-box">
+              <div className="formula-title">Final Cost Calculation</div>
+              <div className="formula-math">
+                Multiplier = 1.0 - MVPDiscount - EventDiscount + SafeguardMultiplier
+                <br />
+                FinalCost = round(BaseCost × Multiplier)
+              </div>
+              <div className="formula-details">
+                <p><strong>MVP Discounts (applies to 0★-15★ only):</strong></p>
+                <ul>
+                  <li>Silver MVP: -3% (0.03)</li>
+                  <li>Gold MVP: -5% (0.05)</li>
+                  <li>Diamond MVP: -10% (0.10)</li>
+                </ul>
+                <p><strong>Event Discounts:</strong></p>
+                <ul>
+                  <li>30% Off Event: -30% (0.30)</li>
+                  <li>Shiny Star Force: -30% (0.30)</li>
+                </ul>
+                <p><strong>Safeguard Multiplier:</strong></p>
+                <ul>
+                  <li>When safeguard is used: +1.0 (additive)</li>
+                  <li>Example: 30% off + safeguard = 0.7 × 2 = 1.4× cost</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Special Events */}
+          <div className="formula-section">
+            <h3>🎉 Special Event Mechanics</h3>
+            <div className="formula-box">
+              <div className="formula-title">5/10/15 Guaranteed Events</div>
+              <div className="formula-details">
+                <p><strong>Guaranteed Successes:</strong></p>
+                <ul>
+                  <li>5★ → 6★: 100% success rate</li>
+                  <li>10★ → 11★: 100% success rate</li>
+                  <li>15★ → 16★: 100% success rate</li>
+                </ul>
+                <p><strong>Shiny Star Force (SSF):</strong></p>
+                <ul>
+                  <li>Combines 30% cost reduction with 5/10/15 guaranteed</li>
+                  <li>Both effects apply simultaneously</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Chance Time */}
+          <div className="formula-section">
+            <h3>⏰ Chance Time Mechanics</h3>
+            <div className="formula-box">
+              <div className="formula-title">Chance Time Activation</div>
+              <div className="formula-math">
+                ChanceTime = (ConsecutiveDecreases == 2)
+              </div>
+              <div className="formula-details">
+                <p><strong>Activation:</strong> After 2 consecutive star decreases</p>
+                <p><strong>Effect:</strong> Next enhancement attempt has 100% success rate</p>
+                <p><strong>Cost:</strong> No safeguard cost during Chance Time</p>
+                <p><strong>Reset:</strong> Counter resets after success or equipment destruction</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Simulation Details */}
+          <div className="formula-section">
+            <h3>🎲 Simulation Methodology</h3>
+            <div className="formula-box">
+              <div className="formula-title">Monte Carlo Simulation</div>
+              <div className="formula-details">
+                <p><strong>Method:</strong> 10,000 independent simulations</p>
+                <p><strong>Random Number Generation:</strong> JavaScript Math.random()</p>
+                <p><strong>Outcome Determination:</strong> Probability thresholds</p>
+                <p><strong>Statistics Calculated:</strong></p>
+                <ul>
+                  <li>Average (mean) cost and attempts</li>
+                  <li>Median (50th percentile)</li>
+                  <li>Percentiles: 25th, 75th, 90th, 99th</li>
+                  <li>Min/Max values</li>
+                  <li>Average booms, decreases, successes</li>
+                  <li>Chance Time usage rate</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Data Sources */}
+          <div className="formula-section">
+            <h3>📊 Data Sources & Accuracy</h3>
+            <div className="formula-box">
+              <div className="formula-details">
+                <p><strong>Formula Source:</strong> MathBro's Starforce Calculator</p>
+                <p><strong>Success Rates:</strong> GMS Savior update rates</p>
+                <p><strong>Validation:</strong> Extensively tested against known results</p>
+                <p><strong>Accuracy:</strong> Results match official MapleStory enhancement costs</p>
+                <p><strong>Note:</strong> Formulas are based on Global MapleStory (GMS) mechanics</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
     </div>
   );
 }
