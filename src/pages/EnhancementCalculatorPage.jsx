@@ -199,33 +199,13 @@ function EnhancementCalculatorPage() {
   }, []);
 
   // Item management functions
-  // Equipment type options (excluding totem, gem, android, medal, badge, emblem, pocket item)
-  const equipmentTypes = [
-    { value: 'hat', name: 'Hat', icon: '⛑️' },
-    { value: 'face_accessory', name: 'Face Accessory', icon: '🎭' },
-    { value: 'eye_accessory', name: 'Eye Accessory', icon: '🥽' },
-    { value: 'earrings', name: 'Earrings', icon: '💎' },
-    { value: 'pendant', name: 'Pendant', icon: '🏺' },
-    { value: 'ring', name: 'Ring', icon: '💍' },
-    { value: 'overall', name: 'Overall', icon: '🛡️' },
-    { value: 'top', name: 'Top', icon: '🎽' },
-    { value: 'bottom', name: 'Bottom', icon: '👖' },
-    { value: 'shoes', name: 'Shoes', icon: '🥾' },
-    { value: 'gloves', name: 'Gloves', icon: '🧤' },
-    { value: 'cape', name: 'Cape', icon: '🧥' },
-    { value: 'belt', name: 'Belt', icon: '⚜️' },
-    { value: 'shoulder', name: 'Shoulder', icon: '🏛️' },
-    { value: 'weapon', name: 'Weapon', icon: '⚔️' },
-    { value: 'shield', name: 'Shield', icon: '🛡️' }
-  ];
 
 
 
   const addItem = useCallback((characterId) => {
     const newItem = {
       id: Date.now().toString(),
-      type: 'weapon', // Default to weapon
-      name: 'Weapon',
+      name: '',
       equipLevel: 200,
       currentStar: 0,
       targetStar: 17,
@@ -272,8 +252,10 @@ function EnhancementCalculatorPage() {
                     ? { 
                         ...item, 
                         ...updates,
-                        // Only reset calculation if it's not a calculationResult update
-                        ...(updates.calculationResult ? {} : { calculationResult: null })
+                        // Only reset calculation if calculation-relevant fields changed (not name)
+                        ...(updates.calculationResult ? {} : 
+                           (updates.name !== undefined && Object.keys(updates).length === 1) ? {} : 
+                           { calculationResult: null })
                       }
                     : item
                 )
@@ -1205,7 +1187,6 @@ function EnhancementCalculatorPage() {
                                       onRemoveItem={removeItem}
                                       onCalculate={calculateItemCost}
                                       mvpOptions={mvpOptions}
-                                      equipmentTypes={equipmentTypes}
                                       globalSettings={globalSettings}
                                     />
                                   ))}
@@ -1235,16 +1216,9 @@ function EnhancementCalculatorPage() {
 }
 
 // Item Card Component for Planner
-function ItemCard({ item, characterId, onUpdateItem, onRemoveItem, onCalculate, mvpOptions, equipmentTypes, globalSettings }) {
+function ItemCard({ item, characterId, onUpdateItem, onRemoveItem, onCalculate, mvpOptions, globalSettings }) {
   const handleInputChange = (field, value) => {
-    // If changing equipment type, also update the name
-    if (field === 'type') {
-      const selectedEquip = equipmentTypes.find(eq => eq.value === value);
-      onUpdateItem(characterId, item.id, { 
-        [field]: value,
-        name: selectedEquip ? selectedEquip.name : value
-      });
-    } else if (field === 'equipLevel') {
+    if (field === 'equipLevel') {
       // Cap level at 150 if Zero weapon is enabled
       const maxLevel = item.isZeroWeapon ? 150 : 300;
       const cappedValue = Math.min(value, maxLevel);
@@ -1291,19 +1265,16 @@ function ItemCard({ item, characterId, onUpdateItem, onRemoveItem, onCalculate, 
       <div className="item-header">
         <div className="item-info">
           <div className="item-header-row-inline">
-            {/* Equipment Type */}
-            <div className="item-type-selector">
-              <select
-                value={item.type || 'weapon'}
-                onChange={(e) => handleInputChange('type', e.target.value)}
-                className="item-type-select"
-              >
-                {equipmentTypes.map((equipType) => (
-                  <option key={equipType.value} value={equipType.value}>
-                    {equipType.icon} {equipType.name}
-                  </option>
-                ))}
-              </select>
+            {/* Equipment Name */}
+            <div className="item-name-input-container">
+              <input
+                type="text"
+                value={item.name || ''}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+                className="item-name-input"
+                placeholder="Equipment name..."
+                maxLength="20"
+              />
             </div>
             
             {/* Level Input */}
