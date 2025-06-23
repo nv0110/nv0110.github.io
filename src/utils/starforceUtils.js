@@ -126,7 +126,6 @@ export function calculateStarforceCost(equipLevel, currentStar, targetStar, opti
       eventType = 'none',
       mvpLevel = 'none',
       hasPremium = false,
-      isZeroWeapon = false,
       useSafeguard = false,
       useStarCatch = false
     } = options;
@@ -140,7 +139,6 @@ export function calculateStarforceCost(equipLevel, currentStar, targetStar, opti
         eventType,
         mvpLevel,
         hasPremium,
-        isZeroWeapon,
         useSafeguard,
         useStarCatch
       });
@@ -165,7 +163,7 @@ export function calculateStarforceCost(equipLevel, currentStar, targetStar, opti
       equipLevel,
       currentStar,
       targetStar,
-      options: { eventType, mvpLevel, hasPremium, isZeroWeapon, useSafeguard, useStarCatch },
+      options: { eventType, mvpLevel, hasPremium, useSafeguard, useStarCatch },
       simulationCount: simulations,
       duration: endTime - startTime
     };
@@ -193,8 +191,6 @@ function simulateSingleRun(equipLevel, startStar, targetStar, options) {
   let decreases = 0;
   let successes = 0;
 
-  const effectiveLevel = getEffectiveEquipLevel(equipLevel, options.isZeroWeapon);
-
   while (currentStar < targetStar) {
     attempts++;
     
@@ -202,7 +198,7 @@ function simulateSingleRun(equipLevel, startStar, targetStar, options) {
     const isChanceTime = checkChanceTime(consecutiveDecreases);
     
     // Get cost for this attempt
-    const attemptCost = getSingleAttemptCost(effectiveLevel, currentStar, options, equipLevel, isChanceTime);
+    const attemptCost = getSingleAttemptCost(equipLevel, currentStar, options, equipLevel, isChanceTime);
     totalCost += attemptCost;
 
     // MathBro's logic: If chance time is active, it's guaranteed success
@@ -348,14 +344,14 @@ function rollOutcome(rates) {
 
 /**
  * Get cost for a single enhancement attempt (MathBro's implementation)
- * @param {number} effectiveLevel - Effective equipment level
+ * @param {number} equipLevel - Equipment level
  * @param {number} currentStar - Current star level
  * @param {Object} options - Enhancement options
  * @param {number} originalLevel - Original equipment level
  * @param {boolean} isChanceTime - Whether chance time is active
  * @returns {number} - Cost for this attempt
  */
-function getSingleAttemptCost(effectiveLevel, currentStar, options, originalLevel, isChanceTime = false) {
+function getSingleAttemptCost(equipLevel, currentStar, options, originalLevel, isChanceTime = false) {
   let baseCost = 0;
   
   // Check for special cost caps first
@@ -364,7 +360,7 @@ function getSingleAttemptCost(effectiveLevel, currentStar, options, originalLeve
     baseCost = specialCap;
   } else {
     // Calculate base cost using GMS Savior formula (MathBro's implementation)
-    baseCost = getGMSBaseCost(currentStar, effectiveLevel);
+    baseCost = getGMSBaseCost(currentStar, equipLevel);
   }
   
   // Apply all discounts and safeguard cost in one go (MathBro's way)
@@ -488,22 +484,6 @@ function generateCostDistribution(costs) {
 }
 
 /**
- * Get effective equipment level with rounding and capping rules
- * @param {number} equipLevel - Original equipment level
- * @param {boolean} isZeroWeapon - Whether this is a Zero weapon
- * @returns {number} - Effective level for calculations
- */
-function getEffectiveEquipLevel(equipLevel, isZeroWeapon = false) {
-  // Zero weapons are capped at level 150
-  if (isZeroWeapon && equipLevel > 150) {
-    return 150;
-  }
-  
-  // MathBro doesn't round equipment level - use the exact level
-  return equipLevel;
-}
-
-/**
  * Check if equipment level has special cost caps
  * @param {number} originalLevel - Original equipment level
  * @param {number} currentStar - Current star level
@@ -548,6 +528,133 @@ export function getMvpLevelOptions() {
     { value: 'gold', name: 'Gold', discount: '5%' },
     { value: 'diamond', name: 'Diamond', discount: '10%' }
   ];
+}
+
+/**
+ * Calculate probability of success with given spare equipment copies
+ * @param {number} equipLevel - Equipment level
+ * @param {number} currentStar - Current star level
+ * @param {number} targetStar - Target star level
+ * @param {number} spareCount - Number of spare equipment copies available
+ * @param {Object} options - Enhancement options
+ * @param {number} simulations - Number of simulations to run
+ * @returns {Object} - Success probability and statistics
+ */
+export function calculateSuccessProbability(equipLevel, currentStar, targetStar, spareCount, options = {}, simulations = 10000) {
+  try {
+    if (spareCount <= 0) {
+      return { success: true, successRate: 0, averageSpares: 0 };
+    }
+
+    let successfulRuns = 0;
+    const sparesUsedList = [];
+    
+    for (let i = 0; i < simulations; i++) {
+      const result = simulateWithSpares(equipLevel, currentStar, targetStar, spareCount, options);
+      if (result.success) {
+        successfulRuns++;
+      }
+      sparesUsedList.push(result.sparesUsed);
+    }
+
+    const successRate = (successfulRuns / simulations) * 100;
+    const averageSpares = sparesUsedList.reduce((sum, spares) => sum + spares, 0) / simulations;
+
+    // Cap at 99.9% to show there's always some risk, even with many spares
+    const cappedSuccessRate = Math.min(successRate, 99.9);
+
+    return {
+      success: true,
+      successRate: Math.round(cappedSuccessRate * 10) / 10, // Round to 1 decimal, capped at 99.9%
+      averageSpares: Math.round(averageSpares * 10) / 10,
+      totalSimulations: simulations
+    };
+
+  } catch (error) {
+    logger.error('Error calculating success probability with spares', error);
+    return { success: false, error: 'Failed to calculate success probability' };
+  }
+}
+
+/**
+ * Simulate enhancement attempts with spare equipment copies
+ * @param {number} equipLevel - Equipment level
+ * @param {number} startStar - Starting star level
+ * @param {number} targetStar - Target star level
+ * @param {number} maxSpares - Maximum spare copies available
+ * @param {Object} options - Enhancement options
+ * @returns {Object} - Simulation result with success status and spares used
+ */
+function simulateWithSpares(equipLevel, startStar, targetStar, maxSpares, options) {
+  let sparesUsed = 0;
+  let currentStar = startStar;
+  let totalCost = 0;
+  let attempts = 0;
+  let consecutiveDecreases = 0;
+
+  while (currentStar < targetStar && sparesUsed <= maxSpares) {
+    attempts++;
+    
+    // Check for chance time
+    const isChanceTime = checkChanceTime(consecutiveDecreases);
+    
+    // Get cost for this attempt
+    const attemptCost = getSingleAttemptCost(equipLevel, currentStar, options, equipLevel, isChanceTime);
+    totalCost += attemptCost;
+
+    // If chance time is active, guaranteed success
+    if (isChanceTime) {
+      currentStar++;
+      consecutiveDecreases = 0;
+      continue;
+    }
+
+    // Check for guaranteed upgrades (5/10/15 events)
+    const is51015Guaranteed = (options.eventType === '51015' || options.eventType === 'ssf') && 
+      (currentStar === 5 || currentStar === 10 || currentStar === 15);
+    
+    if (is51015Guaranteed) {
+      currentStar++;
+      consecutiveDecreases = 0;
+      continue;
+    }
+
+    // Get modified success rates and roll for outcome
+    const rates = getModifiedSuccessRates(currentStar, options);
+    const outcome = rollOutcome(rates);
+    
+    // Apply outcome
+    if (outcome === 'success') {
+      currentStar++;
+      consecutiveDecreases = 0;
+    } else if (outcome === 'decrease') {
+      currentStar = Math.max(0, currentStar - 1);
+      consecutiveDecreases++;
+    } else if (outcome === 'maintain') {
+      consecutiveDecreases = 0;
+    } else if (outcome === 'destroy') {
+      // Equipment destroyed - use a spare and restart from 12★
+      sparesUsed++;
+      if (sparesUsed <= maxSpares) {
+        currentStar = 12; // Reset to 12★ after boom
+        consecutiveDecreases = 0;
+      }
+    }
+
+    // Safety check
+    if (attempts > 50000) {
+      logger.warn('Simulation with spares exceeded 50000 attempts, terminating');
+      break;
+    }
+  }
+
+  return {
+    success: currentStar >= targetStar,
+    sparesUsed,
+    finalStar: currentStar,
+    totalCost,
+    attempts
+  };
 }
 
 /**

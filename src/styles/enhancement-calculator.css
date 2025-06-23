@@ -1901,11 +1901,12 @@ select.event-select::-ms-expand {
 .item-header {
   display: grid;
   grid-template-columns: 1fr auto;
-  align-items: start;
+  align-items: center; /* Center align for consistent height */
   gap: 1rem;
   padding: 1rem;
   border-bottom: 1px solid var(--border-secondary);
   overflow: visible;
+  min-height: 50px; /* Ensure consistent minimum height */
 }
 
 .item-info {
@@ -1921,14 +1922,14 @@ select.event-select::-ms-expand {
 
 
 .item-cost-badge {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05));
-  border: 1px solid rgba(139, 92, 246, 0.3);
+  background: transparent;
+  border: none; /* Remove purple border since inner parts have their own */
   border-radius: 0.5rem;
   font-size: 0.85rem;
   font-weight: 600;
   white-space: nowrap;
-  box-shadow: 0 2px 4px rgba(139, 92, 246, 0.1);
   min-width: 90px;
+  height: 36px; /* Increased by 2px to compensate for removed border */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1940,7 +1941,7 @@ select.event-select::-ms-expand {
   background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.08));
   border: 1px solid rgba(34, 197, 94, 0.4);
   color: #22c55e;
-  padding: 0.375rem 0.75rem;
+  padding: 0.25rem 0.5rem; /* Reduced padding to fit in 36px height */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1951,6 +1952,8 @@ select.event-select::-ms-expand {
   cursor: help;
   transition: all 0.2s ease;
   position: relative;
+  height: 100%; /* Fill the parent container height */
+  box-sizing: border-box;
 }
 
 .meso-part:hover {
@@ -1962,7 +1965,7 @@ select.event-select::-ms-expand {
   background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.08));
   border: 1px solid rgba(239, 68, 68, 0.4);
   color: #ef4444;
-  padding: 0.375rem 0.75rem;
+  padding: 0.25rem 0.5rem; /* Reduced padding to fit in 36px height */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1973,6 +1976,8 @@ select.event-select::-ms-expand {
   cursor: help;
   transition: all 0.2s ease;
   position: relative;
+  height: 100%; /* Fill the parent container height */
+  box-sizing: border-box;
 }
 
 .boom-part:hover {
@@ -1982,22 +1987,22 @@ select.event-select::-ms-expand {
 
 .item-cost-pending-badge {
   background: var(--bg-tertiary);
-  border: 1px solid var(--border-secondary);
+  border: none; /* Match item-cost-badge border */
   color: var(--text-secondary);
-  padding: 0.375rem 0.75rem;
+  padding: 0.25rem 0.5rem; /* Reduced padding to match meso/boom parts */
   border-radius: 0.5rem;
   font-size: 0.85rem;
   font-style: italic;
   opacity: 0.7;
   white-space: nowrap;
   min-width: 90px;
+  height: 36px; /* Match item-cost-badge height */
   text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
 }
-
-
 
 .item-actions {
   display: flex;
@@ -2006,18 +2011,20 @@ select.event-select::-ms-expand {
 
 .expand-item-button, .remove-item-button {
   background: var(--bg-secondary);
-  border: 1px solid var(--border-secondary);
+  border: none; /* Match item-cost-badge border */
   color: var(--text-secondary);
-  padding: 0.5rem;
+  padding: 0;
   border-radius: 0.5rem;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 35px;
-  height: 35px;
+  width: 36px; /* Match item-cost-badge height */
+  height: 36px; /* Match item-cost-badge height */
   font-size: 0.9rem;
+  flex-shrink: 0; /* Prevent shrinking */
+  box-sizing: border-box;
 }
 
 .expand-item-button:hover {
@@ -2028,7 +2035,6 @@ select.event-select::-ms-expand {
 .remove-item-button:hover {
   background: var(--accent-error);
   color: white;
-  border-color: var(--accent-error);
 }
 
 .item-content {
@@ -2359,8 +2365,6 @@ select.event-select::-ms-expand {
     padding: 0.625rem 1.25rem;
   }
   
-
-  
   /* Mobile global settings adjustments */
   .global-settings-grid {
     grid-template-columns: 1fr;
@@ -2581,8 +2585,6 @@ select.event-select::-ms-expand {
   }
 }
 
-
-
 .item-error-inline {
   margin-top: 8px;
   padding: 6px 10px;
@@ -2612,14 +2614,16 @@ select.event-select::-ms-expand {
 
 .item-name-input {
   background: var(--bg-primary);
-  border: 1px solid var(--border-secondary);
+  border: none; /* Match item-cost-badge border */
   color: var(--text-primary);
-  padding: 6px 8px;
+  padding: 0 8px;
   border-radius: 6px;
   font-size: 13px;
   font-weight: 500;
   width: 130px;
+  height: 36px; /* Match item-cost-badge height */
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .item-name-input:focus {
@@ -2648,15 +2652,17 @@ select.event-select::-ms-expand {
 
 .level-input-inline {
   width: 65px;
-  padding: 6px 8px;
+  height: 36px; /* Match item-cost-badge height */
+  padding: 0 8px;
   background: var(--bg-primary);
-  border: 1px solid var(--border-secondary);
+  border: none; /* Match item-cost-badge border */
   border-radius: 6px;
   color: var(--text-primary);
   font-size: 13px;
   text-align: center;
   font-weight: 500;
   -moz-appearance: textfield; /* Firefox */
+  box-sizing: border-box;
 }
 
 /* Hide spinner arrows in webkit browsers (Chrome, Safari, Edge) */
@@ -2680,14 +2686,16 @@ select.event-select::-ms-expand {
 
 .star-select-inline {
   width: 60px;
-  padding: 6px 8px;
+  height: 36px; /* Match item-cost-badge height */
+  padding: 0 8px;
   background: var(--bg-primary);
-  border: 1px solid var(--border-secondary);
+  border: none; /* Match item-cost-badge border */
   border-radius: 6px;
   color: var(--text-primary);
   font-size: 13px;
   text-align: center;
   font-weight: 500;
+  box-sizing: border-box;
 }
 
 .star-select-inline:focus {
@@ -2710,20 +2718,21 @@ select.event-select::-ms-expand {
 
 .toggle-btn-inline {
   background: var(--bg-secondary);
-  border: 2px solid transparent;
+  border: none; /* Match item-cost-badge border */
   border-radius: 6px;
   padding: 6px 12px;
   cursor: pointer;
   font-size: 13px;
   color: var(--text-secondary);
   transition: all 0.2s ease;
-  height: 34px;
+  height: 36px; /* Match item-cost-badge height */
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   font-weight: 500;
   white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .toggle-btn-inline .toggle-icon {
@@ -2763,11 +2772,12 @@ select.event-select::-ms-expand {
   font-size: 13px;
   font-weight: 600;
   transition: all 0.2s ease;
-  height: 34px;
+  height: 36px; /* Match item-cost-badge height */
   min-width: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
 }
 
 .calculate-item-button-inline:hover:not(:disabled) {
@@ -3245,4 +3255,152 @@ select.event-select::-ms-expand {
     font-size: 0.85rem;
     padding: 0.875rem 1.25rem;
   }
+}
+
+/* ===== SPARES CALCULATOR STYLES ===== */
+
+.spares-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 8px;
+  padding: 0 12px;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  border: none; /* Match item-cost-badge border */
+  height: 36px; /* Match item-cost-badge height */
+  box-sizing: border-box;
+}
+
+.spares-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.spares-input label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.spares-input-field {
+  width: 60px;
+  height: 26px;
+  padding: 0 6px;
+  border: none; /* Match item-cost-badge border */
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+  text-align: center;
+  box-sizing: border-box;
+  -moz-appearance: textfield; /* Remove arrows in Firefox */
+}
+
+/* Remove number input arrows in WebKit browsers */
+.spares-input-field::-webkit-outer-spin-button,
+.spares-input-field::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.spares-input-field:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.1);
+}
+
+
+
+.spares-result {
+  display: flex;
+  align-items: center;
+}
+
+.success-chance {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.08));
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  color: #22c55e;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: help;
+  position: relative;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 52px; /* Fixed width to prevent shifting */
+  justify-content: center; /* Center the content */
+}
+
+.spares-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: normal;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+  pointer-events: none;
+  z-index: 1000;
+  backdrop-filter: blur(8px);
+}
+
+.spares-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: rgba(0, 0, 0, 0.9);
+}
+
+.success-chance:hover .spares-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.spares-pending {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Responsive adjustments for spares container */
+@media (max-width: 768px) {
+  .spares-container {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .spares-input-field {
+    width: 70px;
+  }
+}
+
+.success-chance-placeholder {
+  background: transparent;
+  border: 1px solid transparent;
+  color: transparent;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  /* Same dimensions as .success-chance but invisible */
 }

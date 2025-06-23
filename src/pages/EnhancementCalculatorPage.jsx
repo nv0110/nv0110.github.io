@@ -3,6 +3,7 @@ import { useAuthentication } from '../hooks/useAuthentication';
 import ViewTransitionWrapper from '../components/ViewTransitionWrapper';
 import { 
   calculateStarforceCost, 
+  calculateSuccessProbability,
   getMvpLevelOptions,
   formatMesos 
 } from '../utils/starforceUtils';
@@ -23,10 +24,15 @@ function EnhancementCalculatorPage() {
     document.body.style.overflowY = 'auto';
     document.documentElement.style.overflowY = 'auto';
     
-    // Cleanup function to restore original values
+    // Cleanup function to restore original values and reset scroll position
     return () => {
       document.body.style.overflowY = originalBodyOverflow;
       document.documentElement.style.overflowY = originalHtmlOverflow;
+      
+      // Reset scroll position to top when leaving this page
+      window.scrollTo(0, 0);
+      document.body.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
     };
   }, []);
 
@@ -39,7 +45,6 @@ function EnhancementCalculatorPage() {
   const [targetStar, setTargetStar] = useState(17);
   const [eventType, setEventType] = useState('none');
   const [mvpLevel, setMvpLevel] = useState('none');
-  const [isZeroWeapon, setIsZeroWeapon] = useState(false);
   const [useSafeguard, setUseSafeguard] = useState(false);
   const [useStarCatch, setUseStarCatch] = useState(false);
 
@@ -92,7 +97,6 @@ function EnhancementCalculatorPage() {
         setTargetStar(settings.targetStar || 17);
         setEventType(settings.eventType || 'none');
         setMvpLevel(settings.mvpLevel || 'none');
-        setIsZeroWeapon(settings.isZeroWeapon || false);
         setUseSafeguard(settings.useSafeguard || false);
         setUseStarCatch(settings.useStarCatch || false);
         logger.info('Loaded calculator settings from localStorage');
@@ -137,13 +141,12 @@ function EnhancementCalculatorPage() {
       targetStar,
       eventType,
       mvpLevel,
-      isZeroWeapon,
       useSafeguard,
       useStarCatch
     };
     localStorage.setItem('enhancementCalculator_calculatorSettings', JSON.stringify(calculatorSettings));
     logger.info('Saved calculator settings to localStorage');
-  }, [equipLevel, currentStar, targetStar, eventType, mvpLevel, isZeroWeapon, useSafeguard, useStarCatch]);
+  }, [equipLevel, currentStar, targetStar, eventType, mvpLevel, useSafeguard, useStarCatch]);
 
   // Save global settings to localStorage whenever they change
   useEffect(() => {
@@ -209,9 +212,10 @@ function EnhancementCalculatorPage() {
       equipLevel: 200,
       currentStar: 0,
       targetStar: 17,
-      isZeroWeapon: false,
       useSafeguard: false, // Single safeguard setting
-      calculationResult: null
+      spareCount: 0, // Number of spare equipment copies available
+      calculationResult: null,
+      sparesResult: null // Success probability with spares
     };
 
     setPlannerData(prev => ({
@@ -252,9 +256,11 @@ function EnhancementCalculatorPage() {
                     ? { 
                         ...item, 
                         ...updates,
-                        // Only reset calculation if calculation-relevant fields changed (not name)
+                        // Only reset calculation if calculation-relevant fields changed
+                        // Don't reset for: name-only changes, spareCount-only changes, or when explicitly setting calculationResult
                         ...(updates.calculationResult ? {} : 
-                           (updates.name !== undefined && Object.keys(updates).length === 1) ? {} : 
+                           (updates.name !== undefined && Object.keys(updates).length === 1) ? {} :
+                           (updates.spareCount !== undefined && Object.keys(updates).length === 1) ? {} :
                            { calculationResult: null })
                       }
                     : item
@@ -278,15 +284,14 @@ function EnhancementCalculatorPage() {
         character.items.forEach(item => {
           if (item.equipLevel && item.currentStar !== null && item.targetStar !== null && item.currentStar < item.targetStar) {
             // Inline calculation to avoid dependency issues
-            try {
-              const result = calculateStarforceCost(item.equipLevel, item.currentStar, item.targetStar, {
-                eventType: globalSettings.eventType,
-                mvpLevel: globalSettings.mvpLevel,
-                hasPremium: false,
-                isZeroWeapon: item.isZeroWeapon,
-                useSafeguard: item.useSafeguard,
-                useStarCatch: globalSettings.useStarCatch
-              });
+                          try {
+                const result = calculateStarforceCost(item.equipLevel, item.currentStar, item.targetStar, {
+                  eventType: globalSettings.eventType,
+                  mvpLevel: globalSettings.mvpLevel,
+                  hasPremium: false,
+                  useSafeguard: item.useSafeguard,
+                  useStarCatch: globalSettings.useStarCatch
+                });
 
               // Update the item in our working copy
               updatedData = {
@@ -343,6 +348,94 @@ function EnhancementCalculatorPage() {
       return () => clearTimeout(timeoutId);
     }
   }, [globalSettings, calculateAllItems]);
+
+  const calculateItemSpares = useCallback((characterId, itemId) => {
+    setPlannerData(currentData => {
+      const character = currentData.characters.find(char => char.id === characterId);
+      if (!character) {
+        logger.error('Character not found:', characterId);
+        return currentData;
+      }
+
+      const item = character.items.find(item => item.id === itemId);
+      if (!item) {
+        logger.error('Item not found:', itemId);
+        return currentData;
+      }
+
+      // Validate inputs and spare count
+      if (!item.equipLevel || item.currentStar === null || item.targetStar === null || 
+          item.currentStar >= item.targetStar || !item.spareCount || item.spareCount <= 0) {
+        
+        return {
+          ...currentData,
+          characters: currentData.characters.map(char => 
+            char.id === characterId 
+              ? {
+                  ...char,
+                  items: char.items.map(i => 
+                    i.id === itemId 
+                      ? { ...i, sparesResult: null }
+                      : i
+                  )
+                }
+              : char
+          )
+        };
+      }
+
+      try {
+        const result = calculateSuccessProbability(
+          item.equipLevel, 
+          item.currentStar, 
+          item.targetStar, 
+          item.spareCount, 
+          {
+            eventType: globalSettings.eventType,
+            mvpLevel: globalSettings.mvpLevel,
+            hasPremium: false,
+            useSafeguard: item.useSafeguard,
+            useStarCatch: globalSettings.useStarCatch
+          }
+        );
+
+        return {
+          ...currentData,
+          characters: currentData.characters.map(char => 
+            char.id === characterId 
+              ? {
+                  ...char,
+                  items: char.items.map(i => 
+                    i.id === itemId 
+                      ? { ...i, sparesResult: result }
+                      : i
+                  )
+                }
+              : char
+          )
+        };
+
+      } catch (error) {
+        logger.error('Spares calculation failed for item:', item.name, error);
+        
+        return {
+          ...currentData,
+          characters: currentData.characters.map(char => 
+            char.id === characterId 
+              ? {
+                  ...char,
+                  items: char.items.map(i => 
+                    i.id === itemId 
+                      ? { ...i, sparesResult: { success: false, error: 'Spares calculation failed.' } }
+                      : i
+                  )
+                }
+              : char
+          )
+        };
+      }
+    });
+  }, [globalSettings]);
 
   const calculateItemCost = useCallback((characterId, itemId) => {
     logger.info('calculateItemCost called with:', { characterId, itemId });
@@ -404,7 +497,6 @@ function EnhancementCalculatorPage() {
           eventType: globalSettings.eventType,
           mvpLevel: globalSettings.mvpLevel,
           hasPremium: false,
-          isZeroWeapon: item.isZeroWeapon,
           useSafeguard: item.useSafeguard,
           useStarCatch: globalSettings.useStarCatch
         });
@@ -490,7 +582,6 @@ function EnhancementCalculatorPage() {
           targetStar,
           eventType,
           mvpLevel,
-          isZeroWeapon,
           useSafeguard,
           useStarCatch
         });
@@ -499,7 +590,6 @@ function EnhancementCalculatorPage() {
           eventType,
           mvpLevel,
           hasPremium: false, // Not needed for heroic server
-          isZeroWeapon,
           useSafeguard,
           useStarCatch
         });
@@ -513,14 +603,14 @@ function EnhancementCalculatorPage() {
         setIsCalculating(false);
       }
     }, 100);
-  }, [equipLevel, currentStar, targetStar, eventType, mvpLevel, isZeroWeapon, useSafeguard, useStarCatch]);
+  }, [equipLevel, currentStar, targetStar, eventType, mvpLevel, useSafeguard, useStarCatch]);
 
   // Clear results when inputs change to indicate recalculation needed
   useEffect(() => {
     if (calculationResult) {
       setCalculationResult(null);
     }
-  }, [equipLevel, currentStar, targetStar, eventType, mvpLevel, isZeroWeapon, useSafeguard, useStarCatch]);
+  }, [equipLevel, currentStar, targetStar, eventType, mvpLevel, useSafeguard, useStarCatch]);
 
   // Redirect if not logged in - handled by ProtectedRoute in App.jsx
   if (!isLoggedIn) {
@@ -536,13 +626,7 @@ function EnhancementCalculatorPage() {
 
   // Note: We removed the auto-disable logic since safeguard is still useful for 16→17★ during 5/10/15 events
 
-  // Auto-cap equipment level when Zero weapon is toggled
-  useEffect(() => {
-    if (isZeroWeapon && equipLevel > 150) {
-      setEquipLevel(150);
-      logger.info('Equipment level capped at 150 due to Zero weapon setting');
-    }
-  }, [isZeroWeapon, equipLevel]);
+
 
   // Save mode when it changes
   useEffect(() => {
@@ -600,38 +684,20 @@ function EnhancementCalculatorPage() {
                     <h3 className="section-title">Equipment Settings</h3>
                     
                                     {/* Equipment Level */}
-                <div className="input-group">
-                  <label htmlFor="equip-level">
-                    Equipment Level:
-                    {isZeroWeapon && <span className="level-cap-info"> (Max 150 for Zero weapons)</span>}
-                  </label>
-                  <input
-                    id="equip-level"
-                    type="number"
-                    min="1"
-                    max={isZeroWeapon ? "150" : "300"}
-                    value={equipLevel}
-                    onChange={(e) => {
-                      const newLevel = parseInt(e.target.value) || 1;
-                      const maxLevel = isZeroWeapon ? 150 : 300;
-                      setEquipLevel(Math.min(newLevel, maxLevel));
-                    }}
-                    className="level-input"
-                  />
-                </div>
-                    
-                    {/* Zero Weapon Toggle */}
-                    <div className="toggle-group">
-                      <label className="toggle-label">
-                        <input
-                          type="checkbox"
-                          checked={isZeroWeapon}
-                          onChange={(e) => setIsZeroWeapon(e.target.checked)}
-                          className="toggle-checkbox"
-                        />
-                        <span className="toggle-slider"></span>
-                        <span className="toggle-text">Zero Weapon (Capped at Level 150)</span>
-                      </label>
+                    <div className="input-group">
+                      <label htmlFor="equip-level">Equipment Level:</label>
+                      <input
+                        id="equip-level"
+                        type="number"
+                        min="1"
+                        max="300"
+                        value={equipLevel}
+                        onChange={(e) => {
+                          const newLevel = parseInt(e.target.value) || 1;
+                          setEquipLevel(Math.min(newLevel, 300));
+                        }}
+                        className="level-input"
+                      />
                     </div>
                   </div>
 
@@ -981,12 +1047,7 @@ function EnhancementCalculatorPage() {
                                 <span className="summary-value">15★→16★ & 16★→17★</span>
                               </div>
                             )}
-                            {calculationResult.options.isZeroWeapon && (
-                              <div className="summary-item">
-                                <span className="summary-label">Zero Weapon:</span>
-                                <span className="summary-value">Yes (Capped at 150)</span>
-                              </div>
-                            )}
+
                           </div>
                         </div>
                       </div>
@@ -1068,8 +1129,7 @@ function EnhancementCalculatorPage() {
                         className="calculate-all-button"
                         disabled={plannerData.characters.length === 0}
                       >
-                        <span>🎲</span>
-                        <span>Re-run All Simulations</span>
+                        Recalculate All
                       </button>
                     </div>
                   </div>
@@ -1186,6 +1246,7 @@ function EnhancementCalculatorPage() {
                                       onUpdateItem={updateItem}
                                       onRemoveItem={removeItem}
                                       onCalculate={calculateItemCost}
+                                      onCalculateSpares={calculateItemSpares}
                                       mvpOptions={mvpOptions}
                                       globalSettings={globalSettings}
                                     />
@@ -1216,20 +1277,11 @@ function EnhancementCalculatorPage() {
 }
 
 // Item Card Component for Planner
-function ItemCard({ item, characterId, onUpdateItem, onRemoveItem, onCalculate, mvpOptions, globalSettings }) {
+function ItemCard({ item, characterId, onUpdateItem, onRemoveItem, onCalculate, onCalculateSpares, mvpOptions, globalSettings }) {
   const handleInputChange = (field, value) => {
     if (field === 'equipLevel') {
-      // Cap level at 150 if Zero weapon is enabled
-      const maxLevel = item.isZeroWeapon ? 150 : 300;
-      const cappedValue = Math.min(value, maxLevel);
+      const cappedValue = Math.min(value, 300);
       onUpdateItem(characterId, item.id, { [field]: cappedValue });
-    } else if (field === 'isZeroWeapon') {
-      // If enabling Zero weapon and level > 150, cap it
-      const updates = { [field]: value };
-      if (value && item.equipLevel > 150) {
-        updates.equipLevel = 150;
-      }
-      onUpdateItem(characterId, item.id, updates);
     } else {
       onUpdateItem(characterId, item.id, { [field]: value });
     }
@@ -1246,7 +1298,7 @@ function ItemCard({ item, characterId, onUpdateItem, onRemoveItem, onCalculate, 
       
       return () => clearTimeout(timeoutId);
     }
-  }, [item.equipLevel, item.currentStar, item.targetStar, item.isZeroWeapon, item.useSafeguard, characterId, item.id, onCalculate]);
+  }, [item.equipLevel, item.currentStar, item.targetStar, item.useSafeguard, characterId, item.id, onCalculate]);
 
   // Check if safeguard options should be disabled based on global events
   const is51015Event = globalSettings.eventType === '51015' || globalSettings.eventType === 'ssf';
@@ -1279,14 +1331,11 @@ function ItemCard({ item, characterId, onUpdateItem, onRemoveItem, onCalculate, 
             
             {/* Level Input */}
             <div className="summary-control-inline">
-              <label>
-                Lv.
-                {item.isZeroWeapon && <span className="level-cap-hint" title="Zero weapons capped at 150">(≤150)</span>}
-              </label>
+              <label>Lv.</label>
               <input
                 type="number"
                 min="1"
-                max={item.isZeroWeapon ? "150" : "300"}
+                max="300"
                 value={item.equipLevel}
                 onChange={(e) => handleInputChange('equipLevel', parseInt(e.target.value) || 1)}
                 className="level-input-inline"
@@ -1320,16 +1369,6 @@ function ItemCard({ item, characterId, onUpdateItem, onRemoveItem, onCalculate, 
 
             {/* Toggle Controls */}
             <div className="toggle-controls-inline">
-              <button
-                type="button"
-                className={`toggle-btn-inline ${item.isZeroWeapon ? 'active' : ''}`}
-                onClick={() => handleInputChange('isZeroWeapon', !item.isZeroWeapon)}
-                title="Zero Weapon"
-              >
-                <span className="toggle-icon">⚔️</span>
-                <span className="toggle-text">Zero Weapon</span>
-              </button>
-
               <button
                 type="button"
                 className={`toggle-btn-inline ${item.useSafeguard ? 'active' : ''}`}
@@ -1366,6 +1405,48 @@ function ItemCard({ item, characterId, onUpdateItem, onRemoveItem, onCalculate, 
                 {item.equipLevel && item.currentStar < item.targetStar ? 'Calculating...' : 'Not calculated'}
               </div>
             )}
+
+            {/* Spares Calculator */}
+            <div className="spares-container">
+              <div className="spares-input">
+                <label>Spares:</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="50"
+                  value={item.spareCount || ''}
+                  onChange={(e) => {
+                    const count = parseInt(e.target.value) || 0;
+                    handleInputChange('spareCount', Math.min(count, 50)); // Cap at 50 spares
+                    // Auto-calculate spares probability when count changes
+                    if (count > 0) {
+                      setTimeout(() => onCalculateSpares(characterId, item.id), 100);
+                    }
+                  }}
+                  placeholder="0"
+                  className="spares-input-field"
+                />
+              </div>
+              
+              {/* Always show spares result container to prevent layout jank */}
+              <div className="spares-result">
+                {item.sparesResult?.success && item.spareCount > 0 ? (
+                  <div className="success-chance">
+                    🎯 {Math.min(item.sparesResult.successRate, 99).toFixed(0)}%
+                    <div className="spares-tooltip">
+                      Exact Success Rate: {item.sparesResult.successRate}% chance of reaching {item.targetStar}★ with {item.spareCount} spare{item.spareCount !== 1 ? 's' : ''} (avg: {item.sparesResult.averageSpares} used)
+                    </div>
+                  </div>
+                ) : (
+                  <div className="success-chance">
+                    🎯 0%
+                    <div className="spares-tooltip">
+                      {item.spareCount > 0 ? 'Calculating spare success rate...' : 'Enter number of spare equipment copies to calculate success probability'}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
         <div className="item-actions">
@@ -1412,7 +1493,7 @@ function FormulaReferenceModal({ onClose }) {
                 <p><strong>Where:</strong></p>
                 <ul>
                   <li><code>extraMult</code>: 1.0 (multiplier constant)</li>
-                  <li><code>itemLevel</code>: Equipment level (1-300, capped at 150 for Zero weapons)</li>
+                  <li><code>itemLevel</code>: Equipment level (1-300)</li>
                   <li><code>currentStar</code>: Current star level (0-24)</li>
                   <li><code>starExp</code>: Star exponent (varies by star level)</li>
                   <li><code>divisor</code>: Divisor constant (varies by star level)</li>
