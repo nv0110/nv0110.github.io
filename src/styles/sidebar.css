@@ -784,58 +784,58 @@
   gap: 18px; /* Space between character cards */
   
   /* Scrollable container setup - responsive height */
-  max-height: calc(100vh - 320px); /* Viewport height minus navbar, header, progress, and padding */
+  max-height: calc(100vh - 380px); /* Increased offset for sidebar components */
   overflow-y: auto; /* Enable vertical scrolling */
   overflow-x: hidden; /* Prevent horizontal overflow */
   
-  /* Padding for scrollbar space */
+  /* Padding for scrollbar space and bottom margin */
   padding-right: 4px; /* Small padding for scrollbar */
+  padding-bottom: 20px; /* Bottom padding to ensure last character is fully visible */
 }
 
 /* Empty state message - shown when no characters match filters */
 .sidebar-empty-state {
-  color: #9f9fb8; /* Muted gray text */
-  font-size: 0.9rem; /* Medium text size */
+  padding: 2rem 1rem; /* Internal spacing */
   text-align: center; /* Center-aligned text */
-  padding: 2rem 1rem; /* Generous padding */
-  
-  /* Glass-morphism container styling */
-  background: rgba(255, 255, 255, 0.05); /* Semi-transparent background */
-  backdrop-filter: blur(8px); /* Background blur effect */
-  border-radius: 12px; /* Rounded corners */
-  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border */
+  color: #b39ddb; /* Muted purple text color */
+  font-size: 0.9rem; /* Medium text size */
+  font-style: italic; /* Italic for emphasis */
+  opacity: 0.8; /* Slight transparency */
 }
 
-/* ===== CHARACTER CARDS ===== */
-
-/* Individual character card - clickable character summary */
+/* Character card styling - individual character progress card */
 .sidebar-character-card {
-  /* Glass-morphism container styling */
-  backdrop-filter: blur(12px); /* Background blur effect */
-  -webkit-backdrop-filter: blur(12px); /* Safari compatibility */
+  /* Layout and spacing */
+  padding: 1rem; /* Internal spacing */
   border-radius: 12px; /* Rounded corners */
-  padding: 0.9rem; /* Internal spacing */
+  
+  /* Background and border */
+  background: rgba(45, 39, 70, 0.8); /* Dark purple background */
+  border: 1px solid rgba(162, 89, 247, 0.2); /* Purple border */
+  
+  /* Interactive behavior */
   cursor: pointer; /* Indicate clickable element */
-  transition: all 0.3s ease; /* Smooth hover and selection transitions */
-  position: relative; /* For absolute positioned elements */
-}
-
-/* Character card default state */
-.sidebar-character-card.default {
-  background: rgba(255, 255, 255, 0.05); /* Semi-transparent background */
-  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border */
-  transform: translateX(0); /* Default position */
+  transition: all 0.2s ease; /* Smooth transitions */
+  user-select: none; /* Prevent text selection */
+  
+  /* Visual effects */
+  backdrop-filter: blur(8px); /* Background blur effect */
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
 }
 
-/* Character card hover state */
-.sidebar-character-card.default:hover {
-  background: rgba(255, 255, 255, 0.08); /* Slightly more opaque on hover */
+/* Hover state for character cards */
+.sidebar-character-card:hover {
   transform: translateX(2px); /* Slight right movement */
-  box-shadow: 0 4px 16px rgba(162, 89, 247, 0.1); /* Enhanced purple shadow */
+  box-shadow: 0 4px 16px rgba(162, 89, 247, 0.1); /* Enhanced shadow */
+  background: rgba(45, 39, 70, 0.9); /* Slightly brighter background */
 }
 
-/* Character card selected state - active character */
+/* Default character card state */
+.sidebar-character-card.default {
+  border-color: rgba(162, 89, 247, 0.2); /* Default purple border */
+}
+
+/* Selected character card styling */
 .sidebar-character-card.selected {
   /* Purple gradient background for selected state */
   background: linear-gradient(135deg, rgba(162, 89, 247, 0.25), rgba(128, 90, 213, 0.2));
@@ -852,18 +852,54 @@
   border: 1px solid rgba(159, 122, 234, 0.5); /* Lighter purple for historical */
 }
 
+/* ===== DRAG AND DROP STYLES ===== */
+
+/* Draggable character cards */
+.sidebar-character-card.draggable {
+  cursor: grab; /* Grab cursor to indicate draggable */
+  user-select: none; /* Prevent text selection during drag */
+  -webkit-user-select: none; /* Safari compatibility */
+  -moz-user-select: none; /* Firefox compatibility */
+  -ms-user-select: none; /* IE compatibility */
+}
+
+.sidebar-character-card.draggable:active {
+  cursor: grabbing; /* Grabbing cursor when actively dragging */
+}
+
+/* Character card being dragged */
+.sidebar-character-card.dragging {
+  opacity: 0.5; /* Semi-transparent when being dragged */
+  transform: scale(1.02) rotate(2deg); /* Slightly larger and rotated for visual feedback */
+  box-shadow: 0 8px 32px rgba(162, 89, 247, 0.3); /* Enhanced shadow when dragging */
+  z-index: 1000; /* Bring to front */
+  pointer-events: none; /* Disable pointer events while dragging */
+}
+
+/* Character card with drag hovering over it */
+.sidebar-character-card.drag-over {
+  border: 2px solid rgba(162, 89, 247, 0.8); /* Bright purple border */
+  background: rgba(162, 89, 247, 0.15); /* Purple highlight background */
+  transform: translateX(6px) scale(1.02); /* More pronounced movement and scaling */
+  box-shadow: 0 6px 24px rgba(162, 89, 247, 0.25); /* Enhanced purple glow */
+}
+
 /* Character card header - name and completion status */
 .sidebar-character-header {
   display: flex; /* Horizontal layout */
   justify-content: space-between; /* Space between name and status */
   align-items: center; /* Vertical center alignment */
   margin-bottom: 0.4rem; /* Space below header */
+  gap: 0.5rem; /* Space between elements */
 }
+
+/* Drag handle styles removed - entire card is now draggable */
 
 /* Character name text */
 .sidebar-character-name {
   font-weight: 700; /* Bold text */
   font-size: 1rem; /* Medium text size */
+  flex: 1; /* Take up remaining space */
 }
 
 /* Character name - default state */
@@ -874,6 +910,14 @@
 /* Character name - selected state */
 .sidebar-character-name.selected {
   color: #e6e0ff; /* Brighter purple for selected */
+}
+
+/* Character actions container */
+.sidebar-character-actions {
+  display: flex; /* Horizontal layout */
+  align-items: center; /* Vertical center alignment */
+  gap: 0.5rem; /* Space between action buttons */
+  flex-shrink: 0; /* Don't shrink */
 }
 
 /* Character completion checkmark - shown when all bosses cleared */
@@ -1340,7 +1384,8 @@
   
   .sidebar-character-list {
     gap: 19px;
-    max-height: calc(100vh - 350px);
+    max-height: calc(100vh - 400px);
+    padding-bottom: 20px;
   }
   
   .sidebar-character-card {
@@ -1466,7 +1511,8 @@
   
   .sidebar-character-list {
     gap: 15px;
-    max-height: calc(100vh - 290px);
+    max-height: calc(100vh - 340px);
+    padding-bottom: 20px;
   }
   
   .sidebar-character-card {
@@ -1591,7 +1637,8 @@
   
   .sidebar-character-list {
     gap: 14px;
-    max-height: calc(100vh - 270px);
+    max-height: calc(100vh - 320px);
+    padding-bottom: 20px;
   }
   
   .sidebar-character-card {
@@ -1727,8 +1774,9 @@
   
   .sidebar-character-list {
     gap: 10px;
-    max-height: calc(100vh - 220px);
+    max-height: calc(100vh - 280px);
     padding-right: 2px;
+    padding-bottom: 20px;
   }
   
   .sidebar-character-card {
@@ -1777,15 +1825,30 @@
     padding: 6px;
   }
   
-  .sidebar-character-checkmark {
-    width: 13px;
-    height: 13px;
+  .sidebar-mobile-close {
+    top: 6px;
+    right: 6px;
+    width: 26px;
+    height: 26px;
+  }
+  
+  .sidebar-mobile-fab {
+    bottom: 14px;
+    left: 14px;
+    width: 44px;
+    height: 44px;
+  }
+  
+  .sidebar-mobile-fab-badge {
+    min-width: 16px;
+    height: 16px;
+    font-size: 0.6rem;
   }
   
   .scroll-indicator {
-    width: 26px;
-    height: 26px;
-    bottom: 6px;
+    width: 24px;
+    height: 24px;
+    bottom: 4px;
   }
 }
 
@@ -1873,8 +1936,9 @@
   
   .sidebar-character-list {
     gap: 6px;
-    max-height: calc(91vh - 180px);
+    max-height: calc(91vh - 230px);
     padding-right: 1px;
+    padding-bottom: 20px;
   }
   
   .sidebar-character-card {
@@ -1920,11 +1984,6 @@
     width: 28px;
     height: 28px;
     padding: 4px;
-  }
-  
-  .sidebar-character-checkmark {
-    width: 11px;
-    height: 11px;
   }
   
   .sidebar-mobile-close {

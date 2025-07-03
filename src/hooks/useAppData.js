@@ -1352,6 +1352,85 @@ export function useAppData() {
     }
   };
 
+  // Function to reorder characters
+  const reorderCharacters = async (newCharacterOrder) => {
+    if (!userCode || !isLoggedIn) {
+      setError('Not logged in.');
+      return { success: false, error: 'Not logged in.' };
+    }
+
+    if (!Array.isArray(newCharacterOrder) || newCharacterOrder.length === 0) {
+      setError('Invalid character order provided.');
+      return { success: false, error: 'Invalid character order provided.' };
+    }
+
+    try {
+      setIsLoading(true);
+      setError('');
+
+      const { getCurrentMapleWeekStartDate } = await import('../utils/mapleWeekUtils.js');
+      const { reorderCharactersInWeeklySetup } = await import('../services/userWeeklyDataService.js');
+      
+      const currentWeekStart = getCurrentMapleWeekStartDate();
+      
+      // Call the database service to reorder characters
+      const result = await reorderCharactersInWeeklySetup(
+        userCode,
+        currentWeekStart,
+        newCharacterOrder
+      );
+
+      if (result.success) {
+        // Update local state to reflect the new order
+        const reorderedCharacters = newCharacterOrder.map((characterName, newIndex) => {
+          // Find the character object with this name
+          const character = characterBossSelections.find(char => char.name === characterName);
+          return character ? { ...character, index: newIndex } : null;
+        }).filter(char => char !== null);
+
+        setCharacterBossSelections(reorderedCharacters);
+
+        // Update checked state keys to use new indices
+        const updatedChecked = {};
+        Object.keys(checked).forEach(key => {
+          const [name, oldIndex] = key.split('-');
+          const character = reorderedCharacters.find(char => char.name === name);
+          if (character) {
+            const newKey = `${name}-${character.index}`;
+            updatedChecked[newKey] = checked[key];
+          }
+        });
+        debugSetChecked(updatedChecked);
+
+        // Update selected character index if needed
+        if (selectedCharIdx !== null) {
+          const selectedCharacterName = characterBossSelections[selectedCharIdx]?.name;
+          if (selectedCharacterName) {
+            const newSelectedIndex = reorderedCharacters.findIndex(char => char.name === selectedCharacterName);
+            setSelectedCharIdx(newSelectedIndex !== -1 ? newSelectedIndex : 0);
+          }
+        }
+
+        logger.info('Successfully reordered characters', {
+          newOrder: newCharacterOrder,
+          updatedCharacters: reorderedCharacters.length
+        });
+
+        return { success: true };
+      } else {
+        setError(result.error || 'Failed to reorder characters.');
+        return result;
+      }
+    } catch (err) {
+      logger.error('useAppData: Failed to reorder characters:', err);
+      const errorMessage = 'Failed to reorder characters.';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     // Core character data
     characterBossSelections,
@@ -1419,5 +1498,8 @@ export function useAppData() {
     
     // Combined data loading state
     dataLoadingState,
+
+    // New function
+    reorderCharacters,
   };
 } 

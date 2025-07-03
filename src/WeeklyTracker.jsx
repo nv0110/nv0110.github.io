@@ -22,7 +22,7 @@ import { useAppData } from './hooks/AppDataContext.jsx';
 import { useUserWeeklyData } from './hooks/useUserWeeklyData.js';
 
 function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked, userCode, appWeekKey, showOnboardingIndicators }) {
-  const { lastWeeklyResetTimestamp } = useAppData();
+  const { lastWeeklyResetTimestamp, reorderCharacters } = useAppData();
   const { refreshWeeklyData } = useUserWeeklyData(userCode);
 
   // Helper function to get boss price
@@ -433,6 +433,7 @@ function WeeklyTracker({ characterBossSelections, bossData, checked, setChecked,
           onShowTreasureAnalytics={() => statsManagement.setShowStats(true)}
           characterBossSelections={characterBossSelections}
           showOnboardingIndicators={showOnboardingIndicators}
+          onReorderCharacters={reorderCharacters}
         />
 
         <SidebarToggle 

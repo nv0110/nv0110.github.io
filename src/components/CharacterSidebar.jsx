@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { formatMesoBillions } from '../utils/formatUtils';
 import { useScrollIndicator } from '../hooks/useScrollIndicator';
 import ScrollIndicator from './ScrollIndicator';
+import { logger } from '../utils/logger';
 
 const CharacterSidebar = React.memo(function CharacterSidebar({
   sidebarVisible,
@@ -20,12 +21,18 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
   setShowCharacterPitchedModal,
   onShowTreasureAnalytics,
   characterBossSelections,
-  showOnboardingIndicators
+  showOnboardingIndicators,
+  onReorderCharacters
 }) {
   const [isMobile, setIsMobile] = useState(false);
   const [isVerySmall, setIsVerySmall] = useState(false);
   const [showCharacterProgress, setShowCharacterProgress] = useState(false);
   const [showAccountCrystals, setShowAccountCrystals] = useState(true);
+  
+  // Drag and drop state
+  const [draggedCharacter, setDraggedCharacter] = useState(null);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
   
   // Scroll indicator hook
   const { showIndicator, elementRef } = useScrollIndicator([visibleCharSummaries, sidebarVisible]);
@@ -48,6 +55,16 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
     if (!sidebarVisible) return;
 
     const handleClickOutside = (event) => {
+      // Don't close sidebar if we're in the middle of a drag operation
+      if (isDragging || draggedCharacter) {
+        console.log('CharacterSidebar: Click outside blocked - drag in progress', { 
+          isDragging, 
+          draggedCharacter: draggedCharacter?.name,
+          eventType: event.type 
+        });
+        return;
+      }
+
       // Check if click is on functional UI areas that should not close sidebar
       const isProtectedArea = 
         event.target.closest('.sidebar-scroll') ||
@@ -73,19 +90,193 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
         event.target.closest('.crystal-tracker') ||
         event.target.closest('.character-dropdown') ||
         event.target.closest('.mode-indicator') ||
+        // Draggable elements
+        event.target.closest('.sidebar-character-card[draggable="true"]') ||
         // Any element with click handlers
         event.target.onclick ||
         event.target.getAttribute('onClick');
       
       if (!isProtectedArea) {
+        console.log('CharacterSidebar: Closing sidebar due to outside click');
         setSidebarVisible && setSidebarVisible(false);
       }
     };
 
+    // TEMPORARILY DISABLE click outside during drag operations
+    if (isDragging || draggedCharacter) {
+      console.log('CharacterSidebar: Skipping click outside listener - drag in progress');
+      return;
+    }
+
     // Add listener immediately without timing delays
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [sidebarVisible, setSidebarVisible]);
+  }, [sidebarVisible, setSidebarVisible, isDragging, draggedCharacter]);
+
+  // Drag and drop handlers
+  const handleDragStart = useCallback((e, character) => {
+    console.log('=== DRAG START ===', { 
+      character: character.name,
+      eventTarget: e.target.className,
+      eventType: e.type,
+      isMobile,
+      isVerySmall,
+      isHistoricalWeek
+    });
+
+    // Prevent dragging on mobile or very small screens
+    if (isMobile || isVerySmall) {
+      console.log('CharacterSidebar: Drag prevented - mobile or small screen');
+      e.preventDefault();
+      return false;
+    }
+
+    if (isHistoricalWeek) {
+      console.log('CharacterSidebar: Drag prevented - historical week');
+      e.preventDefault();
+      return false;
+    }
+
+    console.log('CharacterSidebar: Drag start processing...', { 
+      character: character.name, 
+      target: e.target.className,
+      currentTarget: e.currentTarget.className,
+      dataTransfer: e.dataTransfer
+    });
+    
+    try {
+      // Set drag data first - this must be done synchronously in dragstart
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', character.name);
+      
+      // Find the character card and add visual feedback immediately
+      const characterCard = e.target.closest('.sidebar-character-card');
+      if (characterCard) {
+        characterCard.style.opacity = '0.5';
+        console.log('CharacterSidebar: Visual feedback applied to card');
+      }
+      
+      // Delay state updates to avoid interfering with drag
+      setTimeout(() => {
+        setDraggedCharacter(character);
+        setIsDragging(true);
+        console.log('CharacterSidebar: State updated after drag start');
+      }, 0);
+      
+      console.log('CharacterSidebar: Drag start completed successfully');
+      return true;
+    } catch (error) {
+      console.error('CharacterSidebar: Error in drag start:', error);
+      return false;
+    }
+  }, [isMobile, isVerySmall, isHistoricalWeek]);
+
+  const handleDragEnd = useCallback((e) => {
+    console.log('=== DRAG END ===', {
+      eventType: e.type,
+      target: e.target.className,
+      currentTarget: e.currentTarget.className,
+      draggedCharacter: draggedCharacter?.name,
+      isDragging,
+      timeStamp: e.timeStamp
+    });
+    
+    // Reset opacity for the dragged element
+    const characterCard = e.target.closest('.sidebar-character-card');
+    if (characterCard) {
+      characterCard.style.opacity = '1';
+      console.log('CharacterSidebar: Opacity reset for card');
+    }
+    
+    setDraggedCharacter(null);
+    setDragOverIndex(null);
+    setIsDragging(false);
+    
+    console.log('CharacterSidebar: Drag end cleanup completed');
+  }, [draggedCharacter, isDragging]);
+
+  const handleDragOver = useCallback((e, targetCharacter, targetIndex) => {
+    if (!draggedCharacter || draggedCharacter.idx === targetCharacter.idx) {
+      return;
+    }
+    
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverIndex(targetIndex);
+  }, [draggedCharacter]);
+
+  const handleDragLeave = useCallback((e) => {
+    // Only clear drag over if we're leaving the container entirely
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setDragOverIndex(null);
+    }
+  }, []);
+
+  const handleDrop = useCallback(async (e, targetCharacter, targetIndex) => {
+    console.log('CharacterSidebar: Drop event triggered');
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!draggedCharacter || !onReorderCharacters || draggedCharacter.idx === targetCharacter.idx) {
+      console.log('CharacterSidebar: Drop cancelled', { 
+        draggedCharacter: draggedCharacter?.name, 
+        onReorderCharacters: !!onReorderCharacters,
+        sameCharacter: draggedCharacter?.idx === targetCharacter.idx 
+      });
+      setDragOverIndex(null);
+      return;
+    }
+
+    console.log('CharacterSidebar: Processing drop', { 
+      draggedCharacter: draggedCharacter.name, 
+      targetCharacter: targetCharacter.name,
+      targetIndex 
+    });
+
+    logger.debug('CharacterSidebar: Drop', { 
+      draggedCharacter: draggedCharacter.name, 
+      targetCharacter: targetCharacter.name,
+      targetIndex 
+    });
+
+    try {
+      // Create new character order based on the drop
+      const currentOrder = visibleCharSummaries.map(cs => cs.name);
+      const newOrder = [...currentOrder];
+      
+      // Remove dragged character from current position
+      const draggedIndex = newOrder.findIndex(name => name === draggedCharacter.name);
+      if (draggedIndex !== -1) {
+        newOrder.splice(draggedIndex, 1);
+      }
+      
+      // Insert at new position
+      const insertIndex = newOrder.findIndex(name => name === targetCharacter.name);
+      if (insertIndex !== -1) {
+        newOrder.splice(insertIndex, 0, draggedCharacter.name);
+      } else {
+        // If target not found, append at end
+        newOrder.push(draggedCharacter.name);
+      }
+
+      // Call the reorder function
+      const result = await onReorderCharacters(newOrder);
+      
+      if (result.success) {
+        logger.info('CharacterSidebar: Characters reordered successfully');
+      } else {
+        logger.error('CharacterSidebar: Failed to reorder characters', { error: result.error });
+      }
+    } catch (error) {
+      logger.error('CharacterSidebar: Error during character reordering', { error });
+    }
+    
+    setDragOverIndex(null);
+  }, [draggedCharacter, onReorderCharacters, visibleCharSummaries]);
 
   const handlePitchedClick = useCallback((e, character) => {
     e.stopPropagation();
@@ -96,12 +287,17 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
   }, [setSelectedCharIdx, setShowCharacterPitchedModal]);
 
   const handleCharacterSelect = useCallback((idx) => {
+    // Don't select character if we're in a drag operation
+    if (isDragging || draggedCharacter) {
+      return;
+    }
+    
     setSelectedCharIdx(idx);
     // Auto-close sidebar on very small screens after selection
     if (isVerySmall && sidebarVisible && setSidebarVisible) {
       setTimeout(() => setSidebarVisible(false), 300);
     }
-  }, [setSelectedCharIdx, isVerySmall, sidebarVisible, setSidebarVisible]);
+  }, [setSelectedCharIdx, isVerySmall, sidebarVisible, setSidebarVisible, isDragging, draggedCharacter]);
 
   const handleContextMenu = useCallback((e, character) => {
     e.preventDefault();
@@ -128,6 +324,18 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
     const totalCleared = visibleCharSummaries.reduce((sum, char) => sum + char.cleared, 0);
     return { totalPossible, totalCleared };
   }, [visibleCharSummaries]);
+
+  // Debug render state (disabled for performance)
+  // useEffect(() => {
+  //   console.log('CharacterSidebar: Render state', {
+  //     isMobile,
+  //     isVerySmall, 
+  //     isHistoricalWeek,
+  //     sidebarVisible,
+  //     charactersCount: visibleCharSummaries.length,
+  //     dragState: { isDragging, draggedCharacter: draggedCharacter?.name }
+  //   });
+  // }, [isMobile, isVerySmall, isHistoricalWeek, sidebarVisible, visibleCharSummaries.length, isDragging, draggedCharacter]);
 
   return (
     <>
@@ -334,16 +542,24 @@ const CharacterSidebar = React.memo(function CharacterSidebar({
                   {hideCompleted ? 'No characters with bosses left to clear.' : 'No characters found.'}
                 </div>
               ) : (
-                visibleCharSummaries.map(cs => (
+                visibleCharSummaries.map((cs, index) => (
                   <div
                     key={cs.name + '-' + cs.idx}
+                    draggable={!isMobile && !isVerySmall && !isHistoricalWeek}
                     onClick={() => handleCharacterSelect(cs.idx)}
                     onContextMenu={e => handleContextMenu(e, cs)}
+                    onDragStart={(e) => handleDragStart(e, cs)}
+                    onDragEnd={handleDragEnd}
+                    onDragOver={(e) => handleDragOver(e, cs, index)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, cs, index)}
                     className={`sidebar-character-card ${
                       selectedCharIdx === cs.idx
                         ? `selected ${isHistoricalWeek ? 'historical-week' : 'current-week'}`
                         : 'default'
-                    }`}
+                    } ${draggedCharacter?.idx === cs.idx ? 'dragging' : ''} ${
+                      dragOverIndex === index && draggedCharacter?.idx !== cs.idx ? 'drag-over' : ''
+                    } ${!isMobile && !isVerySmall && !isHistoricalWeek ? 'draggable' : ''}`}
                   >
                     <div className="sidebar-character-header">
                       <span className={`sidebar-character-name ${selectedCharIdx === cs.idx ? 'selected' : 'default'}`}>{cs.name}</span>

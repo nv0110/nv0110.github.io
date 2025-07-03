@@ -1042,3 +1042,96 @@ export async function markAllBossesForCharacter(userId, mapleWeekStart, characte
     return { success: false, error: error.message };
   }
 }
+
+/**
+ * Reorder characters in weekly setup by updating their indices
+ * @param {string} userId - User's unique ID  
+ * @param {string} mapleWeekStart - Week start date in 'YYYY-MM-DD' format
+ * @param {Array} newCharacterOrder - Array of character names in the new order
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function reorderCharactersInWeeklySetup(userId, mapleWeekStart, newCharacterOrder) {
+  if (!userId || !mapleWeekStart || !Array.isArray(newCharacterOrder)) {
+    return { success: false, error: 'Missing required parameters.' };
+  }
+  
+  try {
+    // Fetch existing data
+    const fetchResult = await fetchUserWeeklyData(userId, mapleWeekStart);
+    if (!fetchResult.success) {
+      return { success: false, error: fetchResult.error };
+    }
+    
+    const currentData = fetchResult.data || {
+      char_map: {},
+      boss_config: {},
+      weekly_clears: {}
+    };
+    
+    const currentCharMap = currentData.char_map || {};
+    const currentBossConfig = currentData.boss_config || {};
+    const currentWeeklyClears = currentData.weekly_clears || {};
+    
+    // Validate that all characters in newCharacterOrder exist in current data
+    const existingCharacterNames = Object.values(currentCharMap);
+    for (const characterName of newCharacterOrder) {
+      if (!existingCharacterNames.includes(characterName)) {
+        return { success: false, error: `Character '${characterName}' not found in current data.` };
+      }
+    }
+    
+    // Validate that all existing characters are included in the new order
+    if (existingCharacterNames.length !== newCharacterOrder.length) {
+      return { success: false, error: 'New character order must include all existing characters.' };
+    }
+    
+    // Create new mappings with updated indices
+    const newCharMap = {};
+    const newBossConfig = {};
+    const newWeeklyClears = {};
+    
+    newCharacterOrder.forEach((characterName, newIndex) => {
+      const newIndexStr = newIndex.toString();
+      
+      // Find the old index for this character
+      const oldIndex = Object.keys(currentCharMap).find(
+        index => currentCharMap[index] === characterName
+      );
+      
+      if (oldIndex) {
+        // Map character name to new index
+        newCharMap[newIndexStr] = characterName;
+        
+        // Preserve boss configuration for this character
+        newBossConfig[newIndexStr] = currentBossConfig[oldIndex] || '';
+        
+        // Preserve weekly clears for this character
+        newWeeklyClears[newIndexStr] = currentWeeklyClears[oldIndex] || '';
+      }
+    });
+    
+    // Save updated data
+    const saveResult = await saveOrUpdateUserWeeklyData(userId, mapleWeekStart, {
+      char_map: newCharMap,
+      boss_config: newBossConfig,
+      weekly_clears: newWeeklyClears
+    });
+    
+    if (!saveResult.success) {
+      return { success: false, error: saveResult.error };
+    }
+    
+    logger.info('Successfully reordered characters in weekly setup', {
+      userId,
+      mapleWeekStart,
+      oldOrder: existingCharacterNames,
+      newOrder: newCharacterOrder
+    });
+    
+    return { success: true };
+    
+  } catch (error) {
+    logger.error('Unexpected error reordering characters:', error);
+    return { success: false, error: 'Failed to reorder characters.' };
+  }
+}
